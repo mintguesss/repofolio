@@ -1,0 +1,43 @@
+name: repofolio
+description: Inventory every repo you own — deployments, live-URL checks, stale projects, health — and build a portfolio site.
+author: mintguesss
+branding:
+  icon: layers
+  color: blue
+inputs:
+  token:
+    description: Token that can read your repos. GITHUB_TOKEN only sees the current repo; use a fine-grained PAT (read-only Contents + Metadata + Deployments on all repos) to scan everything.
+    required: false
+  config:
+    description: Path to repofolio.config.yml
+    required: false
+  out:
+    description: Output directory (default from config, "out")
+    required: false
+  language:
+    description: en | zh-TW
+    required: false
+  llm:
+    description: Summarise READMEs with Claude (needs ANTHROPIC_API_KEY env)
+    required: false
+  stale-issues:
+    description: Open an issue in this repo for each stale project
+    required: false
+  profile-readme:
+    description: Path to a profile README to update between <!-- repofolio:start --> and <!-- repofolio:end -->
+    required: false
+  site-url:
+    description: Public URL of the showcase site (linked from the profile README block)
+    required: false
+outputs:
+  summary:
+    description: One-line summary
+  site-dir:
+    description: Directory containing the public site (index.html, card.svg)
+  catalog:
+    description: Path to CATALOG.md
+  files:
+    description: Newline-separated list of written files
+runs:
+  using: node24
+  main: dist/action.js

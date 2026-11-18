@@ -1,0 +1,20 @@
+# repofolio hub config — https://github.com/mintguesss/repofolio
+owners: []              # GitHub users/orgs to scan; empty = the token's user
+repos: []               # extra owner/name repos
+exclude: []             # names or owner/name; trailing * wildcard ok
+includeForks: false
+includeArchived: true
+includePrivate: true    # private repos go in CATALOG.md; never on the public site unless showcase: true
+staleDays: 90
+language: en            # en | zh-TW
+urlCheck:
+  enabled: true
+llm:
+  enabled: false        # summarise READMEs with Claude (needs ANTHROPIC_API_KEY secret)
+site:
+  title: ""
+  tagline: ""
+  includePrivate: false
+  links: []             # - { label: LinkedIn, url: https:// }
+issues:
+  stale: true           # open an issue here for each stale project

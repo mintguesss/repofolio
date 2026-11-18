@@ -1,0 +1,47 @@
+{
+  "name": "repofolio",
+  "version": "0.1.0",
+  "description": "Know, showcase and promote every GitHub repo you own: inventory, deployments, URL health, stale detection and an auto-built portfolio.",
+  "type": "module",
+  "bin": {
+    "repofolio": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "files": [
+    "dist",
+    "action.yml",
+    "templates",
+    "examples"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts src/action.ts --bundle --platform=node --format=esm --target=node20 --outdir=dist --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "github",
+    "portfolio",
+    "inventory",
+    "github-action",
+    "developer-tools",
+    "side-projects",
+    "deployments"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

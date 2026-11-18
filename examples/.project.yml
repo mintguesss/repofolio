@@ -1,0 +1,46 @@
+# Example .project.yml — every field is optional.
+status: active
+summary: Self-hosted alarms that plan themselves from tomorrow's calendar
+purpose: Learning FastAPI + Android; I kept oversleeping on early-class days
+tags: [productivity, android, self-hosted]
+started: 2026-06
+showcase: true
+featured: true
+
+links:
+  demo: https://youtu.be/dQw4w9WgXcQ
+  docs: https://asa.example.com/docs
+  other:
+    - { label: Slides, url: https://example.com/asa-slides }
+
+deployments:
+  - name: production
+    provider: fly
+    url: https://asa.fly.dev
+    dashboard: https://fly.io/apps/asa
+    branch: main
+  - name: android
+    provider: play-store
+    url: https://play.google.com/store/apps/details?id=dev.example.asa
+
+# ── (private) never shown on the public site ──
+services:
+  - { name: Supabase, kind: database, plan: free, dashboard: https://supabase.com/dashboard/project/abc }
+  - { name: Resend, kind: email, plan: free }
+
+domains:
+  - { name: asa.example.com, registrar: Cloudflare, expires: 2027-03-01, autoRenew: true }
+
+env:
+  location: "Fly secrets + 1Password › Dev › asa"
+  vars: [SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY]
+
+cost: { monthly: 0, currency: USD, notes: "all free tiers" }
+
+next:
+  - iOS widget
+  - Sync with Google Calendar both ways
+related: [asa-android]
+
+private:
+  notes: Play Console account is the personal one, not the school one.

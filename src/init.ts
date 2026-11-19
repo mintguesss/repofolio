@@ -79,10 +79,24 @@ urlCheck:
 llm:
   enabled: false        # summarise READMEs with Claude (needs ANTHROPIC_API_KEY secret)
 site:
-  title: ""
-  tagline: ""
+  title: ""             # defaults to your GitHub name
+  tagline: ""           # defaults to your GitHub bio
   includePrivate: false
   links: []             # - { label: LinkedIn, url: https:// }
+  hero:
+    roles: []           # typing animation, e.g. [Full-stack developer, ML tinkerer]
+  # sections: [hero, featured, projects, stack, activity, status, timeline]
+  customizer: true      # let visitors open the ⚙ panel
+  theme:
+    preset: cyber       # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
+    background: particles  # particles | grid | matrix | aurora | stars | circuit | none
+    cardStyle: glass    # glass | solid | neon | outline | terminal
+    layout: grid        # grid | bento | list | compact
+    animation: full     # full | subtle | off
 issues:
   stale: true           # open an issue here for each stale project
+# Commit the public site into another repo, e.g. your existing GitHub Pages site.
+# publish:
+#   repo: you/you.github.io
+#   path: projects
 `;

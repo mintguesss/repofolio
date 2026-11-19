@@ -240,3 +240,35 @@ export function looksLikeSecret(s: string): boolean {
   // Variable names are UPPER_SNAKE; long mixed-case random strings are suspicious.
   return s.length >= 24 && /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s) && !/_/.test(s);
 }
+
+const BADGE_RE = /shields\.io|badge|badgen|\/actions\/workflows\/|codecov|travis-ci|circleci|coveralls|deepsource|sonarcloud|vercel\.com\/button|deploy-button|herokucdn|\.svg(\?|$)|img\.youtube|skillicons|readme-stats|github-readme|komarev|visitor/i;
+
+/**
+ * First real image in a README (screenshots, not badges), resolved to an absolute URL.
+ * Relative paths become raw.githubusercontent.com links, so this is only useful for public repos.
+ */
+export function readmeImage(md: string, fullName: string, branch: string): string | undefined {
+  const cleaned = md.replace(/<!--[\s\S]*?-->/g, "").replace(/```[\s\S]*?```/g, "");
+  const found: string[] = [];
+  for (const m of cleaned.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)|<img[^>]+src=["']([^"']+)["']/gi)) {
+    const src = (m[1] ?? m[2] ?? "").trim();
+    if (src) found.push(src);
+  }
+  for (const src of found) {
+    if (BADGE_RE.test(src) || src.startsWith("data:")) continue;
+    if (/^https?:\/\//i.test(src)) {
+      return src.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\//, "https://raw.githubusercontent.com/$1/");
+    }
+    const path = src.replace(/^\.?\//, "").replace(/\?raw=true$/, "");
+    if (!/\.(png|jpe?g|gif|webp|avif)$/i.test(path)) continue;
+    const decode = (seg: string) => {
+      try {
+        return decodeURIComponent(seg);
+      } catch {
+        return seg;
+      }
+    };
+    return `https://raw.githubusercontent.com/${fullName}/${branch}/${path.split("/").map((seg) => encodeURIComponent(decode(seg))).join("/")}`;
+  }
+  return undefined;
+}

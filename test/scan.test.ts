@@ -4,7 +4,7 @@ import { GitHubClient, parseNextLink } from "../src/github.js";
 import { openStaleIssues } from "../src/issues.js";
 import { renderCard, renderProfileSection, spliceProfile } from "../src/render/card.js";
 import { renderCatalog } from "../src/render/markdown.js";
-import { renderSite } from "../src/render/site.js";
+import { buildShowcase, renderSite } from "../src/render/site.js";
 import { ConfigSchema } from "../src/schema.js";
 import { scan } from "../src/scan.js";
 
@@ -68,6 +68,9 @@ links:
 function fakeFetch(): typeof fetch {
   const routes: Record<string, unknown> = {
     "/user": { login: "me" },
+    "/users/me": { login: "me", name: "Me Myself", avatar_url: "https://avatars.githubusercontent.com/u/1?v=4", html_url: "https://github.com/me", bio: "I build things", location: null, blog: "", company: null, followers: 3, public_repos: 2, created_at: daysAgo(900) },
+    "/repos/me/public-app/stats/participation": { all: new Array(52).fill(2), owner: [...new Array(51).fill(1), 5] },
+    "/repos/me/secret/stats/participation": { all: new Array(52).fill(9), owner: new Array(52).fill(9) },
     "/user/repos?affiliation=owner&sort=pushed&per_page=100": [
       repo("public-app", { homepage: "https://public-app.vercel.app" }),
       repo("secret", { private: true, pushed_at: daysAgo(10) }),
@@ -135,12 +138,32 @@ describe("scan", () => {
   it("never leaks private repos or private metadata to the public site, card or profile", async () => {
     const { inv, config } = await runScan();
     const html = renderSite(inv, config);
-    const publicOutputs = [html, renderCard(inv, "en"), renderProfileSection(inv, "en")].join("\n");
+    const publicOutputs = [html, renderCard(inv, "en"), renderProfileSection(inv, "en"), JSON.stringify(buildShowcase(inv, config))].join("\n");
     for (const leak of ["Secret side project", "secret-app.vercel.app", "SUPABASE_SERVICE_ROLE", "1Password", "supabase.com/dashboard", "PUBLIC_ONLY_VAR_NAME", "Vercel env"]) {
       expect(publicOutputs).not.toContain(leak);
     }
     expect(html).toContain("A public thing");
     expect(html).toContain("https://demo.example.com");
+  });
+
+  it("builds showcase data with profile and activity from public repos only", async () => {
+    const { inv, config } = await runScan();
+    expect(inv.profile?.name).toBe("Me Myself");
+    const d = buildShowcase(inv, config);
+    expect(d.projects.map((p) => p.name)).not.toContain("secret");
+    // Only public-app has activity; the private repo's 9/week must not be counted.
+    expect(d.totals.commitsYear).toBe(56);
+    expect(d.totals.commitsWeek).toBe(5);
+    expect(d.projects.find((p) => p.name === "public-app")?.image).toContain("opengraph.githubassets.com/1/me/public-app");
+  });
+
+  it("escapes hostile text in the generated page", async () => {
+    const { inv, config } = await runScan();
+    const pub = inv.repos.find((r) => r.name === "public-app")!;
+    pub.summary = '</script><script>alert(1)</script><img src=x onerror=alert(2)>';
+    const html = renderSite(inv, config);
+    expect(html).not.toContain("<script>alert(1)");
+    expect(html).not.toContain("<img src=x onerror");
   });
 
   it("keeps private details in the private catalog", async () => {

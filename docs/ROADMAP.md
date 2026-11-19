@@ -20,9 +20,19 @@
 
 ## v0.2: showcase and profile (growth loop)
 
+- [x] Animated showcase: hero with typing roles, counters and a terminal; featured, projects, stack, activity, live status and timeline sections
+- [x] 10 theme presets, 7 canvas backgrounds, 5 card styles, 4 layouts, fonts, motion levels, radius, accent
+- [x] Live ⚙ customizer for visitors + "Copy as config"
+- [x] ⌘K command palette, keyboard shortcuts, project detail modal with deep links
+- [x] README screenshot → card cover (falls back to GitHub social preview); `image:` in `.project.yml`
+- [x] GitHub profile + 52-week commit activity per repo
+- [x] Animated neon profile card (sparkline + language bar)
+- [x] `projects.json` and `publish:` to commit the site into an existing Pages repo
+- [x] `repofolio render`: rebuild from `inventory.json` without scanning
+- [ ] Live demo + GIF in the README
 - [ ] Weekly digest: commits across all repos → "what I shipped this week" (LLM), in the catalog and as an issue
-- [ ] Showcase themes (minimal, cards, timeline) + custom CSS
-- [ ] Per-project pages with README rendering and screenshots (`og:image`)
+- [ ] Custom CSS / community theme presets
+- [ ] Per-project pages (`/p/name/index.html`) with rendered README and `og:image`
 - [ ] Card variants: top languages, featured projects, live-status board
 - [ ] Domain expiry from RDAP (no manual `expires`)
 

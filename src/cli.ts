@@ -6,6 +6,7 @@ import { loadConfig, resolveToken } from "./config.js";
 import { GitHubClient } from "./github.js";
 import { HUB_CONFIG, projectTemplate } from "./init.js";
 import { openStaleIssues } from "./issues.js";
+import { publishSite } from "./publish.js";
 import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { writeOutputs, summaryLine } from "./run.js";
 import { scan } from "./scan.js";
@@ -21,6 +22,9 @@ Usage:
   repofolio init      [dir]            Write a pre-filled .project.yml into a local repo
   repofolio init-hub  [dir]            Write repofolio.config.yml + a scheduled GitHub workflow
   repofolio issues    [--dry-run]      Open "stale project" issues in the hub repo (needs issues.repo or GITHUB_REPOSITORY)
+  repofolio render    [--config file] [--out dir] [--lang en|zh-TW]
+                      Rebuild every output from out/inventory.json without re-scanning (for theme tweaks)
+  repofolio publish   [--dry-run]      Commit site/ (index.html, card.svg, projects.json) to the repo in "publish:"
   repofolio profile   <README.md> [--site-url url]
                       Replace the <!-- repofolio:start/end --> block in a profile README
 
@@ -65,6 +69,26 @@ async function main(argv: string[]): Promise<number> {
       console.error(`\n${summaryLine(inv)}`);
       console.error(`GitHub API requests: ${client.requests}${summarizer ? ` · LLM calls: ${summarizer.calls}` : ""}`);
       for (const f of out.files) console.log(f);
+      return 0;
+    }
+    case "render": {
+      const { config } = loadConfig(values.config);
+      if (values.lang === "en" || values.lang === "zh-TW") config.language = values.lang;
+      const outDir = values.out ?? config.output.dir;
+      const inv = JSON.parse(readFileSync(join(outDir, "inventory.json"), "utf8")) as Inventory;
+      const out = writeOutputs(inv, config, outDir);
+      for (const f of out.files) console.log(f);
+      return 0;
+    }
+    case "publish": {
+      const { config } = loadConfig(values.config);
+      if (!config.publish) {
+        console.error("Add a `publish:` block to repofolio.config.yml, e.g.\n  publish:\n    repo: you/you.github.io\n    path: projects");
+        return 1;
+      }
+      const client = new GitHubClient({ token: await resolveToken(), userAgent: `repofolio/${VERSION}` });
+      const res = await publishSite(client, config.publish, join(values.out ?? config.output.dir, "site"), { dryRun: values["dry-run"], log: (m) => console.error(m) });
+      for (const c of res.changed) console.log(c);
       return 0;
     }
     case "init": {

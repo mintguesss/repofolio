@@ -61,3 +61,43 @@
 - [ ] 發佈到 npm，`npx repofolio scan` 可用
 - [ ] README 有截圖和線上 demo
 - [ ] 自己的 profile README 已經在用
+
+## 6. 第二輪調查（2026-11-20）：作品集類工具
+
+| 專案 | ⭐ | 最後推送 | 觀察 |
+|---|---|---|---|
+| imfunniee/gitfolio | ~6.9k | 2022-02 | 「用 GitHub 帳號產生個人網站」的始祖，**已停更近 4 年**，需求還在但沒人接手 |
+| saadpasta/developerFolio | ~6.7k | 2024-12 | 模板型，要 fork 後手改程式碼；星星來自「好看」+「可客製」 |
+| ashutosh1919/masterPortfolio | ~4.2k | 2026-01 | 同上，標語就是 “Complete Customizable” |
+| arifszn/gitprofile | ~2.3k | 2026-11 | 自動同步 GitHub，但主題少、沒有盤點和部署 |
+| magicuidesign/magicui | ~23k | 2026-11 | 動畫元件庫，證明「科技感動畫」本身就很吸引人 |
+| seanwevans/braggard、svandragt/toolhub、MehdiRtal/Gitfolio | 0–1 | 2025–2026 | 最接近的新專案，功能陽春、沒有推廣 |
+
+結論：
+
+- **「自動同步」和「好看、可客製」兩種需求，目前沒有工具同時做好**：
+  - 模板派（developerFolio、masterPortfolio）好看，但要手改程式碼，也不會自動更新
+  - 產生器派（gitfolio、gitprofile）會自動更新，但外觀選擇少，gitfolio 還停更了
+- repofolio 已經把兩邊合在一起：
+  - 每晚自動同步
+  - 10 個主題 × 7 種背景 × 5 種卡片 × 4 種版面，還有即時 ⚙ 面板和「複製成設定檔」
+  - 再加上別人都沒有的盤點、部署和隱私分層
+
+## 7. 已套用的改進（v0.2 雛形）
+
+| 改進 | 對應的受歡迎因素 |
+|---|---|
+| 科技感作品集：粒子／合成波／數位雨／星際／電路／極光背景，3D 傾斜卡片，游標光框，打字動畫，終端機動畫，數字跑動，標題解碼效果 | 「看得到的成果」：截圖和 demo 一眼就吸引人 |
+| 即時自訂面板 + 「複製成設定檔」 | 「可客製」是 developerFolio、masterPortfolio 拿星星的主因 |
+| README 第一張截圖自動變成卡片封面 | 不用額外設定就很好看 |
+| ⌘K 指令面板、鍵盤快捷鍵、隱藏彩蛋 | 開發者喜歡、會想分享 |
+| 動態霓虹個人頁卡片（附 repofolio 字樣） | github-readme-stats 的病毒迴圈 |
+| `projects.json` + `publish` 推進現有網站 | 降低採用門檻：不用換掉原本的個人網站 |
+| `render` 指令：調外觀不用重掃 | 降低試用成本 |
+
+## 8. 接下來還能做的
+
+- 線上 demo：用作者自己的帳號部署一份，README 放連結和 GIF
+- 主題投稿：開放社群送 PR 新增主題（gitprofile、metrics 都靠這個長期成長）
+- 個人頁卡片多款式：語言、上線看板、精選專案
+- 每週成果摘要 → LinkedIn、Dev.to 草稿（原本的行銷規劃）

@@ -57,6 +57,8 @@ export const ProjectMetaSchema = z.object({
   /** One-liner. Overrides the auto/LLM summary. */
   summary: z.string().optional(),
   purpose: z.string().optional(),
+  /** Screenshot / cover image for the showcase. Defaults to the first README image, then GitHub's social preview. */
+  image: url.optional(),
   tags: z.array(z.string()).default([]),
   started: z.string().optional(),
   links: z.object({
@@ -92,6 +94,68 @@ export const ProjectMetaSchema = z.object({
 });
 export type ProjectMeta = z.infer<typeof ProjectMetaSchema>;
 
+export const THEME_PRESETS = ["cyber", "midnight", "matrix", "synthwave", "ocean", "ember", "aurora", "mono", "paper", "daylight"] as const;
+export const BACKGROUNDS = ["particles", "grid", "matrix", "aurora", "stars", "circuit", "none"] as const;
+export const CARD_STYLES = ["glass", "solid", "neon", "outline", "terminal"] as const;
+export const LAYOUTS = ["grid", "bento", "list", "compact"] as const;
+export const FONTS = ["sans", "mono", "display", "system"] as const;
+export const ANIMATIONS = ["full", "subtle", "off"] as const;
+export const SECTIONS = ["hero", "featured", "projects", "stack", "activity", "status", "timeline"] as const;
+
+export const ThemeSchema = z.object({
+  preset: z.enum(THEME_PRESETS).default("cyber"),
+  /** Override the preset's accent, e.g. "#22d3ee". */
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  background: z.enum(BACKGROUNDS).default("particles"),
+  cardStyle: z.enum(CARD_STYLES).default("glass"),
+  layout: z.enum(LAYOUTS).default("grid"),
+  font: z.enum(FONTS).default("sans"),
+  animation: z.enum(ANIMATIONS).default("full"),
+  /** Corner radius in px. */
+  radius: z.number().int().min(0).max(32).default(16),
+  /** Show GitHub social-preview images as card covers. */
+  covers: z.boolean().default(true),
+  cursorGlow: z.boolean().default(true),
+  /** 3D tilt on hover. */
+  tilt: z.boolean().default(true),
+  /** Load Inter / JetBrains Mono / Space Grotesk / Noto Sans TC from Google Fonts. */
+  webFonts: z.boolean().default(true),
+});
+
+export const SiteSchema = z.object({
+  title: z.string().optional(),
+  tagline: z.string().optional(),
+  /** Include private repos that don't set showcase: true. Default false. */
+  includePrivate: z.boolean().default(false),
+  links: z.array(LinkSchema).default([]),
+  theme: ThemeSchema.default(ThemeSchema.parse({})),
+  hero: z.object({
+    /** Lines cycled by the typing animation, e.g. ["Full-stack developer", "ML tinkerer"]. */
+    roles: z.array(z.string()).default([]),
+    /** Overrides the GitHub bio. */
+    intro: z.string().optional(),
+    /** Show the animated terminal next to the hero. */
+    terminal: z.boolean().default(true),
+    avatar: z.boolean().default(true),
+  }).default({ roles: [], terminal: true, avatar: true }),
+  /** Which sections to show, in order. */
+  sections: z.array(z.enum(SECTIONS)).default([...SECTIONS]),
+  /** Let visitors open the ⚙ panel and play with the theme (their choice is saved in their browser). */
+  customizer: z.boolean().default(true),
+  /** Canonical URL of the published site (for og:url and the profile "All projects" link). */
+  url: z.string().url().optional(),
+});
+
+export const PublishSchema = z.object({
+  /** owner/name of the target repo, e.g. you/you.github.io */
+  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/),
+  /** Branch to commit to. Defaults to the repo's default branch. */
+  branch: z.string().optional(),
+  /** Folder inside the target repo, e.g. "public/projects". */
+  path: z.string().default("repofolio"),
+  message: z.string().default("chore: update project showcase (repofolio)"),
+});
+
 export const ConfigSchema = z.object({
   /** GitHub users/orgs whose repos to scan. Defaults to the token's user. */
   owners: z.array(z.string()).default([]),
@@ -114,13 +178,11 @@ export const ConfigSchema = z.object({
     enabled: z.boolean().default(false),
     model: z.string().default("claude-opus-5-5"),
   }).default({ enabled: false, model: "claude-opus-5-5" }),
-  site: z.object({
-    title: z.string().optional(),
-    tagline: z.string().optional(),
-    /** Include private repos that don't set showcase: true. Default false. */
-    includePrivate: z.boolean().default(false),
-    links: z.array(LinkSchema).default([]),
-  }).default({ includePrivate: false, links: [] }),
+  /** Fetch 52-week commit activity per repo (one extra request each). */
+  activity: z.boolean().default(true),
+  site: SiteSchema.default(SiteSchema.parse({})),
+  /** Push the public site into another repo (e.g. your existing GitHub Pages site). */
+  publish: PublishSchema.optional(),
   output: z.object({
     dir: z.string().default("out"),
   }).default({ dir: "out" }),

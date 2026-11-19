@@ -75,9 +75,27 @@ export class GitHubClient {
   }
 
   async post<T>(path: string, body: unknown): Promise<T> {
+    return this.send<T>("POST", path, body);
+  }
+
+  /** GET that tolerates GitHub's "202 Accepted, computing stats" by retrying once. */
+  async getStats<T>(path: string, waitMs = 1500): Promise<T | null> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await this.raw(path);
+      if (res.status === 202) {
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      if (!res.ok) return null;
+      return (await res.json()) as T;
+    }
+    return null;
+  }
+
+  async send<T>(method: "POST" | "PATCH" | "PUT", path: string, body: unknown): Promise<T> {
     this.requests++;
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
-      method: "POST",
+      method,
       headers: {
         Accept: "application/vnd.github+json",
         "User-Agent": this.userAgent,
@@ -86,7 +104,7 @@ export class GitHubClient {
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new GitHubError(`POST ${path} → ${res.status} ${await res.text()}`, res.status);
+    if (!res.ok) throw new GitHubError(`${method} ${path} → ${res.status} ${await res.text()}`, res.status);
     return (await res.json()) as T;
   }
 }
@@ -120,6 +138,21 @@ export interface GhRepo {
   created_at: string;
   pushed_at: string;
   has_pages?: boolean;
+}
+
+export interface GhUser {
+  login: string;
+  name: string | null;
+  avatar_url: string;
+  html_url: string;
+  bio: string | null;
+  location: string | null;
+  blog: string | null;
+  company: string | null;
+  twitter_username?: string | null;
+  followers: number;
+  public_repos: number;
+  created_at: string;
 }
 
 export interface GhContentEntry {

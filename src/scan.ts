@@ -1,11 +1,11 @@
 import { parse as parseYaml } from "yaml";
-import { detectFromFiles, detectStack, inferStatus, mergeDeployments, preferStableUrls, providerFromUrl, readmeExcerpt } from "./detect.js";
-import type { GhContentEntry, GhDeployment, GhDeploymentStatus, GhRepo } from "./github.js";
+import { detectFromFiles, detectStack, inferStatus, mergeDeployments, preferStableUrls, providerFromUrl, readmeExcerpt, readmeImage } from "./detect.js";
+import type { GhContentEntry, GhDeployment, GhDeploymentStatus, GhRepo, GhUser } from "./github.js";
 import { GitHubClient } from "./github.js";
 import { checkHealth, healthScore } from "./health.js";
 import { parseProjectMeta, type Config } from "./schema.js";
 import type { Summarizer } from "./summarize.js";
-import type { DetectedDeployment, Inventory, RepoRecord } from "./types.js";
+import type { DetectedDeployment, Inventory, Profile, RepoRecord } from "./types.js";
 import { checkUrl, pool } from "./urlcheck.js";
 import { VERSION } from "./version.js";
 
@@ -94,11 +94,12 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
   const full = gh.full_name;
   const now = opts.now ?? new Date();
 
-  const [languages, root, readmeJson, release] = await Promise.all([
+  const [languages, root, readmeJson, release, participation] = await Promise.all([
     client.get<Record<string, number>>(`/repos/${full}/languages`),
     client.get<GhContentEntry[]>(`/repos/${full}/contents/`),
     client.get<{ sha: string; content: string; encoding: string }>(`/repos/${full}/readme`),
     client.get<{ tag_name: string; published_at: string; html_url: string }>(`/repos/${full}/releases/latest`),
+    config.activity ? client.getStats<{ owner?: number[] }>(`/repos/${full}/stats/participation`).catch(() => null) : Promise.resolve(null),
   ]);
   const rootNames = (root ?? []).map((e) => e.name);
 
@@ -156,7 +157,12 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
   let readmeText = "";
   if (readmeJson?.content) {
     readmeText = Buffer.from(readmeJson.content, (readmeJson.encoding as BufferEncoding) || "base64").toString("utf8");
-    readme = { length: readmeText.length, sha: readmeJson.sha, excerpt: readmeExcerpt(readmeText) };
+    readme = {
+      length: readmeText.length,
+      sha: readmeJson.sha,
+      excerpt: readmeExcerpt(readmeText),
+      image: gh.private ? undefined : readmeImage(readmeText, full, gh.default_branch),
+    };
   }
 
   // Summary: explicit > LLM > GitHub description > README excerpt
@@ -224,6 +230,7 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     daysSincePush,
     stale,
     showcase,
+    activity: Array.isArray(participation?.owner) && participation.owner.length ? participation.owner : undefined,
   };
   return { ...base, health: [], healthScore: 100 };
 }
@@ -241,6 +248,25 @@ export async function finalize(records: RepoRecord[], config: Config): Promise<v
   }
 }
 
+export async function fetchProfile(client: GitHubClient, login: string): Promise<Profile | undefined> {
+  const u = await client.get<GhUser>(`/users/${login}`).catch(() => null);
+  if (!u) return undefined;
+  return {
+    login: u.login,
+    name: u.name ?? undefined,
+    avatarUrl: u.avatar_url,
+    url: u.html_url,
+    bio: u.bio ?? undefined,
+    location: u.location ?? undefined,
+    blog: u.blog || undefined,
+    company: u.company ?? undefined,
+    twitter: u.twitter_username ?? undefined,
+    followers: u.followers,
+    publicRepos: u.public_repos,
+    createdAt: u.created_at,
+  };
+}
+
 export async function scan(opts: ScanOptions): Promise<Inventory> {
   const log = opts.log ?? (() => {});
   const repos = await listRepos(opts.client, opts.config);
@@ -253,10 +279,13 @@ export async function scan(opts: ScanOptions): Promise<Inventory> {
   log("Checking deployment URLs…");
   await finalize(records, opts.config);
   records.sort((a, b) => Date.parse(b.pushedAt) - Date.parse(a.pushedAt));
+  const owners = [...new Set(records.map((r) => r.owner))];
+  const primary = opts.config.owners[0] ?? owners[0];
   return {
     generatedAt: (opts.now ?? new Date()).toISOString(),
     tool: { name: "repofolio", version: VERSION },
-    owners: [...new Set(records.map((r) => r.owner))],
+    owners,
+    profile: primary ? await fetchProfile(opts.client, primary) : undefined,
     repos: records,
   };
 }

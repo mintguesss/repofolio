@@ -27,7 +27,10 @@ inputs:
     description: Path to a profile README to update between <!-- repofolio:start --> and <!-- repofolio:end -->
     required: false
   site-url:
-    description: Public URL of the showcase site (linked from the profile README block)
+    description: Public URL of the showcase site (linked from the profile README block). Defaults to site.url in the config.
+    required: false
+  publish:
+    description: Commit the public site to the repo in the config's publish block (default true when that block exists). The token needs Contents write on that repo.
     required: false
 outputs:
   summary:
@@ -38,6 +41,8 @@ outputs:
     description: Path to CATALOG.md
   files:
     description: Newline-separated list of written files
+  published:
+    description: Commit SHA created in the publish target (empty if nothing changed)
 runs:
   using: node24
   main: dist/action.js

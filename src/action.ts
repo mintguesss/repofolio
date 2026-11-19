@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { loadConfig } from "./config.js";
 import { GitHubClient } from "./github.js";
 import { openStaleIssues } from "./issues.js";
+import { publishSite } from "./publish.js";
 import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { redact, writeOutputs, summaryLine } from "./run.js";
 import { scan } from "./scan.js";
@@ -57,7 +58,12 @@ async function run() {
   const profile = input("profile-readme");
   if (profile) {
     const before = existsSync(profile) ? readFileSync(profile, "utf8") : "";
-    writeFileSync(profile, spliceProfile(before, renderProfileSection(inv, config.language, { siteUrl: input("site-url") || undefined })));
+    writeFileSync(profile, spliceProfile(before, renderProfileSection(inv, config.language, { siteUrl: input("site-url") || config.site.url })));
+  }
+
+  if (config.publish && bool("publish", true)) {
+    const res = await publishSite(client, config.publish, join(outDir, "site"), { log: (m) => console.log(m) });
+    setOutput("published", res.commit ?? "");
   }
 
   const summaryFile = process.env.GITHUB_STEP_SUMMARY;

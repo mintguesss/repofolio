@@ -50,7 +50,7 @@ export interface RepoRecord {
   languages: Record<string, number>;
   stack: string[];
   latestRelease?: { tag: string; publishedAt: string; url: string };
-  readme?: { length: number; sha: string; excerpt: string };
+  readme?: { length: number; sha: string; excerpt: string; image?: string };
   hasMetaFile: boolean;
   meta: ProjectMeta;
   metaProblems: string[];
@@ -61,14 +61,33 @@ export interface RepoRecord {
   deployments: DetectedDeployment[];
   daysSincePush: number;
   stale: boolean;
+  /** Owner's commits per week for the last 52 weeks (oldest first), from /stats/participation. */
+  activity?: number[];
   health: HealthIssue[];
   healthScore: number;
   showcase: boolean;
+}
+
+/** Public GitHub profile of the primary owner, for the showcase hero. */
+export interface Profile {
+  login: string;
+  name?: string;
+  avatarUrl: string;
+  url: string;
+  bio?: string;
+  location?: string;
+  blog?: string;
+  company?: string;
+  twitter?: string;
+  followers: number;
+  publicRepos: number;
+  createdAt: string;
 }
 
 export interface Inventory {
   generatedAt: string;
   tool: { name: "repofolio"; version: string };
   owners: string[];
+  profile?: Profile;
   repos: RepoRecord[];
 }

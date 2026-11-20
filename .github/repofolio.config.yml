@@ -27,6 +27,7 @@ images:
   ClaudeQuota: https://mintguesss.github.io/personal_web/builds/claude-quota.png
   TAICA_LLM: https://mintguesss.github.io/personal_web/builds/taica-llm.png
   personal_web: https://mintguesss.github.io/personal_web/builds/personal-web-site.png
+  repofolio: https://raw.githubusercontent.com/mintguesss/repofolio/main/docs/screenshots/hero-tech.png
 issues:
   stale: false          # set true to get an issue here for each project idle > staleDays
 # Private admin view: same site + private repos, encrypted with the REPOFOLIO_ADMIN_PASSWORD secret.

@@ -140,25 +140,36 @@ export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, l
   if (!list.length) return "";
   const techOf = (p: PublicProject) => [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
 
-  // Newest first, grouped by year; the client lights the spine as you scroll down.
-  // A single year of history reads better grouped by month.
-  const oneYear = new Set(list.map((p) => new Date(p.created).getFullYear())).size === 1;
-  const groups = new Map<string, PublicProject[]>();
-  for (const p of [...list].reverse()) {
-    const dt = new Date(p.created);
-    const y = oneYear ? fmt(p.created, lang, { month: "short" }) : String(dt.getFullYear());
-    (groups.get(y) ?? groups.set(y, []).get(y)!).push(p);
-  }
-  const item = (p: PublicProject) => `<li class="vt-item" style="--c:${STATUS_COLORS[p.status] ?? "#888"}"><span class="vt-node" aria-hidden="true"></span>
-<a class="vt-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${cover(p, "vt-img")}
-<div class="vt-body"><time datetime="${esc(p.created.slice(0, 10))}">${esc(fmt(p.created, lang, { month: "short", day: "numeric" }))}</time>
-<h3>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
-<div class="vt-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div></div></a></li>`;
-  const body = [...groups.entries()]
-    .map(([y, ps]) => `<div class="vt-grp"><div class="vt-yr"><b>${y}</b><small>${oneYear ? `${new Date(ps[0]!.created).getFullYear()} · ` : ""}${ps.length} ${esc(s.stat.projects)}</small></div><ol>${ps.map(item).join("")}</ol></div>`)
-    .join("");
+  // Newest first on a centre axis; the client rolls it downward in a loop (cards alternate sides).
+  const ordered = [...list].reverse();
+  const year = (iso: string) => String(new Date(iso).getFullYear());
+  const item = (p: PublicProject, i: number, clone: boolean) => {
+    const side = i % 2 ? "R" : "L";
+    return `<li class="tlr-item ${side}${clone ? " clone" : ""}" data-i="${i}" style="--c:${STATUS_COLORS[p.status] ?? "#888"}"${clone ? ' aria-hidden="true"' : ""}>
+<time class="tlr-date" datetime="${esc(p.created.slice(0, 10))}"><b>${esc(fmt(p.created, lang, { month: "short" }))}</b><span>${esc(fmt(p.created, lang, { day: "numeric" }).replace(/\D+$/, ""))}</span><small>${year(p.created)}</small></time>
+<span class="tlr-node" aria-hidden="true"></span>
+<a class="tlr-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}"${clone ? ' tabindex="-1"' : ""}>${cover(p, "tlr-img")}
+<div class="tlr-body"><time>${esc(fmt(p.created, lang, { year: "numeric", month: "short", day: "numeric" }))}</time><h3><span class="dot st-${p.status}"></span>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
+<div class="tlr-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div></div></a></li>`;
+  };
+  const n = ordered.length;
+  // Three copies (clone · real · clone) so the roll loops seamlessly in both directions.
+  const items = [0, 1, 2].map((k) => ordered.map((p, i) => item(p, i + k * n, k !== 1)).join("")).join("");
 
   return `<section id="timeline" class="sec">${head}
-<div class="vt" id="vt"><div class="vt-spine" aria-hidden="true"><i class="vt-fill"></i></div>${body}</div>
+<div class="tlr" id="tlr" data-n="${n}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
+<div class="tlr-stage">
+<div class="tlr-axis" aria-hidden="true"><i></i></div>
+<div class="tlr-lens" aria-hidden="true"><i></i></div>
+<ol class="tlr-track">${items}</ol>
+</div>
+<div class="tlr-bar">
+<button type="button" data-tlr="prev" aria-label="previous">▲</button>
+<button type="button" data-tlr="play" aria-label="play / pause" aria-pressed="true"><span class="i-pause">❚❚</span><span class="i-play">▶</span></button>
+<button type="button" data-tlr="next" aria-label="next">▼</button>
+<span class="tlr-count"><b>01</b> / ${String(n).padStart(2, "0")}</span>
+<span class="tlr-now"></span>
+</div>
+</div>
 </section>`;
 }

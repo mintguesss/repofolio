@@ -31,7 +31,7 @@ jobs:
       # This repo is public, so its logs are too: repofolio masks private repo names, the public
       # pages never include private repos, and the admin page is encrypted with the password.
       - id: repofolio
-        uses: mintguesss/repofolio@v0.6.0
+        uses: mintguesss/repofolio@v0.7.0
         with:
           token: ${{ secrets.REPOFOLIO_TOKEN || github.token }}
           config: .github/repofolio.config.yml

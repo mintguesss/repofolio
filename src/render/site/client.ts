@@ -453,42 +453,97 @@ export function clientMain(): void {
     el.style.setProperty("--my", e.clientY - r.top + "px");
   }));
 
-  /* ───────── vertical timeline: the spine fills as you scroll, nodes light up, covers drift ───────── */
-  const vt = $("#vt");
-  if (vt) {
-    const items = $$(".vt-item", vt);
-    const grps = $$(".vt-grp", vt);
-    let ticking = false;
-    const upd = () => {
-      ticking = false;
-      if (C.multi && currentPage !== "timeline") return;
-      const r = vt.getBoundingClientRect();
-      if (!r.height || r.bottom < 0 || r.top > innerHeight) return;
-      const H = innerHeight, mid = H * 0.55;
-      const p = Math.max(0, Math.min(1, (mid - r.top) / r.height));
-      vt.style.setProperty("--p", p.toFixed(4));
-      const tip = r.top + p * r.height;
-      const full = motion() === "full";
-      let best = null, bd = Infinity;
-      for (const it of items) {
-        const b = it.getBoundingClientRect();
-        if (b.top < H * 0.92) it.classList.add("in");
-        it.classList.toggle("lit", b.top + 24 <= tip + 1);
-        const dd = Math.abs(b.top + b.height / 2 - mid);
-        if (dd < bd) { bd = dd; best = it; }
-        if (full && b.bottom > 0 && b.top < H) {
-          const img = it.querySelector(".vt-img img");
-          if (img) img.style.setProperty("--py", (-15 * Math.max(0, Math.min(1, (H - b.top) / (H + b.height)))).toFixed(2) + "%");
-        }
-      }
-      for (const it of items) it.classList.toggle("cur", it === best);
-      for (const g of grps) g.classList.toggle("cur", !!best && g.contains(best));
-    };
-    const req = () => { if (!ticking) { ticking = true; requestAnimationFrame(upd); } };
-    addEventListener("scroll", req, { passive: true });
-    addEventListener("resize", req);
-    addEventListener("rf:page", () => setTimeout(req, 50));
-    req();
+  /* ───────── timeline: centre axis that rolls downward on its own and loops ───────── */
+  const tlr = $("#tlr");
+  if (tlr) {
+    const stage = $(".tlr-stage", tlr), track = $(".tlr-track", tlr), lens = $(".tlr-lens", tlr);
+    const items = $$(".tlr-item", tlr);
+    const n = Number(tlr.dataset.n) || 0;
+    const count = $(".tlr-count b", tlr), nowEl = $(".tlr-now", tlr), playBtn = $('[data-tlr="play"]', tlr);
+    const DUR = 3600;
+    let cur = n, elapsed = 0, last = 0, raf = 0, hover = false, playing = true, hold = 0, wheelAt = 0;
+    const isStatic = () => motion() === "off" || n < 2;
+    const visible = () => (!C.multi || currentPage === "timeline") && !document.hidden;
+    function place(i, instant) {
+      const it = items[i];
+      if (!it || !stage.clientHeight) return;
+      if (instant) tlr.classList.add("snapping");
+      track.style.setProperty("--ty", stage.clientHeight / 2 - (it.offsetTop + it.offsetHeight / 2) + "px");
+      items.forEach((el, k) => { const d = Math.abs(k - i); el.classList.toggle("on", d === 0); el.classList.toggle("near", d === 1); });
+      const real = i % n;
+      count.textContent = String(real + 1).padStart(2, "0");
+      const t = $(".tlr-date", items[real]);
+      if (nowEl && t) nowEl.textContent = $("b", t).textContent + " " + $("small", t).textContent;
+      if (instant) { void track.offsetHeight; requestAnimationFrame(() => tlr.classList.remove("snapping")); }
+    }
+    // Items are clone · real · clone; after rolling into a clone, jump back to the same item in the middle copy.
+    let snapT = 0;
+    function go(i) {
+      elapsed = 0;
+      cur = Math.max(0, Math.min(3 * n - 1, i));
+      place(cur);
+      clearTimeout(snapT);
+      snapT = setTimeout(() => {
+        if (cur >= 2 * n) cur -= n; else if (cur < n) cur += n; else return;
+        place(cur, true);
+      }, 1000);
+    }
+    function loop(t) {
+      raf = 0;
+      if (!playing || isStatic() || !visible()) { last = 0; return; }
+      if (last && !hover && t > hold) elapsed += t - last;
+      last = t;
+      lens.style.setProperty("--p", Math.min(1, elapsed / DUR).toFixed(3));
+      if (elapsed >= DUR) go(cur + 1);
+      raf = requestAnimationFrame(loop);
+    }
+    const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
+    const step = (d) => { hold = performance.now() + 4000; go(cur + d); kick(); };
+    const setPlaying = (v) => { playing = v; playBtn.setAttribute("aria-pressed", String(v)); tlr.classList.toggle("paused", !v); if (v) kick(); };
+    $('[data-tlr="prev"]', tlr).addEventListener("click", () => step(-1));
+    $('[data-tlr="next"]', tlr).addEventListener("click", () => step(1));
+    playBtn.addEventListener("click", () => setPlaying(!playing));
+    stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
+    stage.addEventListener("pointerleave", () => { hover = false; });
+    stage.addEventListener("wheel", (e) => {
+      if (isStatic() || Math.abs(e.deltaY) < 4) return;
+      e.preventDefault();
+      const now = performance.now();
+      if (now - wheelAt < 550) return;
+      wheelAt = now;
+      step(e.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
+    let y0 = null, dragged = false;
+    stage.addEventListener("pointerdown", (e) => { y0 = e.clientY; dragged = false; });
+    stage.addEventListener("pointerup", (e) => {
+      if (y0 != null && Math.abs(e.clientY - y0) > 40 && !isStatic()) { dragged = true; step(e.clientY < y0 ? 1 : -1); }
+      y0 = null;
+    });
+    // A click on a card that isn't centred brings it to the centre; a click on the centred card opens it.
+    stage.addEventListener("click", (e) => {
+      const card = e.target.closest(".tlr-card");
+      if (dragged) { e.preventDefault(); e.stopPropagation(); dragged = false; return; }
+      if (!card || isStatic()) return;
+      const li = card.parentElement;
+      if (li.classList.contains("on")) return;
+      e.preventDefault(); e.stopPropagation();
+      hold = performance.now() + 4000;
+      go(Number(li.dataset.i));
+      kick();
+    }, true);
+    tlr.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") { step(1); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { step(-1); e.preventDefault(); }
+      else if (e.key === " " && e.target === tlr) { setPlaying(!playing); e.preventDefault(); }
+    });
+    const refresh = () => { tlr.classList.toggle("static", isStatic()); if (!isStatic()) { place(cur, true); kick(); } };
+    addEventListener("rf:page", () => setTimeout(refresh, 30));
+    addEventListener("resize", () => { if (!isStatic()) place(cur, true); });
+    // Web fonts and line wraps change card heights after load; keep the current card centred.
+    if (window.ResizeObserver) new ResizeObserver(() => { if (!isStatic()) place(cur, true); }).observe(track);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!isStatic()) place(cur, true); });
+    document.addEventListener("visibilitychange", kick);
+    refresh();
   }
 
   /* ───────── tilt + glow follow + magnetic ───────── */

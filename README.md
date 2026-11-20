@@ -6,7 +6,7 @@ You have 20+ repos. Which ones are live? Where is each one deployed? Which Verce
 
 [繁體中文說明](README.zh-TW.md)
 
-<p align="center"><img src="docs/screenshots/hero-paper.jpg" alt="repofolio showcase: default paper theme" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="cyber theme" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-simple.jpg" alt="repofolio showcase: simple mode (default)" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="tech mode, cyber preset" width="49%"></p>
 <p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="project grid, aurora background" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="live customizer, matrix theme" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="animated profile card"></p>
 
@@ -36,23 +36,28 @@ You have 20+ repos. Which ones are live? Where is each one deployed? Which Verce
 
 ## The showcase site
 
-One self-contained `index.html` (no build step, no framework, works on GitHub Pages) generated from your repos:
+One self-contained `index.html` (no build step, no framework, works on GitHub Pages) generated from your repos. It has two styles you (and visitors) can switch between:
 
-- **Hero**: your avatar in a spinning neon ring, a typing animation of your roles, animated counters (projects, live, stars, languages, commits/year) and a terminal that "types out" the scan
-- **Featured / all projects**: cards with the README's first screenshot (or GitHub's social preview) as a cover, 3D tilt, a glow border that follows the cursor, live-status pulse, tech icons and a 26-week commit sparkline
-- **Search, filters and sorting**: full-text search, status filters, tech chips (multi-select), sort by featured/stars/updated/newest/name, 4 layouts (grid, bento, list, compact) with View Transitions
-- **Project detail modal** with deep links (`#p/name`): cover, language bar, deployments with response time, 52-week activity, all links
-- **Tech stack**: animated language bars and an icon cloud (click a tech to filter projects)
-- **Activity**: commits per week across all projects for the last year, busiest week, top repos
-- **Live status board**: every public deployment, up/down, latency
+- **Simple** (default): clean typography, black/white with one accent, light/dark following the system, no effects. Looks like a well-made personal site.
+- **Tech**: 10 neon presets, canvas backgrounds (particles, synthwave grid, matrix rain, starfield, circuit, aurora), glow, 3D tilt, cursor light, a typing hero and a terminal that "types out" the scan.
+
+Pages:
+
+- **Home**: who you are, recently updated projects, featured work, and quick links
+- **Projects**: search, status filters, a collapsible tech filter, sorting and 4 layouts (grid, bento, list, compact). Cards show status, summary, tech, a 26-week commit sparkline and links. Click a card for a detail view with a deep link (`#/p/name`)
+- **Stats**:
+  - counts: projects, live, active, stars, commits/year, languages
+  - commits per week for the last year, plus the most active repos
+  - language share and a tech cloud (click to filter)
+  - a status donut, hosting providers and projects started per year
+  - a live status board for every public deployment
 - **Timeline** of when each project started
-- **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a hidden Konami code
-- **Live customizer (⚙)**: visitors can play with the theme; you can click "Copy as config" and paste the result into `repofolio.config.yml`
-- Respects `prefers-reduced-motion`, keyboard accessible, no horizontal scroll down to 375px
+
+Also included: a **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a **live customizer (⚙)**. The customizer groups its options: style, colours and layout come first, and all tech effects sit in one "Effects" group. "Copy as config" gives you YAML to paste into `repofolio.config.yml`. The site respects `prefers-reduced-motion`, is keyboard accessible and has no horizontal scroll down to 375px.
 
 ### Customization
 
-Everything is set in `repofolio.config.yml` under `site:`. All options can also be tried live in the ⚙ panel.
+Everything is set in `repofolio.config.yml` under `site:`, and every option can be tried live in the ⚙ panel.
 
 ```yaml
 site:
@@ -62,27 +67,30 @@ site:
   links:
     - { label: LinkedIn, url: https://www.linkedin.com/in/you }
   hero:
-    roles: [Full-stack developer, ML tinkerer, Open-source enjoyer]   # typing animation
+    roles: [Full-stack developer, ML tinkerer]   # shown as one line (simple) or typed out (tech)
     intro: ""              # overrides the GitHub bio
-    terminal: true
+    terminal: true         # tech mode
     avatar: true
-  sections: [hero, featured, projects, stack, activity, status, timeline]   # order + which to show
-  singlePage: false        # false = separate pages (Home, Projects, Stack, …); true = one long page
+  sections: [hero, featured, projects, stats, status, timeline]   # order + which to show
+  singlePage: false        # true = everything on one long page
   customizer: true         # show the ⚙ panel to visitors
-  theme:                   # defaults below are the calm "paper" look; turn things up as you like
-    preset: paper          # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
-    accent: "#c2410c"      # optional, overrides the preset's accent
-    bgColor: "#fbfaf7"     # optional, overrides the page background; text colour adapts
-    background: none       # particles | grid | matrix | aurora | stars | circuit | none
-    cardStyle: solid       # glass | solid | neon | outline | terminal
+  theme:
+    mode: simple           # simple | tech
+    scheme: auto           # simple mode: auto | light | dark
+    accent: "#2563eb"      # optional
+    bgColor: "#fafafa"     # optional page background; text colour adapts
     layout: grid           # grid | bento | list | compact
     font: sans             # sans | mono | display | system
-    animation: subtle      # full | subtle | off
-    glow: soft             # none | soft | strong
     radius: 16             # 0–32 px
+    # ── tech mode only ──
+    preset: cyber          # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
+    background: particles  # particles | grid | matrix | aurora | stars | circuit | none
+    cardStyle: glass       # glass | solid | neon | outline | terminal
+    animation: full        # full | subtle | off
+    glow: soft             # none | soft | strong
     covers: true           # README screenshot / social preview as card cover
-    cursorGlow: false
-    tilt: false
+    cursorGlow: true
+    tilt: true
     webFonts: true         # Inter, JetBrains Mono, Space Grotesk, Noto Sans TC from Google Fonts
 ```
 

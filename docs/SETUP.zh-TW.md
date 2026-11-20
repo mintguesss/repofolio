@@ -54,7 +54,7 @@ site:
   links:
     - { label: LinkedIn, url: https://www.linkedin.com/in/你的帳號 }
   theme:
-    preset: paper        # 預設是樸素的 paper；想要科技感可以改成 cyber、synthwave…
+    mode: simple         # 簡潔模式；想要科技感改成 tech
 ```
 
 **`.github/workflows/repofolio.yml`**：直接下載範本

@@ -12,7 +12,7 @@ export function clientMain(): void {
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const KEY = "repofolio:theme:v1";
+  const KEY = "repofolio:theme:v2";
 
   /* ───────── settings ───────── */
   let st = Object.assign({}, C.defaults);
@@ -30,26 +30,35 @@ export function clientMain(): void {
       else localStorage.removeItem(KEY);
     } catch (e) {}
   };
-  const motion = () => (reduceMotion ? "off" : st.animation);
+  const simple = () => st.mode === "simple";
+  // Simple mode switches every effect off (mirrors effectiveTheme() in index.ts).
+  const eff = () => (simple()
+    ? Object.assign({}, st, { background: "none", cardStyle: "simple", animation: st.animation === "off" ? "off" : "subtle", glow: "none", cursorGlow: false, tilt: false, covers: false })
+    : st);
+  const motion = () => (reduceMotion ? "off" : eff().animation);
 
   function applyTheme() {
-    body.dataset.preset = st.preset;
-    body.dataset.bg = st.background;
-    body.dataset.card = st.cardStyle;
-    body.dataset.layout = st.layout;
-    body.dataset.font = st.font;
+    const e = eff();
+    body.dataset.mode = st.mode;
+    body.dataset.scheme = st.scheme;
+    body.dataset.preset = e.preset;
+    body.dataset.bg = e.background;
+    body.dataset.card = e.cardStyle;
+    body.dataset.layout = e.layout;
+    body.dataset.font = e.font;
     body.dataset.anim = motion();
-    body.dataset.covers = String(st.covers);
-    body.dataset.glow = String(st.cursorGlow);
-    body.dataset.tilt = String(st.tilt);
-    body.dataset.fx = st.glow;
+    body.dataset.covers = String(e.covers);
+    body.dataset.glow = String(e.cursorGlow);
+    body.dataset.tilt = String(e.tilt);
+    body.dataset.fx = e.glow;
     applyBg();
     body.style.setProperty("--accent", st.accent);
     body.style.setProperty("--radius", st.radius + "px");
     const meta = $('meta[name="theme-color"]');
     if (meta) meta.content = getComputedStyle(body).getPropertyValue("--bg").trim();
     $$("#layout-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layout === st.layout)));
-    bg.start(st.background);
+    syncRoles();
+    bg.start(e.background);
     syncCustomizer();
   }
   // Custom background colour: mirrors bgColorVars() in index.ts.
@@ -72,13 +81,19 @@ export function clientMain(): void {
     };
     for (const k in v) body.style.setProperty(k, v[k]);
   }
+  const defaultAccent = () => (simple() ? C.simpleAccent : C.presetAccents[st.preset]);
   function set(patch, silent) {
-    if (patch.preset && !("accent" in patch)) patch.accent = C.presetAccents[patch.preset];
+    const wasDefault = st.accent === defaultAccent();
     if (patch.preset && !("bgColor" in patch)) patch.bgColor = undefined;
+    if (patch.mode && patch.mode !== st.mode && !("bgColor" in patch)) patch.bgColor = undefined;
     Object.assign(st, patch);
+    // Keep the accent following the mode / preset unless the visitor picked one.
+    if (!("accent" in patch) && (patch.preset || patch.mode) && wasDefault) st.accent = defaultAccent();
+    if (patch.preset && !("accent" in patch)) st.accent = C.presetAccents[patch.preset];
     save();
     applyTheme();
     if (!silent && patch.preset) toast(`${S.theme}: ${patch.preset}`);
+    if (!silent && patch.mode) toast(`${S.mode}: ${S.modes[patch.mode]}`);
   }
 
   /* ───────── background canvas ───────── */
@@ -365,20 +380,29 @@ export function clientMain(): void {
 
   /* ───────── hero: typing roles + terminal ───────── */
   const roleEl = $("#role");
-  if (roleEl) {
-    let roles = [];
-    try { roles = JSON.parse(roleEl.dataset.roles || "[]"); } catch (e) {}
-    if (roles.length > 1 && motion() !== "off") {
-      let ri = 0, ci = roles[0].length, del = true;
-      const tick = () => {
-        const r = roles[ri];
-        if (del) { ci--; if (ci <= 0) { del = false; ri = (ri + 1) % roles.length; } }
-        else { ci++; if (ci >= roles[ri].length) { del = true; roleEl.textContent = roles[ri]; return setTimeout(tick, 1800); } }
-        roleEl.textContent = (del ? r : roles[ri]).slice(0, Math.max(0, ci));
-        setTimeout(tick, del ? 35 : 70);
-      };
-      setTimeout(tick, 2200);
+  let roles = [];
+  try { roles = JSON.parse((roleEl && roleEl.dataset.roles) || "[]"); } catch (e) {}
+  let typingTimer = 0, typingGen = 0;
+  // Simple mode: all roles on one quiet line. Tech mode: typing animation.
+  function syncRoles() {
+    if (!roleEl) return;
+    clearTimeout(typingTimer);
+    const gen = ++typingGen;
+    if (simple() || motion() === "off" || roles.length < 2) {
+      roleEl.textContent = simple() ? roles.join(" · ") : roles[0] || "";
+      return;
     }
+    roleEl.textContent = roles[0];
+    let ri = 0, ci = roles[0].length, del = true;
+    const tick = () => {
+      if (gen !== typingGen) return;
+      const r = roles[ri];
+      if (del) { ci--; if (ci <= 0) { del = false; ri = (ri + 1) % roles.length; } }
+      else { ci++; if (ci >= roles[ri].length) { del = true; roleEl.textContent = roles[ri]; typingTimer = setTimeout(tick, 1800); return; } }
+      roleEl.textContent = (del ? r : roles[ri]).slice(0, Math.max(0, ci));
+      typingTimer = setTimeout(tick, del ? 35 : 70);
+    };
+    typingTimer = setTimeout(tick, 2200);
   }
   const term = $("#term");
   if (term) {
@@ -424,7 +448,7 @@ export function clientMain(): void {
       const x = e.clientX - r.left, y = e.clientY - r.top;
       card.style.setProperty("--mx", x + "px");
       card.style.setProperty("--my", y + "px");
-      if (st.tilt && motion() === "full" && e.pointerType === "mouse") {
+      if (eff().tilt && motion() === "full" && e.pointerType === "mouse") {
         card.style.setProperty("--rx", ((0.5 - y / r.height) * 7).toFixed(2) + "deg");
         card.style.setProperty("--ry", ((x / r.width - 0.5) * 9).toFixed(2) + "deg");
       }
@@ -485,8 +509,21 @@ export function clientMain(): void {
     const on = force != null ? force : !F.tech.has(t);
     if (on) F.tech.add(t); else F.tech.delete(t);
     $$("#tech-filter .chip").forEach((c) => c.setAttribute("aria-pressed", String(F.tech.has(c.dataset.tech))));
+    syncTechToggle(F.tech.size > 0);
     runFilter();
   }
+  const techToggle = $("#tech-toggle"), techBox = $("#tech-filter");
+  function syncTechToggle(open) {
+    if (!techToggle) return;
+    if (open) { techBox.hidden = false; techToggle.setAttribute("aria-expanded", "true"); }
+    const c = $("#tech-count");
+    if (c) c.textContent = F.tech.size ? String(F.tech.size) : "";
+  }
+  if (techToggle) techToggle.addEventListener("click", () => {
+    const open = techBox.hidden;
+    techBox.hidden = !open;
+    techToggle.setAttribute("aria-expanded", String(open));
+  });
   $$("#tech-filter .chip").forEach((c) => c.addEventListener("click", () => toggleTech(c.dataset.tech)));
   $$(".cloud .orb").forEach((o) => o.addEventListener("click", () => {
     F.tech.clear();
@@ -568,7 +605,7 @@ export function clientMain(): void {
       : "";
     const fmt = (iso) => { const d = new Date(iso); return isNaN(d) ? esc(iso) : d.toLocaleDateString(C.lang === "zh-TW" ? "zh-TW" : "en-US", { year: "numeric", month: "short", day: "numeric" }); };
     $("#m-body").innerHTML = `
-      <div class="m-cover">${p.image && st.covers ? `<img src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</div>
+      <div class="m-cover">${p.image && (simple() || st.covers) ? `<img src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</div>
       <div class="m-content">
         <h2 id="m-title">${esc(p.name)}</h2>
         <div class="m-sub"><span><span class="dot st-${p.status}" style="display:inline-block;margin-right:6px"></span>${esc(S.statusLabels[p.status])}</span>${p.stars ? `<span>★ ${p.stars}</span>` : ""}${p.forks ? `<span>⑂ ${p.forks}</span>` : ""}${p.release ? `<span>⬢ ${esc(p.release)}</span>` : ""}${p.license ? `<span>⚖ ${esc(p.license)}</span>` : ""}<span>${esc(S.created)} ${fmt(p.created)}</span><span>${esc(S.updated)} ${esc(ago(p.updated))}</span></div>
@@ -650,20 +687,25 @@ export function clientMain(): void {
       PRESET_SWATCH[p] = [cs.getPropertyValue("--bg").trim(), C.presetAccents[p], cs.getPropertyValue("--accent2").trim()];
     }
     probe.remove();
-    const swatches = [...new Set([...Object.values(C.presetAccents), "#ef4444", "#f59e0b", "#84cc16", "#14b8a6", "#e879f9"])];
+    const swatches = [...new Set([C.simpleAccent, "#18181b", ...Object.values(C.presetAccents), "#ef4444", "#f59e0b", "#84cc16", "#14b8a6"])];
+    const labelled = (key, vals, labels) => `<div class="cz-group"><span>${esc(S[key] || key)}</span><div class="cz-opts">${vals.map((v) => `<button type="button" data-k="${key}" data-v="${v}">${esc(labels[v] || v)}</button>`).join("")}</div></div>`;
     panel.innerHTML = `
       <h3>${esc(S.customize)} <button type="button" class="icon-btn" data-close-panel aria-label="${esc(S.close)}">✕</button></h3>
-      <div class="cz-group"><span>${esc(S.theme)}</span><div class="cz-presets">${O.preset.map((p) => `<button type="button" data-k="preset" data-v="${p}" title="${p}" style="background:linear-gradient(135deg,${PRESET_SWATCH[p][0]} 45%,${PRESET_SWATCH[p][1]} 46%,${PRESET_SWATCH[p][2]})"><span>${p}</span></button>`).join("")}</div></div>
+      <div class="cz-mode" role="group" aria-label="${esc(S.mode)}">${O.mode.map((m) => `<button type="button" data-k="mode" data-v="${m}">${esc(S.modes[m])}</button>`).join("")}</div>
+      <div class="simple-only">${labelled("scheme", O.scheme, S.schemes)}</div>
       <div class="cz-group"><span>${esc(S.accent)}</span><div class="cz-swatches">${swatches.map((c) => `<button type="button" data-k="accent" data-v="${c}" style="background:${c}" title="${c}"></button>`).join("")}<input type="color" id="cz-color" aria-label="${esc(S.accent)}"></div></div>
       <div class="cz-group"><span>${esc(S.bgColor)}</span><div class="cz-swatches"><button type="button" class="cz-default" data-k="bgColor" data-v="" title="${esc(S.presetBg)}">∅</button>${BG_SWATCHES.map((c) => `<button type="button" data-k="bgColor" data-v="${c}" style="background:${c}" title="${c}"></button>`).join("")}<input type="color" id="cz-bg" aria-label="${esc(S.bgColor)}"></div></div>
-      ${opt("background", O.background)}
-      ${opt("cardStyle", O.cardStyle)}
       ${opt("layout", O.layout)}
       ${opt("font", O.font)}
-      ${opt("animation", O.animation)}
-      ${opt("glow", O.glow)}
       <div class="cz-group"><label for="cz-radius">${esc(S.radius)} · <b id="cz-rv"></b></label><input type="range" id="cz-radius" min="0" max="32" step="1"></div>
-      <div class="cz-group">${tog("covers")}${tog("cursorGlow")}${tog("tilt")}</div>
+      <details class="cz-fx tech-only" open><summary>${esc(S.effects)}</summary>
+        <div class="cz-group"><span>${esc(S.theme)}</span><div class="cz-presets">${O.preset.map((p) => `<button type="button" data-k="preset" data-v="${p}" title="${p}" style="background:linear-gradient(135deg,${PRESET_SWATCH[p][0]} 45%,${PRESET_SWATCH[p][1]} 46%,${PRESET_SWATCH[p][2]})"><span>${p}</span></button>`).join("")}</div></div>
+        ${opt("background", O.background)}
+        ${opt("cardStyle", O.cardStyle)}
+        ${opt("animation", O.animation)}
+        ${opt("glow", O.glow)}
+        <div class="cz-group">${tog("covers")}${tog("cursorGlow")}${tog("tilt")}</div>
+      </details>
       <div class="cz-actions"><button type="button" class="btn ghost" id="cz-reset">${esc(S.reset)}</button><button type="button" class="btn primary" id="cz-copy">${esc(S.copyConfig)}</button></div>`;
     panel.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-k]");
@@ -679,7 +721,7 @@ export function clientMain(): void {
     $("#cz-radius", panel).addEventListener("input", (e) => set({ radius: Number(e.target.value) }));
     $("#cz-reset", panel).addEventListener("click", () => { st = Object.assign({}, C.defaults); save(); applyTheme(); toast(S.reset); });
     $("#cz-copy", panel).addEventListener("click", () => {
-      const keys = ["preset", "accent", "bgColor", "background", "cardStyle", "layout", "font", "animation", "glow", "radius", "covers", "cursorGlow", "tilt"].filter((k) => st[k] !== undefined && st[k] !== "");
+      const keys = (simple() ? ["mode", "scheme", "accent", "bgColor", "layout", "font", "radius"] : ["mode", "preset", "accent", "bgColor", "background", "cardStyle", "layout", "font", "animation", "glow", "radius", "covers", "cursorGlow", "tilt"]).filter((k) => st[k] !== undefined && st[k] !== "");
       const yaml = ["site:", "  theme:", ...keys.map((k) => `    ${k}: ${typeof st[k] === "string" && st[k].startsWith("#") ? `"${st[k]}"` : st[k]}`)].join("\n");
       copy(yaml);
     });
@@ -707,10 +749,11 @@ export function clientMain(): void {
   let palItems = [], palSel = 0;
   function actions() {
     const A = [];
-    C.options.preset.forEach((p) => A.push({ label: `${S.theme}: ${p}`, kw: "theme preset color", run: () => set({ preset: p }) }));
-    C.options.background.forEach((b) => A.push({ label: `${S.background}: ${b}`, kw: "background bg effect", run: () => set({ background: b }) }));
+    C.options.mode.forEach((m) => A.push({ label: `${S.mode}: ${S.modes[m]}`, kw: "mode style simple tech", run: () => set({ mode: m }) }));
+    C.options.preset.forEach((p) => A.push({ label: `${S.theme}: ${p}`, kw: "theme preset color", run: () => set({ mode: "tech", preset: p }) }));
+    C.options.background.forEach((b) => A.push({ label: `${S.background}: ${b}`, kw: "background bg effect", run: () => set({ mode: "tech", background: b }) }));
     C.options.layout.forEach((l) => A.push({ label: `${S.layout}: ${l}`, kw: "layout view", run: () => set({ layout: l }) }));
-    C.options.cardStyle.forEach((c) => A.push({ label: `${S.cardStyle}: ${c}`, kw: "card style", run: () => set({ cardStyle: c }) }));
+    C.options.cardStyle.forEach((c) => A.push({ label: `${S.cardStyle}: ${c}`, kw: "card style", run: () => set({ mode: "tech", cardStyle: c }) }));
     A.push({ label: S.toggleMotion, kw: "motion animation", run: () => set({ animation: st.animation === "off" ? "full" : "off" }) });
     if (panel) A.push({ label: S.customize, kw: "customize settings theme", run: openCustomizer });
     A.push({ label: S.copyLink, kw: "copy link share url", run: () => copy(location.href.split("#")[0]) });
@@ -778,7 +821,7 @@ export function clientMain(): void {
     }
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (typing || e.metaKey || e.ctrlKey || e.altKey || !modal.hidden || !pal.hidden) return;
-    const cycle = (k) => { const arr = C.options[k]; set({ [k]: arr[(arr.indexOf(st[k]) + 1) % arr.length] }, true); toast(`${S[k] || k}: ${st[k]}`); };
+    const cycle = (k) => { const arr = C.options[k]; set({ mode: "tech", [k]: arr[(arr.indexOf(st[k]) + 1) % arr.length] }, true); toast(`${S[k] || k}: ${st[k]}`); };
     if (e.key === "/") {
       e.preventDefault();
       if (!q) return;

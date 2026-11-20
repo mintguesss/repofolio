@@ -1,11 +1,11 @@
 import type { Config } from "../../schema.js";
-import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, GLOWS, LAYOUTS, THEME_PRESETS } from "../../schema.js";
+import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, GLOWS, LAYOUTS, MODES, SCHEMES, THEME_PRESETS } from "../../schema.js";
 import type { Inventory } from "../../types.js";
 import { buildShowcase, esc, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
 import { clientMain } from "./client.js";
 import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
-import { PRESET_COLORS, siteCss } from "./styles.js";
+import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -131,6 +131,7 @@ ${metaBits.length ? `<p class="hero-meta">${metaBits.join("")}</p>` : ""}
 <dl class="counters">${stats.map(([n, l]) => `<div><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
 </div>
 ${terminal}
+<aside class="hero-recent simple-only reveal"><h4>${esc(s.recent)}</h4><ul>${[...d.projects].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)).slice(0, 5).map((p) => `<li><a href="#/p/${esc(p.id)}" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b><time data-time="${esc(p.updated)}"></time></a><p>${esc(p.summary)}</p></li>`).join("")}</ul></aside>
 </section>`;
 }
 
@@ -143,15 +144,19 @@ function featuredSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx
 
 function projectsSection(d: ShowcaseData, config: Config, s: SiteStrings, icons: IconSprite, idx: number): string {
   const statuses = [...new Set(d.projects.map((p) => p.status))];
-  const topTech = d.tech.slice(0, 14);
+  const topTech = d.tech.slice(0, 16);
   const layouts = LAYOUTS.map((l) => `<button type="button" data-layout="${l}" aria-pressed="${l === config.site.theme.layout}" title="${l}">${LAYOUT_ICON[l]}</button>`).join("");
   return `<section id="projects" class="sec">${sectionHead("projects", s.projects, s.projectsSub, idx)}
 <div class="toolbar reveal" role="search">
 <label class="search"><span aria-hidden="true">⌕</span><input id="q" type="search" placeholder="${esc(s.search)}" aria-label="${esc(s.search)}" autocomplete="off"><kbd>/</kbd></label>
-<div class="seg" id="status-filter"><button type="button" data-status="" aria-pressed="true">${esc(s.all)} <b>${d.projects.length}</b></button>${statuses.map((st) => `<button type="button" data-status="${st}" aria-pressed="false"><span class="dot st-${st}"></span>${esc(s.statusLabels[st])} <b>${d.projects.filter((p) => p.status === st).length}</b></button>`).join("")}</div>
-<div class="tool-right"><label class="select"><span>${esc(s.sort)}</span><select id="sort"><option value="featured">${esc(s.sortFeatured)}</option><option value="stars">${esc(s.sortStars)}</option><option value="updated">${esc(s.sortUpdated)}</option><option value="created">${esc(s.sortCreated)}</option><option value="name">${esc(s.sortName)}</option></select></label><div class="seg icon-seg" id="layout-switch" aria-label="${esc(s.layout)}">${layouts}</div></div>
+<label class="select"><span>${esc(s.sort)}</span><select id="sort"><option value="featured">${esc(s.sortFeatured)}</option><option value="stars">${esc(s.sortStars)}</option><option value="updated">${esc(s.sortUpdated)}</option><option value="created">${esc(s.sortCreated)}</option><option value="name">${esc(s.sortName)}</option></select></label>
+<div class="seg icon-seg" id="layout-switch" aria-label="${esc(s.layout)}">${layouts}</div>
 </div>
-<div class="chips reveal" id="tech-filter">${topTech.map((t) => `<button type="button" class="chip" data-tech="${esc(t.name.toLowerCase())}" aria-pressed="false">${icons.icon(t.name)}${esc(t.name)}<b>${t.count}</b></button>`).join("")}</div>
+<div class="filters reveal">
+<div class="pills" id="status-filter"><button type="button" data-status="" aria-pressed="true">${esc(s.all)} <b>${d.projects.length}</b></button>${statuses.map((st) => `<button type="button" data-status="${st}" aria-pressed="false" title="${esc(s.statusHelp[st])}"><span class="dot st-${st}"></span>${esc(s.statusLabels[st])} <b>${d.projects.filter((p) => p.status === st).length}</b></button>`).join("")}</div>
+${topTech.length ? `<button type="button" class="filter-toggle" id="tech-toggle" aria-expanded="false" aria-controls="tech-filter">${esc(s.techFilter)} <b id="tech-count"></b><span aria-hidden="true">▾</span></button>` : ""}
+</div>
+<div class="chips" id="tech-filter" hidden>${topTech.map((t) => `<button type="button" class="chip" data-tech="${esc(t.name.toLowerCase())}" aria-pressed="false">${icons.icon(t.name)}${esc(t.name)}<b>${t.count}</b></button>`).join("")}</div>
 <div class="grid" id="grid">${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>
 <div class="empty" id="empty" hidden><p>${esc(s.noResults)}</p><button type="button" class="btn ghost" id="clear">${esc(s.clear)}</button></div>
 </section>`;
@@ -159,52 +164,108 @@ function projectsSection(d: ShowcaseData, config: Config, s: SiteStrings, icons:
 
 const LAYOUT_ICON: Record<string, string> = {
   grid: `<svg viewBox="0 0 16 16"><path d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"/></svg>`,
-  bento: `<svg viewBox="0 0 16 16"><path d="M1 1h9v7H1zM12 1h3v7h-3zM1 10h4v5H1zM7 10h8v5H7z"/></svg>`,
   list: `<svg viewBox="0 0 16 16"><path d="M1 2h14v3H1zM1 6.5h14v3H1zM1 11h14v3H1z"/></svg>`,
-  compact: `<svg viewBox="0 0 16 16"><path d="M1 1h4v4H1zM6 1h4v4H6zM11 1h4v4h-4zM1 6h4v4H1zM6 6h4v4H6zM11 6h4v4h-4zM1 11h4v4H1zM6 11h4v4H6zM11 11h4v4h-4z"/></svg>`,
 };
 
-function stackSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number): string {
-  if (!d.languages.length && !d.tech.length) return "";
-  const bars = d.languages
-    .map((l) => `<li><span class="lang-name">${icons.icon(l.name)}${esc(l.name)}</span><span class="bar"><i style="--w:${l.pct}%"></i></span><span class="pct">${l.pct}%</span></li>`)
-    .join("");
-  const cloud = d.tech
-    .map((t) => `<li class="orb" style="--n:${t.count}" title="${esc(`${t.name} · ${s.usedIn} ${t.count}`)}" data-tech="${esc(t.name.toLowerCase())}">${icons.icon(t.name, "oi")}<span>${esc(t.name)}</span><b>${t.count}</b></li>`)
-    .join("");
-  return `<section id="stack" class="sec">${sectionHead("stack", s.stack, s.stackSub, idx)}<div class="stack-grid"><ul class="langs panel reveal">${bars}</ul><ul class="cloud panel reveal">${cloud}</ul></div></section>`;
-}
+const STATUS_COLORS: Record<string, string> = {
+  active: "#22c55e", wip: "#3b82f6", maintenance: "#eab308", paused: "#f97316", done: "#a855f7", idea: "#06b6d4", archived: "#6b7280",
+};
 
-function activitySection(d: ShowcaseData, s: SiteStrings, idx: number, lang: string): string {
-  if (!d.totals.commitsYear) return "";
+function activityChart(d: ShowcaseData, s: SiteStrings, lang: string): string {
   const max = Math.max(...d.activity, 1);
   const w = 52 * 12;
   const h = 140;
   const end = new Date(d.generatedAt);
+  const loc = lang === "zh-TW" ? "zh-TW" : "en-US";
   const bars = d.activity
     .map((n, i) => {
       const bh = Math.max(2, (n / max) * (h - 24));
       const weekStart = new Date(end.getTime() - (51 - i) * 7 * 86_400_000);
-      const label = `${weekStart.toLocaleDateString(lang === "zh-TW" ? "zh-TW" : "en-US", { month: "short", day: "numeric" })}: ${n}`;
+      const label = `${weekStart.toLocaleDateString(loc, { month: "short", day: "numeric" })}: ${n}`;
       return `<rect x="${i * 12 + 1}" y="${h - 18 - bh}" width="9" height="${bh}" rx="2" style="--i:${i}" data-tip="${esc(label)}"${n === 0 ? ' class="zero"' : ""}/>`;
     })
     .join("");
   const months: string[] = [];
   for (let i = 0; i < 52; i += 4.33) {
     const dt = new Date(end.getTime() - (51 - Math.round(i)) * 7 * 86_400_000);
-    months.push(`<text x="${Math.round(i) * 12}" y="${h - 3}">${esc(dt.toLocaleDateString(lang === "zh-TW" ? "zh-TW" : "en-US", { month: "short" }))}</text>`);
+    months.push(`<text x="${Math.round(i) * 12}" y="${h - 3}">${esc(dt.toLocaleDateString(loc, { month: "short" }))}</text>`);
   }
-  const busiest = Math.max(...d.activity);
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(s.activitySub)}">${bars}${months.join("")}</svg><div class="tip" id="chart-tip" hidden></div>`;
+}
+
+function donut(parts: { label: string; n: number; color: string }[], center: string): string {
+  const total = parts.reduce((a, p) => a + p.n, 0) || 1;
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  let off = 0;
+  const segs = parts
+    .map((p) => {
+      const len = (p.n / total) * c;
+      const seg = `<circle r="${r}" cx="60" cy="60" fill="none" stroke="${p.color}" stroke-width="14" stroke-dasharray="${len.toFixed(2)} ${(c - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"><title>${esc(p.label)}: ${p.n}</title></circle>`;
+      off += len;
+      return seg;
+    })
+    .join("");
+  return `<svg class="donut" viewBox="0 0 120 120" aria-hidden="true"><g transform="rotate(-90 60 60)"><circle r="${r}" cx="60" cy="60" fill="none" stroke="var(--line)" stroke-width="14"/>${segs}</g><text x="60" y="58" text-anchor="middle" class="donut-n">${esc(center)}</text></svg>`;
+}
+
+function barList(items: { label: string; n: number; icon?: string }[]): string {
+  const max = Math.max(...items.map((i) => i.n), 1);
+  return `<ul class="barlist">${items
+    .map((i) => `<li><span class="bl-name">${i.icon ?? ""}${esc(i.label)}</span><span class="bar"><i style="--w:${(i.n / max) * 100}%"></i></span><b>${i.n}</b></li>`)
+    .join("")}</ul>`;
+}
+
+function statsSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number, lang: string): string {
+  if (!d.projects.length) return "";
+  const statusCounts = new Map<string, number>();
+  for (const p of d.projects) statusCounts.set(p.status, (statusCounts.get(p.status) ?? 0) + 1);
+  const providers = new Map<string, number>();
+  for (const p of d.projects) for (const dep of new Set(p.deployments.map((x) => x.provider ?? "other"))) providers.set(dep, (providers.get(dep) ?? 0) + 1);
+  const years = new Map<number, number>();
+  for (const p of d.projects) {
+    const y = new Date(p.created).getFullYear();
+    if (!Number.isNaN(y)) years.set(y, (years.get(y) ?? 0) + 1);
+  }
+  const active = statusCounts.get("active") ?? 0;
+  const kpis: [number, string][] = [
+    [d.totals.projects, s.projectsCount],
+    [d.totals.live, s.liveCount],
+    [active, s.activeCount],
+    [d.totals.stars, s.stars],
+    [d.totals.commitsYear, s.commitsYear],
+    [d.totals.languages, s.languages],
+  ];
+  const busiest = Math.max(...d.activity, 0);
   const top = [...d.projects]
     .filter((p) => p.activity?.some((n) => n > 0))
     .map((p) => ({ p, n: p.activity!.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.n - a.n)
     .slice(0, 5);
   const topMax = top[0]?.n ?? 1;
-  return `<section id="activity" class="sec">${sectionHead("activity", s.activity, s.activitySub, idx)}
-<div class="activity-grid"><div class="panel reveal chart-wrap"><svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(s.activitySub)}">${bars}${months.join("")}</svg><div class="tip" id="chart-tip" hidden></div></div>
-<div class="panel reveal act-side"><dl class="kpis"><div><dt class="count" data-to="${d.totals.commitsYear}">0</dt><dd>${esc(s.commitsYear)}</dd></div><div><dt class="count" data-to="${d.totals.commitsWeek}">0</dt><dd>${esc(s.thisWeek)}</dd></div><div><dt class="count" data-to="${busiest}">0</dt><dd>${esc(s.busiest)}</dd></div></dl>
-<ol class="top-repos">${top.map(({ p, n }) => `<li><a href="#p/${esc(p.id)}" data-open="${esc(p.id)}">${esc(p.name)}</a><span class="bar"><i style="--w:${(n / topMax) * 100}%"></i></span><b>${n}</b></li>`).join("")}</ol></div></div></section>`;
+  const langs = d.languages
+    .map((l) => `<li><span class="lang-name">${icons.icon(l.name)}${esc(l.name)}</span><span class="bar"><i style="--w:${l.pct}%"></i></span><span class="pct">${l.pct}%</span></li>`)
+    .join("");
+  const cloud = d.tech
+    .map((t) => `<li class="orb" style="--n:${t.count}" title="${esc(`${t.name} · ${s.usedIn} ${t.count}`)}" data-tech="${esc(t.name.toLowerCase())}">${icons.icon(t.name, "oi")}<span>${esc(t.name)}</span><b>${t.count}</b></li>`)
+    .join("");
+  const statusParts = [...statusCounts.entries()].sort((a, b) => b[1] - a[1]).map(([st, n]) => ({ label: s.statusLabels[st as keyof SiteStrings["statusLabels"]], n, color: STATUS_COLORS[st] ?? "#888" }));
+
+  return `<section id="stats" class="sec">${sectionHead("stats", s.stats, s.statsSub, idx)}
+<dl class="kpi-grid">${kpis.map(([n, l]) => `<div class="kpi panel reveal"><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
+${d.totals.commitsYear ? `<h3 class="sub-h">${esc(s.activity)}</h3>
+<div class="activity-grid"><div class="panel reveal chart-wrap">${activityChart(d, s, lang)}</div>
+<div class="panel reveal act-side"><dl class="kpis"><div><dt class="count" data-to="${d.totals.commitsWeek}">0</dt><dd>${esc(s.thisWeek)}</dd></div><div><dt class="count" data-to="${busiest}">0</dt><dd>${esc(s.busiest)}</dd></div></dl>
+<h4>${esc(s.mostActive)}</h4><ol class="top-repos">${top.map(({ p, n }) => `<li><a href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${esc(p.name)}</a><span class="bar"><i style="--w:${(n / topMax) * 100}%"></i></span><b>${n}</b></li>`).join("")}</ol></div></div>` : ""}
+<h3 class="sub-h">${esc(s.stack)}</h3>
+<div class="stack-grid"><ul class="langs panel reveal">${langs}</ul><ul class="cloud panel reveal">${cloud}</ul></div>
+<h3 class="sub-h">${esc(s.breakdown)}</h3>
+<div class="breakdown">
+<div class="panel reveal"><h4>${esc(s.byStatus)}</h4><div class="donut-wrap">${donut(statusParts, String(d.projects.length))}<ul class="legend">${statusParts.map((p) => `<li><i style="background:${p.color}"></i>${esc(p.label)}<b>${p.n}</b></li>`).join("")}</ul></div></div>
+${providers.size ? `<div class="panel reveal"><h4>${esc(s.byHost)}</h4>${barList([...providers.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: k, n, icon: icons.icon(k) })))}</div>` : ""}
+${years.size ? `<div class="panel reveal"><h4>${esc(s.byYear)}</h4>${barList([...years.entries()].sort((a, b) => b[0] - a[0]).map(([y, n]) => ({ label: String(y), n })))}</div>` : ""}
+</div>
+</section>`;
 }
 
 function statusSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number): string {
@@ -237,8 +298,14 @@ function timelineSection(d: ShowcaseData, s: SiteStrings, idx: number, lang: str
 }
 
 function themeAttrs(config: Config): string {
-  const th = config.site.theme;
-  return `data-preset="${th.preset}" data-bg="${th.background}" data-card="${th.cardStyle}" data-layout="${th.layout}" data-font="${th.font}" data-anim="${th.animation}" data-fx="${th.glow}" data-covers="${th.covers}" data-glow="${th.cursorGlow}" data-tilt="${th.tilt}"`;
+  const e = effectiveTheme(config.site.theme);
+  return `data-mode="${e.mode}" data-scheme="${e.scheme}" data-preset="${e.preset}" data-bg="${e.background}" data-card="${e.cardStyle}" data-layout="${e.layout}" data-font="${e.font}" data-anim="${e.animation}" data-fx="${e.glow}" data-covers="${e.covers}" data-glow="${e.cursorGlow}" data-tilt="${e.tilt}"`;
+}
+
+/** Simple mode switches every effect off; tech mode uses the settings as-is. Mirrored in client.ts. */
+export function effectiveTheme(th: Config["site"]["theme"]) {
+  if (th.mode !== "simple") return th;
+  return { ...th, background: "none" as const, cardStyle: "simple", animation: th.animation === "off" ? ("off" as const) : ("subtle" as const), glow: "none" as const, cursorGlow: false, tilt: false, covers: false };
 }
 
 /** CSS variables for a custom background colour; text colours flip to stay readable. Mirrored in client.ts. */
@@ -256,17 +323,17 @@ export function bgColorVars(hex: string | undefined): string {
   ].join(";");
 }
 
-const PAGE_OF: Record<string, string> = { hero: "home", featured: "home" };
+const PAGE_OF: Record<string, string> = { hero: "home", featured: "home", stack: "stats", activity: "stats", status: "stats" };
 
 function homeTiles(d: ShowcaseData, s: SiteStrings, pages: string[]): string {
   const rows = d.projects.flatMap((p) => p.deployments);
   const info: Record<string, [string, string]> = {
     projects: [String(d.totals.projects), s.projectsCount],
-    stack: [String(d.totals.languages), s.languages],
-    activity: [String(d.totals.commitsYear), s.commitsYear],
+    stats: d.totals.commitsYear ? [String(d.totals.commitsYear), s.commitsYear] : [String(d.totals.languages), s.languages],
     status: [`${rows.filter((r) => r.ok).length}/${rows.length}`, s.up],
     timeline: [String(Math.min(...d.projects.map((p) => new Date(p.created).getFullYear()).filter((y) => !Number.isNaN(y)))), s.since],
   };
+
   const tiles = pages
     .filter((p) => p !== "home" && info[p])
     .map((p) => `<a class="tile reveal" href="#/${p}"><span class="tile-n">${esc(info[p]![0])}</span><span class="tile-l">${esc(info[p]![1])}</span><b>${esc(s.nav[p as keyof SiteStrings["nav"]])} →</b></a>`)
@@ -294,7 +361,7 @@ export function renderSite(inv: Inventory, config: Config): string {
 
   const multi = !config.site.singlePage;
   let idx = 0;
-  const rendered = config.site.sections
+  const rendered = [...new Set(config.site.sections.map((x) => (x === "stack" || x === "activity" ? "stats" : x)))]
     .map((sec): [string, string] => [sec, (() => {
       switch (sec) {
         case "hero":
@@ -303,10 +370,8 @@ export function renderSite(inv: Inventory, config: Config): string {
           return featuredSection(d, s, icons, ++idx);
         case "projects":
           return projectsSection(d, config, s, icons, ++idx);
-        case "stack":
-          return stackSection(d, s, icons, ++idx);
-        case "activity":
-          return activitySection(d, s, ++idx, lang);
+        case "stats":
+          return statsSection(d, s, icons, ++idx, lang);
         case "status":
           return statusSection(d, s, icons, ++idx);
         case "timeline":
@@ -338,7 +403,7 @@ export function renderSite(inv: Inventory, config: Config): string {
   icons.icon("github");
   for (const p of d.projects) for (const dep of p.deployments) if (dep.provider) icons.icon(dep.provider);
 
-  const accent = th.accent ?? PRESET_COLORS[th.preset].accent;
+  const accent = th.accent ?? (th.mode === "simple" ? SIMPLE_ACCENT : PRESET_COLORS[th.preset].accent);
   const fonts = th.webFonts
     ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">`
     : "";
@@ -348,8 +413,9 @@ export function renderSite(inv: Inventory, config: Config): string {
     defaults: { ...th, accent },
     customizer: config.site.customizer,
     multi,
-    options: { preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
+    options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
     presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),
+    simpleAccent: SIMPLE_ACCENT,
     presetAccents: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.accent])),
     terminal: {
       owner: d.owner,
@@ -368,7 +434,7 @@ export function renderSite(inv: Inventory, config: Config): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc)}">
-<meta name="theme-color" content="${PRESET_COLORS[th.preset].bg}">
+<meta name="theme-color" content="${th.mode === "simple" ? "#ffffff" : PRESET_COLORS[th.preset].bg}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">

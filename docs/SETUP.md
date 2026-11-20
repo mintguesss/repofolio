@@ -28,7 +28,7 @@ Open `out/site/index.html`. `out/CATALOG.md` is the full private catalog. To cha
      links:
        - { label: LinkedIn, url: https://www.linkedin.com/in/you }
      theme:
-       preset: paper   # calm default; try cyber, synthwave, aurora…
+       mode: simple    # or tech for neon presets and effects
    ```
 
 3. Add the workflow:

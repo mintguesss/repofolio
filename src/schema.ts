@@ -97,32 +97,42 @@ export type ProjectMeta = z.infer<typeof ProjectMetaSchema>;
 export const THEME_PRESETS = ["cyber", "midnight", "matrix", "synthwave", "ocean", "ember", "aurora", "mono", "paper", "daylight"] as const;
 export const BACKGROUNDS = ["particles", "grid", "matrix", "aurora", "stars", "circuit", "none"] as const;
 export const CARD_STYLES = ["glass", "solid", "neon", "outline", "terminal"] as const;
-export const LAYOUTS = ["grid", "bento", "list", "compact"] as const;
+export const LAYOUTS = ["grid", "list"] as const;
 export const FONTS = ["sans", "mono", "display", "system"] as const;
 export const ANIMATIONS = ["full", "subtle", "off"] as const;
 export const GLOWS = ["none", "soft", "strong"] as const;
-export const SECTIONS = ["hero", "featured", "projects", "stack", "activity", "status", "timeline"] as const;
+export const MODES = ["simple", "tech"] as const;
+export const SCHEMES = ["auto", "light", "dark"] as const;
+/** "stack" and "activity" are accepted for older configs and render as "stats". */
+export const SECTIONS = ["hero", "featured", "projects", "stats", "status", "timeline", "stack", "activity"] as const;
+export const DEFAULT_SECTIONS = ["hero", "featured", "projects", "stats", "status", "timeline"] as const;
 
 export const ThemeSchema = z.object({
-  preset: z.enum(THEME_PRESETS).default("paper"),
+  /** simple = clean, quiet design (light/dark follows the system). tech = presets, canvas effects, glow, motion. */
+  mode: z.enum(MODES).default("simple"),
+  /** Light / dark for simple mode. */
+  scheme: z.enum(SCHEMES).default("auto"),
+  /** Tech mode only. */
+  preset: z.enum(THEME_PRESETS).default("cyber"),
   /** Override the preset's accent, e.g. "#22d3ee". */
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   /** Override the page background colour, e.g. "#101418". Text colour adapts automatically. */
   bgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-  background: z.enum(BACKGROUNDS).default("none"),
-  cardStyle: z.enum(CARD_STYLES).default("solid"),
-  layout: z.enum(LAYOUTS).default("grid"),
+  background: z.enum(BACKGROUNDS).default("particles"),
+  cardStyle: z.enum(CARD_STYLES).default("glass"),
+  /** grid = cards, list = compact rows. Older values (bento, compact) fall back to grid. */
+  layout: z.enum(LAYOUTS).catch("grid").default("grid"),
   font: z.enum(FONTS).default("sans"),
-  animation: z.enum(ANIMATIONS).default("subtle"),
+  animation: z.enum(ANIMATIONS).default("full"),
   /** Glow / neon intensity on buttons, cards, avatar and text. */
   glow: z.enum(GLOWS).default("soft"),
   /** Corner radius in px. */
   radius: z.number().int().min(0).max(32).default(16),
-  /** Show GitHub social-preview images as card covers. */
+  /** Cover images on project cards (tech mode). */
   covers: z.boolean().default(true),
-  cursorGlow: z.boolean().default(false),
-  /** 3D tilt on hover. */
-  tilt: z.boolean().default(false),
+  cursorGlow: z.boolean().default(true),
+  /** 3D tilt on hover (tech mode). */
+  tilt: z.boolean().default(true),
   /** Load Inter / JetBrains Mono / Space Grotesk / Noto Sans TC from Google Fonts. */
   webFonts: z.boolean().default(true),
 });
@@ -144,7 +154,7 @@ export const SiteSchema = z.object({
     avatar: z.boolean().default(true),
   }).default({ roles: [], terminal: true, avatar: true }),
   /** Which sections to show, in order. */
-  sections: z.array(z.enum(SECTIONS)).default([...SECTIONS]),
+  sections: z.array(z.enum(SECTIONS)).default([...DEFAULT_SECTIONS]),
   /** Put every section on one long page instead of separate pages (home, projects, stack, …). */
   singlePage: z.boolean().default(false),
   /** Let visitors open the ⚙ panel and play with the theme (their choice is saved in their browser). */

@@ -18,16 +18,16 @@ site:
   links: []             # - { label: LinkedIn, url: https:// }
   hero:
     roles: []           # typing animation, e.g. [Full-stack developer, ML tinkerer]
-  # sections: [hero, featured, projects, stack, activity, status, timeline]
+  # sections: [hero, featured, projects, stats, status, timeline]
   customizer: true      # let visitors open the ⚙ panel
   theme:
-    preset: paper       # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
-    # bgColor: "#fbfaf7" # custom page background; text colour adapts
-    background: none    # particles | grid | matrix | aurora | stars | circuit | none
-    cardStyle: solid    # glass | solid | neon | outline | terminal
-    layout: grid        # grid | bento | list | compact
-    animation: subtle   # full | subtle | off
-    glow: soft          # none | soft | strong
+    mode: simple        # simple (clean, light/dark follows the system) | tech (neon presets + effects)
+    # scheme: auto      # simple mode: auto | light | dark
+    # bgColor: "#fafafa" # custom page background; text colour adapts
+    layout: grid        # grid | list
+    # tech mode only:
+    # preset: cyber     # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
+    # background: particles  # particles | grid | matrix | aurora | stars | circuit | none
   # singlePage: false   # true = everything on one long page
 issues:
   stale: true           # open an issue here for each stale project

@@ -6,7 +6,7 @@
 
 [English](README.md)
 
-<p align="center"><img src="docs/screenshots/hero-paper.jpg" alt="預設 paper 主題" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="cyber 主題" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-simple.jpg" alt="簡潔模式（預設）" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="科技模式 cyber 主題" width="49%"></p>
 <p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="專案列表" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="即時自訂面板" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="個人頁動態卡片"></p>
 
@@ -23,43 +23,50 @@
 
 ## 作品集網站
 
-一個獨立的 `index.html`，不需要建置、不依賴框架：
+一個獨立的 `index.html`，不需要建置、不依賴框架。有兩種風格可以切換：
 
-- **首頁**：頭像外圈有旋轉的霓虹光環，打字動畫輪播你的身分，數字會跑動（專案數、上線數、星星、語言、年提交數），旁邊有一個終端機視窗模擬掃描過程
-- **專案卡片**：
-  - 封面自動抓 README 的第一張截圖，沒有截圖就用 GitHub 社群預覽圖
-  - 滑鼠移上去有 3D 傾斜和跟著游標的光框
-  - 上線狀態會脈動，並顯示技術圖示和 26 週的提交折線
-- **搜尋、篩選、排序**：
-  - 全文搜尋、依狀態篩選、技術標籤可以多選
-  - 可依精選、星星、最近更新、最新建立、名稱排序
-  - 4 種版面：grid、bento、list、compact
-- **專案詳細視窗**：可以直接分享連結（`#p/名稱`），內容有語言比例、部署和回應時間、52 週活動、所有連結
-- **技術棧**：語言比例長條和技術圖示雲，點一下就能篩選
-- **開發活動**：過去一年每週的提交量、最忙的一週、最活躍的專案
-- **上線狀態看板**：每個公開部署是否正常，以及延遲
+- **簡潔模式**（預設）：
+  - 乾淨的字體排版，黑白配色加上一個強調色
+  - 淺色或深色跟隨系統，沒有特效
+  - 看起來就像一個用心做的個人網站
+- **科技模式**：
+  - 10 種霓虹主題
+  - 背景特效：粒子、合成波地平線、數位雨、星際穿梭、電路、極光
+  - 光暈、3D 傾斜、游標光暈、打字動畫和終端機
+
+頁面：
+
+- **首頁**：自我介紹、最近更新的專案、精選作品、前往其他頁面的入口
+- **專案**：
+  - 搜尋、狀態篩選、可收合的技術篩選、排序
+  - 兩種版面：卡片 grid、列表 list
+  - 點卡片會開詳細視窗，可以直接分享連結（`#/p/名稱`）
+- **統計**：
+  - 專案數、上線數、進行中、星星、年提交、語言
+  - 每週提交圖、最活躍的專案
+  - 語言比例和技術雲
+  - 專案狀態圓餅圖、部署平台、每年新開專案
+  - 上線狀態看板
 - **時間軸**：每個專案從什麼時候開始
-- **⌘K 指令面板**和鍵盤快捷鍵：`/` 搜尋、`T` 換主題、`B` 換背景、`,` 自訂、`?` 說明
-- **⚙ 即時自訂面板**：
-  - 訪客可以自己玩主題
-  - 你調好之後按「複製成設定檔」，貼進 `repofolio.config.yml` 就好
-- 支援減少動態效果的系統設定，可以全程用鍵盤操作，手機 375px 寬也不會左右捲動
+
+其他功能：
+
+- ⌘K 指令面板和鍵盤快捷鍵
+- ⚙ 即時自訂面板：
+  - 上方先選風格、配色、版面
+  - 科技模式的特效全部收在一個「特效」群組裡
+  - 調好後按「複製成設定檔」，貼進設定檔就好
 
 ### 客製化選項
 
 | 項目 | 選項 |
 |---|---|
-| 主題 `preset` | cyber、midnight、matrix、synthwave、ocean、ember、aurora、mono、paper、daylight |
-| 背景特效 `background` | particles（粒子連線）、grid（合成波地平線）、matrix（數位雨）、aurora（極光）、stars（星際穿梭）、circuit（電路）、none |
-| 卡片樣式 `cardStyle` | glass、solid、neon、outline、terminal |
-| 版面 `layout` | grid、bento、list、compact |
+| 風格 `mode` | simple（簡潔）、tech（科技） |
+| 淺色或深色 `scheme`（簡潔模式） | auto、light、dark |
+| 版面 `layout` | grid、list |
 | 字型 `font` | sans、mono、display、system |
-| 動畫 `animation` | full、subtle、off |
-| 光暈強度 `glow` | none、soft、strong |
-| 頁面 | 預設分成多個分頁：首頁、專案、技術、活動、狀態、時間軸；`singlePage: true` 會改回單一長頁 |
-| 其他 | 背景顏色 `bgColor`（文字顏色會自動調整）、強調色、圓角、封面圖片、游標光暈、3D 傾斜、區塊順序與顯示、打字動畫內容、終端機、頭像 |
-
-預設是樸素的 paper 主題：沒有背景特效，動畫和光暈都是輕微程度。想要科技感的話，可以換成 cyber 或 synthwave。
+| 其他 | 強調色 `accent`、背景顏色 `bgColor`（文字顏色會自動調整）、圓角、區塊順序與顯示、身分文字、頭像 |
+| 科技模式的特效 | 主題 `preset`（10 種）、背景特效 `background`（7 種）、卡片樣式 `cardStyle`（5 種）、動畫 `animation`、光暈強度 `glow`、封面圖片、游標光暈、3D 傾斜、終端機 |
 
 完整寫法請看[英文 README 的 Customization](README.md#customization)。只想調整外觀時，執行 `repofolio render`，會直接用 `out/inventory.json` 重新產生，不用重新掃描。
 

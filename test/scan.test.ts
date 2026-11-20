@@ -163,8 +163,12 @@ describe("scan", () => {
     expect(multi).toContain('data-page="home"');
     expect(multi).toContain('data-page="projects"');
     expect(multi).toContain('href="#/projects"');
-    expect(multi).toContain('data-preset="paper"');
-    expect(multi).toContain('data-fx="soft"');
+    // Default is simple mode, with every effect switched off.
+    expect(multi).toMatch(/<body data-mode="simple" data-scheme="auto"[^>]* data-bg="none" data-card="simple"[^>]* data-fx="none"/);
+    expect(multi).toContain('id="stats"');
+    expect(multi).not.toContain('id="stack"');
+    const tech = renderSite(inv, ConfigSchema.parse({ site: { theme: { mode: "tech" } } }));
+    expect(tech).toMatch(/<body data-mode="tech"[^>]* data-preset="cyber" data-bg="particles"/);
     const single = renderSite(inv, ConfigSchema.parse({ site: { singlePage: true } }));
     expect(single).not.toContain('data-page="projects"');
     expect(single).toContain('href="#projects"');

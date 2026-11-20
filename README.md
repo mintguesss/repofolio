@@ -51,7 +51,7 @@ Pages:
   - language share and a tech cloud (click to filter)
   - a status donut, hosting providers and projects started per year
   - a live status board for every public deployment
-- **Timeline**: an auto-playing timeline that steps through your projects in the order you started them (cover, date, tech), with a scrubbable track and a compact list below
+- **Timeline**: a vertical timeline grouped by year (or month); the spine fills and each project lights up as you scroll, with covers drifting in parallax
 
 Also included: a **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a **live customizer (⚙)**. The customizer groups its options: style, colours and layout come first, and all tech effects sit in one "Effects" group. "Copy as config" gives you YAML to paste into `repofolio.config.yml`. The site respects `prefers-reduced-motion`, is keyboard accessible and has no horizontal scroll down to 375px.
 

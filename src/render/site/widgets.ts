@@ -140,40 +140,25 @@ export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, l
   if (!list.length) return "";
   const techOf = (p: PublicProject) => [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
 
-  const slides = list
-    .map((p, i) => `<article class="tlx-slide${i === list.length - 1 ? " on" : ""}" data-i="${i}" aria-hidden="${i === list.length - 1 ? "false" : "true"}">
-<a class="tlx-media" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}" tabindex="-1">${cover(p, "tlx-img", i >= list.length - 2)}</a>
-<div class="tlx-info"><time class="tlx-date" datetime="${esc(p.created.slice(0, 10))}"><b>${esc(fmt(p.created, lang, { year: "numeric" }).replace(/\D+$/, ""))}</b><span>${esc(fmt(p.created, lang, { month: "short", day: "numeric" }))}</span></time>
-<h3><span class="dot st-${p.status}"></span>${esc(p.name)}</h3>
-${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
-<div class="tlx-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div>
-<a class="btn-mini primary" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${esc(s.details)} →</a></div>
-</article>`)
-    .join("");
-
-  let lastYear = "";
-  const dots = list
-    .map((p, i) => {
-      const y = String(new Date(p.created).getFullYear());
-      const yr = y !== lastYear ? `<span class="tlx-year">${y}</span>` : "";
-      lastYear = y;
-      return `<li>${yr}<button type="button" data-i="${i}" aria-label="${esc(p.name)}" title="${esc(p.name)}"${i === list.length - 1 ? ' aria-current="true"' : ""}><span class="tlx-dot st-${p.status}"></span><em>${esc(p.name)}</em></button></li>`;
-    })
-    .join("");
-
-  const rows = [...list]
-    .reverse()
-    .map((p) => `<li class="tl-row reveal"><a href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${cover(p, "tl-thumb")}<time>${esc(fmt(p.created, lang, { year: "numeric", month: "short" }))}</time><b>${esc(p.name)}</b><span class="dot st-${p.status}"></span></a></li>`)
+  // Newest first, grouped by year; the client lights the spine as you scroll down.
+  // A single year of history reads better grouped by month.
+  const oneYear = new Set(list.map((p) => new Date(p.created).getFullYear())).size === 1;
+  const groups = new Map<string, PublicProject[]>();
+  for (const p of [...list].reverse()) {
+    const dt = new Date(p.created);
+    const y = oneYear ? fmt(p.created, lang, { month: "short" }) : String(dt.getFullYear());
+    (groups.get(y) ?? groups.set(y, []).get(y)!).push(p);
+  }
+  const item = (p: PublicProject) => `<li class="vt-item" style="--c:${STATUS_COLORS[p.status] ?? "#888"}"><span class="vt-node" aria-hidden="true"></span>
+<a class="vt-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${cover(p, "vt-img")}
+<div class="vt-body"><time datetime="${esc(p.created.slice(0, 10))}">${esc(fmt(p.created, lang, { month: "short", day: "numeric" }))}</time>
+<h3>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
+<div class="vt-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div></div></a></li>`;
+  const body = [...groups.entries()]
+    .map(([y, ps]) => `<div class="vt-grp"><div class="vt-yr"><b>${y}</b><small>${oneYear ? `${new Date(ps[0]!.created).getFullYear()} · ` : ""}${ps.length} ${esc(s.stat.projects)}</small></div><ol>${ps.map(item).join("")}</ol></div>`)
     .join("");
 
   return `<section id="timeline" class="sec">${head}
-<div class="tlx reveal" id="tlx" data-n="${list.length}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
-<div class="tlx-stage">${slides}<div class="tlx-prog" aria-hidden="true"><i></i></div></div>
-<div class="tlx-bar">
-<div class="tlx-ctrl"><button type="button" data-tlx="prev" aria-label="prev">‹</button><button type="button" data-tlx="play" aria-label="play/pause" aria-pressed="true"><span class="i-pause">❚❚</span><span class="i-play">▶</span></button><button type="button" data-tlx="next" aria-label="next">›</button><span class="tlx-count"><b>${list.length}</b> / ${list.length}</span></div>
-<div class="tlx-track"><ol style="--n:${list.length}"><div class="tlx-rail" aria-hidden="true"><i class="tlx-fill"></i></div>${dots}</ol></div>
-</div>
-</div>
-<ol class="tl-list">${rows}</ol>
+<div class="vt" id="vt"><div class="vt-spine" aria-hidden="true"><i class="vt-fill"></i></div>${body}</div>
 </section>`;
 }

@@ -33,7 +33,7 @@ jobs:
       - id: repofolio
         uses: mintguesss/repofolio@v0.6.0
         with:
-          token: ${{ secrets.REPOFOLIO_TOKEN }}
+          token: ${{ secrets.REPOFOLIO_TOKEN || github.token }}
           config: .github/repofolio.config.yml
         env:
           REPOFOLIO_ADMIN_PASSWORD: ${{ secrets.REPOFOLIO_ADMIN_PASSWORD }}

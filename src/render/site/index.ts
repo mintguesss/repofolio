@@ -441,7 +441,7 @@ ${icons.sprite()}
 <div class="noise" aria-hidden="true"></div>
 <div class="cursor-glow" aria-hidden="true"></div>
 <div id="progress" aria-hidden="true"></div>
-${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{localStorage.removeItem('repofolio-admin-token');sessionStorage.removeItem('repofolio-admin-token')}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
+${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{[localStorage,sessionStorage].forEach(function(s){Object.keys(s).forEach(function(k){if(k.indexOf('repofolio-admin')===0)s.removeItem(k)})})}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
 <header class="nav">
 <a class="brand" href="${multi ? "#/" : "#hero"}">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
 <nav>${navItems}</nav>
@@ -450,7 +450,7 @@ ${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<a href="./">${esc(s.
 <main>
 ${sections}
 </main>
-<footer class="foot"><p>${esc(s.generated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 10))}</span> · ${esc(s.builtWith)} <a href="${REPO_URL}" target="_blank" rel="noopener">repofolio</a> · <button type="button" class="linklike" id="open-help">?</button>${opts.adminLink && !admin ? ` · <a href="admin.html" class="adm-link" title="${esc(s.admin.nav)}" aria-label="${esc(s.admin.nav)}">🔒</a>` : ""}</p></footer>
+<footer class="foot"><p>${esc(s.generated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 10))}</span> · ${esc(s.builtWith)} <a href="${REPO_URL}" target="_blank" rel="noopener">repofolio</a> · <button type="button" class="linklike" id="open-help">?</button>${opts.adminLink && !admin ? ` · <a href="${esc(config.admin.page)}" class="adm-link" title="${esc(s.admin.nav)}" aria-label="${esc(s.admin.nav)}">🔒</a>` : ""}</p></footer>
 <div class="overlay" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title"><button type="button" class="x" data-close aria-label="${esc(s.close)}">✕</button><div id="m-body"></div></div></div>
 <div class="overlay" id="palette" hidden><div class="palette" role="dialog" aria-modal="true" aria-label="${esc(s.palette)}"><input id="pal-q" placeholder="${esc(s.palette)}" autocomplete="off"><ul id="pal-list" role="listbox"></ul></div></div>
 <div class="overlay" id="help" hidden><div class="modal small" role="dialog" aria-modal="true"><button type="button" class="x" data-close aria-label="${esc(s.close)}">✕</button><h3>${esc(s.shortcuts)}</h3><dl class="keys">${s.scShortcuts.map(([k, v]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(v)}</dd>`).join("")}</dl></div></div>

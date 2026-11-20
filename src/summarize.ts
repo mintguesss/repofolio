@@ -56,7 +56,7 @@ export class Summarizer {
       return summary;
     } catch (e) {
       if (e instanceof Anthropic.AuthenticationError) throw e;
-      console.warn(`  ! summary failed for ${fullName}: ${(e as Error).message}`);
+      console.warn(`  ! a summary failed: ${(e as Error).message}`);
       return null;
     }
   }

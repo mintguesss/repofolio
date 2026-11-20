@@ -5,7 +5,7 @@ import type { GitHubClient } from "./github.js";
 import type { Config } from "./schema.js";
 
 /** The only files that ever leave the machine / hub: all built from public-safe data. */
-export const PUBLIC_SITE_FILES = ["index.html", "card.svg", "projects.json", "admin.html"] as const;
+export const PUBLIC_SITE_FILES = ["index.html", "card.svg", "projects.json"] as const;
 
 export interface PublishResult {
   repo: string;
@@ -32,7 +32,7 @@ export async function publishSite(
   client: GitHubClient,
   target: NonNullable<Config["publish"]>,
   siteDir: string,
-  opts: { dryRun?: boolean; log?: (m: string) => void } = {},
+  opts: { dryRun?: boolean; log?: (m: string) => void; extra?: string[] } = {},
 ): Promise<PublishResult> {
   const log = opts.log ?? (() => {});
   const repoInfo = await client.get<{ default_branch: string; private: boolean; html_url: string }>(`/repos/${target.repo}`);
@@ -49,7 +49,7 @@ export async function publishSite(
   for (const e of tree?.tree ?? []) if (e.type === "blob") existing.set(e.path, e.sha);
 
   const changes: { path: string; content: Buffer }[] = [];
-  for (const name of PUBLIC_SITE_FILES) {
+  for (const name of [...PUBLIC_SITE_FILES, ...(opts.extra ?? [])]) {
     if (!existsSync(join(siteDir, name))) continue;
     const content = readFileSync(join(siteDir, name));
     const path = base ? posix.join(base, name) : name;

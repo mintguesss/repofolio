@@ -88,11 +88,14 @@ publish:
 
 ### 私有管理版
 
-和公開網站長得一樣，但只有你看得到：包含私有 repo、每張卡片有健康分數、多一個「管理」頁列出要處理的事（最糟的在前面），專案詳情裡還有環境變數放在哪、下一步、費用。
+和公開網站長得一樣，但只有你看得到：包含私有 repo、每張卡片有健康分數、多一個「管理」頁列出要處理的事（最糟的在前面），專案詳情裡還有環境變數放在哪、下一步、費用。網站上沒有任何連結指向它，檔名由你自己取（`admin.page`）。
 
-- `out/admin.html` 是完整的管理版，hub workflow 會把它提交到你的**私有** hub repo。
-- 公開網站會多一個 `admin.html` 登入頁（頁尾有個小 🔒），裡面沒有任何資料。貼上一把能讀取 hub repo 的 fine-grained token（只選那個 repo、Contents 唯讀），它就直接從 GitHub API 載入管理版。沒有權限的人只會拿到 404。
-- 不要的話設 `admin: { enabled: false }`；要換位置用 `admin: { repo: you/hub, path: admin.html }`。
+兩種保護方式：
+
+- **加密、單一 repo**（推薦）：設定 `REPOFOLIO_ADMIN_PASSWORD` secret。管理頁會壓縮後用 AES-256-GCM 加密（金鑰由 PBKDF2-SHA256 跑 60 萬次推導），跟公開網站放在一起；你輸入密碼後由瀏覽器解密，可以記住推導出的金鑰（不會存密碼）。用 [`templates/site-workflow.yml`](templates/site-workflow.yml) 直接在你的網站 repo 裡跑，不需要另一個 repo，只要一把金鑰。密碼請用長一點的句子：加密檔是公開的，弱密碼可能被離線猜中，舊版本也會留在 git 歷史。
+- **私有 repo**：沒設密碼時，會產生 `out/admin.html` 給私有 hub repo，公開的那一頁變成登入頁，用唯讀金鑰從 GitHub API 載入。
+
+公開 repo 的執行紀錄是公開的，所以 Action 會遮蔽私有 repo 名稱、也不會印出來。不要管理版的話設 `admin: { enabled: false }`。
 
 ## 盤點功能
 

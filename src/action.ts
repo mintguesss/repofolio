@@ -33,7 +33,12 @@ async function run() {
     ? new Summarizer({ model: config.llm.model, lang: config.language, cachePath: join(outDir, ".cache", "summaries.json") })
     : undefined;
 
-  let inv = await scan({ config, client, summarizer, log: (m) => console.log(m) });
+  // Logs of a public repo are public: mask every private repo name before anything can print it.
+  const onList = (repos: { name: string; full_name: string; private: boolean }[]) => {
+    for (const r of repos) if (r.private) console.log(`::add-mask::${r.full_name}\n::add-mask::${r.name}`);
+  };
+  let inv = await scan({ config, client, summarizer, log: (m) => console.log(m), onList });
+  const full = inv;
   summarizer?.save();
 
   // Safety: if the hub repo itself is public, never write private details into it.
@@ -41,12 +46,14 @@ async function run() {
   if (hub) {
     const hubRepo = await client.get<{ private: boolean }>(`/repos/${hub}`).catch(() => null);
     if (hubRepo && !hubRepo.private && inv.repos.some((r) => r.private)) {
-      console.log(`::warning::Hub repo ${hub} is public — private repos and private metadata were left out of CATALOG.md and inventory.json. Make the hub repo private to keep the full catalog.`);
+      // Public repo: plaintext outputs never get private repos; only the encrypted admin page sees them.
+      if (!process.env.REPOFOLIO_ADMIN_PASSWORD) console.log(`::notice::${hub} is public, so private repos are left out of CATALOG.md and inventory.json. Set REPOFOLIO_ADMIN_PASSWORD to get them in the encrypted admin page.`);
       inv = redact(inv);
     }
   }
 
-  const out = writeOutputs(inv, config, outDir);
+  const encrypted = !!process.env.REPOFOLIO_ADMIN_PASSWORD && config.admin.mode !== "repo";
+  const out = writeOutputs(inv, config, outDir, { adminInv: encrypted ? full : inv, log: (m) => console.log(m) });
   const line = summaryLine(inv);
   console.log(line);
 
@@ -64,13 +71,13 @@ async function run() {
   if (config.publish && bool("publish", true)) {
     const publishToken = input("publish-token");
     const pubClient = publishToken ? new GitHubClient({ token: publishToken, userAgent: `repofolio-action/${VERSION}` }) : client;
-    const res = await publishSite(pubClient, config.publish, join(outDir, "site"), { log: (m) => console.log(m) });
+    const res = await publishSite(pubClient, config.publish, join(outDir, "site"), { log: (m) => console.log(m), extra: config.admin.enabled ? [config.admin.page] : [] });
     setOutput("published", res.commit ?? "");
   }
 
   const summaryFile = process.env.GITHUB_STEP_SUMMARY;
   if (summaryFile) {
-    const attention = inv.repos.flatMap((r) => r.health.filter((i) => i.level === "error").map((i) => `- **${r.name}**: ${i.message}`));
+    const attention = inv.repos.flatMap((r) => (r.private ? [] : r.health.filter((i) => i.level === "error")).map((i) => `- **${r.name}**: ${i.message}`));
     appendFileSync(summaryFile, `## repofolio\n\n${line}\n\n${attention.length ? attention.join("\n") : "No errors 🎉"}\n`);
   }
   setOutput("summary", line);

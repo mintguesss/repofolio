@@ -1,6 +1,6 @@
 {
   "name": "repofolio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Know, showcase and promote every GitHub repo you own: inventory, deployments, URL health, stale detection and an auto-built portfolio.",
   "type": "module",
   "bin": {

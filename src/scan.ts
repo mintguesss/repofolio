@@ -15,6 +15,8 @@ export interface ScanOptions {
   summarizer?: Summarizer;
   now?: Date;
   log?: (msg: string) => void;
+  /** Called with the repo list before scanning (the Action masks private names in logs here). */
+  onList?: (repos: { name: string; full_name: string; private: boolean }[]) => void;
 }
 
 const META_FILES = [".project.yml", ".project.yaml"];
@@ -146,7 +148,12 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     const pages = await client.get<{ html_url?: string }>(`/repos/${full}/pages`).catch(() => null);
     if (pages?.html_url) fromPages.push({ name: "github-pages", provider: "github-pages", url: pages.html_url, source: "github-pages" });
   }
-  const homepageUrls = [gh.homepage, meta.links.homepage].filter((u): u is string => !!u && /^https?:\/\//.test(u));
+  // A link back to the repo itself (e.g. github.com/me/app#readme) is not a deployment.
+  const selfLink = (u: string) => {
+    const m = /^https?:\/\/(?:www\.)?github\.com\/([^/#?]+)\/([^/#?]+)/i.exec(u);
+    return !!m && `${m[1]}/${m[2]}`.toLowerCase() === full.toLowerCase();
+  };
+  const homepageUrls = [gh.homepage, meta.links.homepage].filter((u): u is string => !!u && /^https?:\/\//.test(u) && !selfLink(u));
   const fromHomepage: DetectedDeployment[] = homepageUrls.map((u) => ({ name: "production", provider: providerFromUrl(u), url: u, source: "homepage" }));
   const fromFiles = detectFromFiles(rootNames, workflowTexts);
   // Metadata/homepage first so stable aliases win over per-deploy URLs.
@@ -281,10 +288,11 @@ export async function fetchProfile(client: GitHubClient, login: string): Promise
 export async function scan(opts: ScanOptions): Promise<Inventory> {
   const log = opts.log ?? (() => {});
   const repos = await listRepos(opts.client, opts.config);
+  opts.onList?.(repos);
   log(`Found ${repos.length} repos. Scanning…`);
   const records = await pool(repos, 4, async (gh) => {
     const rec = await scanRepo(gh, opts);
-    log(`  ✓ ${gh.full_name}`);
+    log(gh.private ? "  ✓ (private repo)" : `  ✓ ${gh.full_name}`);
     return rec;
   });
   log("Checking deployment URLs…");

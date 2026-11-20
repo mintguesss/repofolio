@@ -209,10 +209,21 @@ export const ConfigSchema = z.object({
    */
   admin: z.object({
     enabled: z.boolean().default(true),
-    /** owner/name of the private repo holding admin.html. Defaults to GITHUB_REPOSITORY in Actions. */
+    /**
+     * encrypted: publish the admin page encrypted with the REPOFOLIO_ADMIN_PASSWORD env var (works from one public repo).
+     * repo: keep it in a private repo and open it with a GitHub token.
+     * auto: encrypted when the password is set, otherwise repo.
+     */
+    mode: z.enum(["auto", "encrypted", "repo"]).default("auto"),
+    /** File name of the admin page on the public site. Pick something only you know. */
+    page: z.string().regex(/^[\w.-]+\.html$/, "must be a plain file name ending in .html").default("admin.html"),
+    /** Show a 🔒 link to the admin page in the public site's footer. */
+    link: z.boolean().default(false),
+    /** repo mode: owner/name of the private repo holding admin.html. Defaults to GITHUB_REPOSITORY in Actions. */
     repo: z.string().optional(),
+    /** repo mode: path of admin.html inside that repo. */
     path: z.string().default("admin.html"),
-  }).default({ enabled: true, path: "admin.html" }),
+  }).default({ enabled: true, mode: "auto", page: "admin.html", link: false, path: "admin.html" }),
   output: z.object({
     dir: z.string().default("out"),
   }).default({ dir: "out" }),

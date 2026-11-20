@@ -87,7 +87,7 @@ async function main(argv: string[]): Promise<number> {
         return 1;
       }
       const client = new GitHubClient({ token: process.env.REPOFOLIO_PUBLISH_TOKEN || (await resolveToken()), userAgent: `repofolio/${VERSION}` });
-      const res = await publishSite(client, config.publish, join(values.out ?? config.output.dir, "site"), { dryRun: values["dry-run"], log: (m) => console.error(m) });
+      const res = await publishSite(client, config.publish, join(values.out ?? config.output.dir, "site"), { dryRun: values["dry-run"], log: (m) => console.error(m), extra: config.admin.enabled ? [config.admin.page] : [] });
       for (const c of res.changed) console.log(c);
       return 0;
     }

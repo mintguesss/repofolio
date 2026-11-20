@@ -4,7 +4,9 @@ import { GitHubClient, parseNextLink } from "../src/github.js";
 import { openStaleIssues } from "../src/issues.js";
 import { renderCard, renderProfileSection, spliceProfile } from "../src/render/card.js";
 import { renderCatalog } from "../src/render/markdown.js";
-import { renderAdminLogin } from "../src/render/admin.js";
+import { createDecipheriv, pbkdf2Sync } from "node:crypto";
+import { gunzipSync } from "node:zlib";
+import { renderAdminLocked, renderAdminLogin } from "../src/render/admin.js";
 import { buildShowcase, renderSite } from "../src/render/site.js";
 import { ConfigSchema } from "../src/schema.js";
 import { scan } from "../src/scan.js";
@@ -75,7 +77,7 @@ function fakeFetch(): typeof fetch {
     "/user/repos?affiliation=owner&sort=pushed&per_page=100": [
       repo("public-app", { homepage: "https://public-app.vercel.app" }),
       repo("secret", { private: true, pushed_at: daysAgo(10) }),
-      repo("old-thing", { pushed_at: daysAgo(200), topics: [], license: null, description: null }),
+      repo("old-thing", { pushed_at: daysAgo(200), topics: [], license: null, description: null, homepage: "https://github.com/me/old-thing#readme" }),
       repo("a-fork", { fork: true }),
     ],
     "/repos/me/public-app/contents/": [{ name: ".project.yml", path: ".project.yml", type: "file" }, { name: "package.json", path: "package.json", type: "file" }, { name: "vercel.json", path: "vercel.json", type: "file" }],
@@ -129,6 +131,7 @@ describe("scan", () => {
     expect(pub.deployments[0]!.provider).toBe("vercel");
 
     const old = inv.repos.find((r) => r.name === "old-thing")!;
+    expect(old.deployments).toEqual([]); // a link back to its own README is not a deployment
     expect(old.stale).toBe(true);
     expect(old.status).toBe("paused");
     expect(old.summary).toBe("An old experiment.");
@@ -157,8 +160,27 @@ describe("scan", () => {
     expect(login).toContain("https://api.github.com/repos/me/hub/contents/admin.html");
     const pub = renderSite(inv, config, { adminLink: true });
     expect(pub).toContain('href="admin.html"');
+    expect(renderSite(inv, config)).not.toContain("adm-link");
     expect(pub).not.toContain("Secret side project");
     expect(JSON.stringify(buildShowcase(inv, config))).not.toContain('"admin":{"shown"');
+  });
+
+  it("encrypts the admin page so only the password opens it", async () => {
+    const { inv, config } = await runScan();
+    const adminHtml = renderSite(inv, config, { admin: true });
+    const page = renderAdminLocked(config, adminHtml, "correct horse battery staple", "me");
+    expect(page).not.toContain("Secret side project");
+    expect(page).not.toContain("secret-app.vercel.app");
+    const P = JSON.parse(/var P = ({.*?}), KEY/.exec(page)![1]!);
+    const decrypt = (pw: string) => {
+      const key = pbkdf2Sync(pw, Buffer.from(P.s, "base64"), P.n, 32, "sha256");
+      const data = Buffer.from(P.d, "base64");
+      const d = createDecipheriv("aes-256-gcm", key, Buffer.from(P.i, "base64"));
+      d.setAuthTag(data.subarray(-16));
+      return gunzipSync(Buffer.concat([d.update(data.subarray(0, -16)), d.final()])).toString("utf8");
+    };
+    expect(decrypt("correct horse battery staple")).toBe(adminHtml);
+    expect(() => decrypt("wrong")).toThrow();
   });
 
   it("builds showcase data with profile and activity from public repos only", async () => {

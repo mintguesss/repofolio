@@ -111,15 +111,18 @@ publish:
   branch: main                 # optional, defaults to the repo's default branch
 ```
 
-`repofolio publish` (or the Action, automatically) commits only `index.html`, `card.svg`, `projects.json` and the `admin.html` login page, and only when they changed. Never `inventory.json`, `CATALOG.md` or the admin data. `projects.json` has the same public data as the page, so your own site can render it however it likes.
+`repofolio publish` (or the Action, automatically) commits only `index.html`, `card.svg`, `projects.json` and the admin page (encrypted, or a data-free login page), and only when they changed. Never `inventory.json` or `CATALOG.md`. `projects.json` has the same public data as the page, so your own site can render it however it likes.
 
 ### Private admin view
 
-The same site, for your eyes only: every repo including private ones, a health score on each card, an **Admin** page listing what to fix (worst first), and env-var locations / next steps / cost in each project's details.
+The same site, for your eyes only: every repo including private ones, a health score on each card, an **Admin** page listing what to fix (worst first), and env-var locations / next steps / cost in each project's details. There's no link to it; it lives at a file name you pick (`admin.page`).
 
-- `out/admin.html` is the full admin build. The hub workflow commits it to your **private** hub repo.
-- The public site gets `admin.html`, a login page with no data in it (there's a small 🔒 in the footer). Paste a fine-grained token that can read the hub repo (Contents: Read-only, that repo only) and it loads the admin build straight from GitHub's API. Without access to the repo, GitHub returns 404 and there's nothing to see.
-- Turn it off with `admin: { enabled: false }`; point it elsewhere with `admin: { repo: you/hub, path: admin.html }`.
+Two ways to keep it private:
+
+- **Encrypted, one repo** (recommended): set the `REPOFOLIO_ADMIN_PASSWORD` secret. The admin page is gzipped and encrypted (AES-256-GCM, key from PBKDF2-SHA256 × 600k) and published next to the public site; your browser decrypts it after you type the password, and can remember the derived key (never the password). Run repofolio inside your site repo with [`templates/site-workflow.yml`](templates/site-workflow.yml): no hub repo, one token. Use a long passphrase: the encrypted file is public, so a weak password can be guessed offline, and old versions stay in git history.
+- **Private repo**: without a password, `out/admin.html` is written for a private hub repo and the public page becomes a login that loads it through the GitHub API with a read-only token.
+
+Logs of a public repo are public, so the Action masks private repo names and never prints them. Turn the admin view off with `admin: { enabled: false }`.
 
 ## Try it in 10 seconds
 

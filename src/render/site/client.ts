@@ -33,7 +33,7 @@ export function clientMain(): void {
   const simple = () => st.mode === "simple";
   // Simple mode switches every effect off (mirrors effectiveTheme() in index.ts).
   const eff = () => (simple()
-    ? Object.assign({}, st, { background: "none", cardStyle: "simple", animation: st.animation === "off" ? "off" : "subtle", glow: "none", cursorGlow: false, tilt: false, covers: false })
+    ? Object.assign({}, st, { background: "none", cardStyle: "simple", animation: st.animation === "off" ? "off" : "subtle", glow: "none", cursorGlow: false, tilt: false, covers: true })
     : st);
   const motion = () => (reduceMotion ? "off" : eff().animation);
 

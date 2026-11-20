@@ -100,7 +100,7 @@ export function renderCard(inv: Inventory, lang: Lang, opts: { accent?: string; 
 <rect x="1" y="1" width="${w - 2}" height="${h - 2}" rx="12" fill="none" stroke="${accent}" stroke-opacity=".25"/>
 <rect class="dash" x="1" y="1" width="${w - 2}" height="${h - 2}" rx="12" fill="none" stroke="url(#edge)" stroke-width="1.6"/>
 <text x="20" y="32" class="t">${esc(d.profile?.name || d.owner)}</text>
-<text x="20" y="49" class="m">@${esc(d.owner)} · ${zh ? "專案總覽" : "project inventory"}</text>
+<text x="20" y="49" class="m">@${esc(d.owner)} · ${zh ? "作品集" : "projects"}</text>
 <circle class="pulse" cx="${w - 92}" cy="28" r="4" fill="#22c55e"/>
 <text x="${w - 82}" y="32" class="m">${d.totals.live} ${zh ? "上線中" : "live"}</text>
 ${cells}

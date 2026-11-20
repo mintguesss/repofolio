@@ -131,8 +131,18 @@ ${metaBits.length ? `<p class="hero-meta">${metaBits.join("")}</p>` : ""}
 <dl class="counters">${stats.map(([n, l]) => `<div><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
 </div>
 ${terminal}
-<aside class="hero-recent simple-only reveal"><h4>${esc(s.recent)}</h4><ul>${[...d.projects].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)).slice(0, 5).map((p) => `<li><a href="#/p/${esc(p.id)}" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b><time data-time="${esc(p.updated)}"></time></a><p>${esc(p.summary)}</p></li>`).join("")}</ul></aside>
+${heroShots(d)}
 </section>`;
+}
+
+/** Simple-mode hero art: a small mosaic of project covers (featured first, then most recent). */
+function heroShots(d: ShowcaseData): string {
+  const byRecent = [...d.projects].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
+  const pick = [...byRecent.filter((p) => p.featured), ...byRecent.filter((p) => !p.featured)].filter((p) => p.image).slice(0, 4);
+  if (pick.length < 2) return "";
+  return `<div class="hero-shots simple-only reveal n${pick.length}">${pick
+    .map((p) => `<a class="shot" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}" title="${esc(p.name)}"><img loading="lazy" decoding="async" src="${esc(p.image!)}" alt="${esc(p.name)}" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"><span class="shot-fb" aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span><b>${esc(p.name)}</b></a>`)
+    .join("")}</div>`;
 }
 
 function featuredSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number): string {
@@ -285,16 +295,26 @@ function statusSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: 
 function timelineSection(d: ShowcaseData, s: SiteStrings, idx: number, lang: string): string {
   const list = [...d.projects].sort((a, b) => Date.parse(b.created) - Date.parse(a.created));
   if (!list.length) return "";
+  const perYear = new Map<string, number>();
+  for (const p of list) {
+    const y = String(new Date(p.created).getFullYear());
+    perYear.set(y, (perYear.get(y) ?? 0) + 1);
+  }
   let lastYear = "";
+  let side = 0;
   const items = list
     .map((p) => {
       const y = String(new Date(p.created).getFullYear());
-      const yearTag = y !== lastYear && y !== "NaN" ? `<li class="year"><span>${y}</span></li>` : "";
+      const yearTag = y !== lastYear && y !== "NaN" ? `<li class="tl-year reveal"><span>${y}</span><small>${perYear.get(y)} ${esc(s.projectsCount)}</small></li>` : "";
       lastYear = y;
-      return `${yearTag}<li class="tl-item reveal"><span class="tl-dot st-${p.status}"></span><time>${esc(fmtDate(p.created, lang))}</time><a href="#p/${esc(p.id)}" data-open="${esc(p.id)}">${esc(p.name)}</a><p>${esc(p.summary)}</p></li>`;
+      const tech = [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
+      const thumb = p.image
+        ? `<div class="tl-thumb"><img loading="lazy" decoding="async" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"><span aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span></div>`
+        : `<div class="tl-thumb noimg"><span aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span></div>`;
+      return `${yearTag}<li class="tl-item reveal ${side++ % 2 ? "r" : "l"}"><span class="tl-dot st-${p.status}" title="${esc(s.statusLabels[p.status])}"></span><a class="tl-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${thumb}<div class="tl-txt"><time datetime="${esc(p.created.slice(0, 10))}">${esc(new Date(p.created).toLocaleDateString(lang === "zh-TW" ? "zh-TW" : "en-US", { month: "short", day: "numeric" }))}</time><h3>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}${tech.length ? `<div class="tl-tags">${tech.map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}</div></a></li>`;
     })
     .join("");
-  return `<section id="timeline" class="sec">${sectionHead("timeline", s.timeline, s.timelineSub, idx)}<ol class="timeline">${items}</ol></section>`;
+  return `<section id="timeline" class="sec">${sectionHead("timeline", s.timeline, s.timelineSub, idx)}<ol class="tl">${items}<li class="tl-end" aria-hidden="true"></li></ol></section>`;
 }
 
 function themeAttrs(config: Config): string {
@@ -305,7 +325,7 @@ function themeAttrs(config: Config): string {
 /** Simple mode switches every effect off; tech mode uses the settings as-is. Mirrored in client.ts. */
 export function effectiveTheme(th: Config["site"]["theme"]) {
   if (th.mode !== "simple") return th;
-  return { ...th, background: "none" as const, cardStyle: "simple", animation: th.animation === "off" ? ("off" as const) : ("subtle" as const), glow: "none" as const, cursorGlow: false, tilt: false, covers: false };
+  return { ...th, background: "none" as const, cardStyle: "simple", animation: th.animation === "off" ? ("off" as const) : ("subtle" as const), glow: "none" as const, cursorGlow: false, tilt: false, covers: true };
 }
 
 /** CSS variables for a custom background colour; text colours flip to stay readable. Mirrored in client.ts. */

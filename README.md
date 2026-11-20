@@ -38,20 +38,20 @@ You have 20+ repos. Which ones are live? Where is each one deployed? Which Verce
 
 One self-contained `index.html` (no build step, no framework, works on GitHub Pages) generated from your repos. It has two styles you (and visitors) can switch between:
 
-- **Simple** (default): clean typography, black/white with one accent, light/dark following the system, no effects. Looks like a well-made personal site.
+- **Simple** (default): clean typography, black/white with one accent, project cover images, light/dark following the system, no effects. Looks like a well-made personal site.
 - **Tech**: 10 neon presets, canvas backgrounds (particles, synthwave grid, matrix rain, starfield, circuit, aurora), glow, 3D tilt, cursor light, a typing hero and a terminal that "types out" the scan.
 
 Pages:
 
 - **Home**: who you are, recently updated projects, featured work, and quick links
-- **Projects**: search, status filters, a collapsible tech filter, sorting and 4 layouts (grid, bento, list, compact). Cards show status, summary, tech, a 26-week commit sparkline and links. Click a card for a detail view with a deep link (`#/p/name`)
+- **Projects**: search, status filters, a collapsible tech filter, sorting and 2 layouts (grid, list). Cards show a cover image (README screenshot or social preview), status, a short summary, tech and links. Click a card for a detail view with a deep link (`#/p/name`)
 - **Stats**:
   - counts: projects, live, active, stars, commits/year, languages
   - commits per week for the last year, plus the most active repos
   - language share and a tech cloud (click to filter)
   - a status donut, hosting providers and projects started per year
   - a live status board for every public deployment
-- **Timeline** of when each project started
+- **Timeline**: an alternating timeline of when each project started, with cover thumbnails
 
 Also included: a **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a **live customizer (⚙)**. The customizer groups its options: style, colours and layout come first, and all tech effects sit in one "Effects" group. "Copy as config" gives you YAML to paste into `repofolio.config.yml`. The site respects `prefers-reduced-motion`, is keyboard accessible and has no horizontal scroll down to 375px.
 
@@ -79,7 +79,7 @@ site:
     scheme: auto           # simple mode: auto | light | dark
     accent: "#2563eb"      # optional
     bgColor: "#fafafa"     # optional page background; text colour adapts
-    layout: grid           # grid | bento | list | compact
+    layout: grid           # grid | list
     font: sans             # sans | mono | display | system
     radius: 16             # 0–32 px
     # ── tech mode only ──
@@ -192,7 +192,7 @@ repofolio profile   <README.md> [--site-url url]
 | Profile README output | ✅ animated card + block | ✅ | — | — | — |
 | Portfolio site | ✅ generated | — | ✅ generated | ✅ hand-edited | — |
 | Stays in sync automatically | ✅ nightly | ✅ | ✅ / partly | — | ✅ |
-| Themes / live customizer | 10 presets × 7 backgrounds × 5 card styles × 4 layouts, live ⚙ panel | themes | a few themes | edit the code | — |
+| Themes / live customizer | 10 presets × 7 backgrounds × 5 card styles × 2 layouts, live ⚙ panel | themes | a few themes | edit the code | — |
 | README screenshots as covers | ✅ | — | — | manual | — |
 | Private inventory of all repos | ✅ | — | — | — | ✅ (for companies) |
 | Deployment URLs + uptime | ✅ | — | — | — | plugin |

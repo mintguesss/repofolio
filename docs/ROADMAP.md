@@ -14,7 +14,7 @@
 - [x] Stale-project issues (deduped)
 - [x] GitHub Action + hub workflow template; redacts private data if the hub repo is public
 - [x] en / zh-TW
-- [ ] Commit `dist/` on release tags so `uses: mintguesss/repofolio@v0` works
+- [x] Commit `dist/` on release tags so `uses: mintguesss/repofolio@v0` works
 - [ ] Publish to npm
 - [ ] Screenshots + live demo in README
 

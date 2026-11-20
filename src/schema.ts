@@ -100,24 +100,29 @@ export const CARD_STYLES = ["glass", "solid", "neon", "outline", "terminal"] as 
 export const LAYOUTS = ["grid", "bento", "list", "compact"] as const;
 export const FONTS = ["sans", "mono", "display", "system"] as const;
 export const ANIMATIONS = ["full", "subtle", "off"] as const;
+export const GLOWS = ["none", "soft", "strong"] as const;
 export const SECTIONS = ["hero", "featured", "projects", "stack", "activity", "status", "timeline"] as const;
 
 export const ThemeSchema = z.object({
-  preset: z.enum(THEME_PRESETS).default("cyber"),
+  preset: z.enum(THEME_PRESETS).default("paper"),
   /** Override the preset's accent, e.g. "#22d3ee". */
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-  background: z.enum(BACKGROUNDS).default("particles"),
-  cardStyle: z.enum(CARD_STYLES).default("glass"),
+  /** Override the page background colour, e.g. "#101418". Text colour adapts automatically. */
+  bgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  background: z.enum(BACKGROUNDS).default("none"),
+  cardStyle: z.enum(CARD_STYLES).default("solid"),
   layout: z.enum(LAYOUTS).default("grid"),
   font: z.enum(FONTS).default("sans"),
-  animation: z.enum(ANIMATIONS).default("full"),
+  animation: z.enum(ANIMATIONS).default("subtle"),
+  /** Glow / neon intensity on buttons, cards, avatar and text. */
+  glow: z.enum(GLOWS).default("soft"),
   /** Corner radius in px. */
   radius: z.number().int().min(0).max(32).default(16),
   /** Show GitHub social-preview images as card covers. */
   covers: z.boolean().default(true),
-  cursorGlow: z.boolean().default(true),
+  cursorGlow: z.boolean().default(false),
   /** 3D tilt on hover. */
-  tilt: z.boolean().default(true),
+  tilt: z.boolean().default(false),
   /** Load Inter / JetBrains Mono / Space Grotesk / Noto Sans TC from Google Fonts. */
   webFonts: z.boolean().default(true),
 });
@@ -140,6 +145,8 @@ export const SiteSchema = z.object({
   }).default({ roles: [], terminal: true, avatar: true }),
   /** Which sections to show, in order. */
   sections: z.array(z.enum(SECTIONS)).default([...SECTIONS]),
+  /** Put every section on one long page instead of separate pages (home, projects, stack, …). */
+  singlePage: z.boolean().default(false),
   /** Let visitors open the ⚙ panel and play with the theme (their choice is saved in their browser). */
   customizer: z.boolean().default(true),
   /** Canonical URL of the published site (for og:url and the profile "All projects" link). */

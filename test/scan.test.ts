@@ -157,6 +157,29 @@ describe("scan", () => {
     expect(d.projects.find((p) => p.name === "public-app")?.image).toContain("opengraph.githubassets.com/1/me/public-app");
   });
 
+  it("splits the site into pages by default, or one page with singlePage", async () => {
+    const { inv } = await runScan();
+    const multi = renderSite(inv, ConfigSchema.parse({}));
+    expect(multi).toContain('data-page="home"');
+    expect(multi).toContain('data-page="projects"');
+    expect(multi).toContain('href="#/projects"');
+    expect(multi).toContain('data-preset="paper"');
+    expect(multi).toContain('data-fx="soft"');
+    const single = renderSite(inv, ConfigSchema.parse({ site: { singlePage: true } }));
+    expect(single).not.toContain('data-page="projects"');
+    expect(single).toContain('href="#projects"');
+  });
+
+  it("applies a custom background colour with readable text", async () => {
+    const { inv } = await runScan();
+    const dark = renderSite(inv, ConfigSchema.parse({ site: { theme: { bgColor: "#0d1117" } } }));
+    expect(dark).toContain("--bg:#0d1117");
+    expect(dark).toContain("--fg:#e8edf2");
+    const light = renderSite(inv, ConfigSchema.parse({ site: { theme: { preset: "cyber", bgColor: "#ffffff" } } }));
+    expect(light).toContain("--fg:#1c1917");
+    expect(() => ConfigSchema.parse({ site: { theme: { bgColor: "red" } } })).toThrow();
+  });
+
   it("escapes hostile text in the generated page", async () => {
     const { inv, config } = await runScan();
     const pub = inv.repos.find((r) => r.name === "public-app")!;

@@ -1,7 +1,7 @@
 import type { Lang } from "../../i18n.js";
 
 const en = {
-  nav: { featured: "Featured", projects: "Projects", stack: "Stack", activity: "Activity", status: "Status", timeline: "Timeline" },
+  nav: { home: "Home", featured: "Featured", projects: "Projects", stack: "Stack", activity: "Activity", status: "Status", timeline: "Timeline" },
   hello: "hello, world",
   viewProjects: "Explore projects",
   projectsCount: "projects",
@@ -54,6 +54,10 @@ const en = {
   customize: "Customize",
   theme: "Theme",
   accent: "Accent",
+  bgColor: "Background colour",
+  glow: "Glow",
+  presetBg: "Theme default",
+  since: "first project",
   background: "Background",
   cardStyle: "Cards",
   font: "Font",
@@ -90,7 +94,7 @@ const en = {
 export type SiteStrings = typeof en;
 
 const zh: SiteStrings = {
-  nav: { featured: "精選", projects: "專案", stack: "技術", activity: "活動", status: "狀態", timeline: "時間軸" },
+  nav: { home: "首頁", featured: "精選", projects: "專案", stack: "技術", activity: "活動", status: "狀態", timeline: "時間軸" },
   hello: "hello, world",
   viewProjects: "瀏覽專案",
   projectsCount: "個專案",
@@ -143,6 +147,10 @@ const zh: SiteStrings = {
   customize: "自訂外觀",
   theme: "主題",
   accent: "強調色",
+  bgColor: "背景顏色",
+  glow: "光暈強度",
+  presetBg: "主題預設",
+  since: "第一個專案",
   background: "背景特效",
   cardStyle: "卡片樣式",
   font: "字型",

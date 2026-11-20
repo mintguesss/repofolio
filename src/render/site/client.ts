@@ -42,6 +42,8 @@ export function clientMain(): void {
     body.dataset.covers = String(st.covers);
     body.dataset.glow = String(st.cursorGlow);
     body.dataset.tilt = String(st.tilt);
+    body.dataset.fx = st.glow;
+    applyBg();
     body.style.setProperty("--accent", st.accent);
     body.style.setProperty("--radius", st.radius + "px");
     const meta = $('meta[name="theme-color"]');
@@ -50,8 +52,29 @@ export function clientMain(): void {
     bg.start(st.background);
     syncCustomizer();
   }
+  // Custom background colour: mirrors bgColorVars() in index.ts.
+  const BG_PROPS = ["--bg", "--bg2", "--card", "--fg", "--muted", "--line", "color-scheme"];
+  function applyBg() {
+    BG_PROPS.forEach((k) => body.style.removeProperty(k));
+    if (!st.bgColor || !/^#[0-9a-f]{6}$/i.test(st.bgColor)) return;
+    const n = parseInt(st.bgColor.slice(1), 16);
+    const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const light = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255) > 0.4;
+    const mix = light ? "#000" : "#fff";
+    const v = {
+      "--bg": st.bgColor,
+      "--bg2": `color-mix(in srgb,${st.bgColor} 92%,${mix})`,
+      "--card": `color-mix(in srgb,${st.bgColor} 94%,${mix})`,
+      "--fg": light ? "#1c1917" : "#e8edf2",
+      "--muted": light ? "#6b6560" : "#949ba4",
+      "--line": light ? "rgba(0,0,0,.1)" : "rgba(255,255,255,.12)",
+      "color-scheme": light ? "light" : "dark",
+    };
+    for (const k in v) body.style.setProperty(k, v[k]);
+  }
   function set(patch, silent) {
     if (patch.preset && !("accent" in patch)) patch.accent = C.presetAccents[patch.preset];
+    if (patch.preset && !("bgColor" in patch)) patch.bgColor = undefined;
     Object.assign(st, patch);
     save();
     applyTheme();
@@ -260,15 +283,47 @@ export function clientMain(): void {
   addEventListener("scroll", onScroll, { passive: true });
   onScroll();
   const navLinks = $$(".nav nav a");
-  const secObs = new IntersectionObserver((ents) => {
-    ents.forEach((e) => { if (e.isIntersecting) navLinks.forEach((a) => a.classList.toggle("on", a.dataset.nav === e.target.id)); });
-  }, { rootMargin: "-45% 0px -50% 0px" });
-  $$("main > section[id]").forEach((s) => secObs.observe(s));
+  if (!C.multi) {
+    const secObs = new IntersectionObserver((ents) => {
+      ents.forEach((e) => { if (e.isIntersecting) navLinks.forEach((a) => a.classList.toggle("on", a.dataset.nav === e.target.id)); });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    $$("main section[id]").forEach((s) => secObs.observe(s));
+  }
+
+  /* ───────── pages (hash router: #/, #/projects, #/p/<id>) ───────── */
+  let currentPage = "";
+  const pages = $$(".page");
+  function parseRoute() {
+    const h = location.hash;
+    let m = h.match(/^#\/?p\/(.+)$/);
+    if (m) return { page: currentPage || "projects", project: decodeURIComponent(m[1]) };
+    m = h.match(/^#\/([\w-]*)$/);
+    return { page: (m && m[1]) || "home" };
+  }
+  function showPage(name) {
+    if (!C.multi || !pages.length) return;
+    if (!pages.some((p) => p.dataset.page === name)) name = pages[0].dataset.page;
+    if (name === currentPage) return;
+    const go = () => {
+      pages.forEach((p) => (p.hidden = p.dataset.page !== name));
+      navLinks.forEach((a) => a.classList.toggle("on", a.dataset.nav === name));
+      body.dataset.page = name;
+      if (currentPage) scrollTo({ top: 0 });
+      currentPage = name;
+    };
+    if (currentPage && document.startViewTransition && motion() === "full") document.startViewTransition(go);
+    else go();
+  }
+  const goPage = (name) => {
+    if (C.multi) location.hash = "#/" + (name === "home" ? "" : name);
+    else { const el = $("#" + name); if (el) el.scrollIntoView({ behavior: motion() === "off" ? "auto" : "smooth" }); }
+  };
+  showPage(parseRoute().page);
 
   /* ───────── reveal, scramble, counters ───────── */
   function scramble(el) {
     const final = el.textContent;
-    if (motion() === "off" || el.dataset.done) return;
+    if (motion() !== "full" || el.dataset.done) return;
     el.dataset.done = "1";
     const glyphs = "!<>-_\\/[]{}—=+*^?#01ABCDEF";
     const start = performance.now(), dur = 700;
@@ -436,7 +491,7 @@ export function clientMain(): void {
   $$(".cloud .orb").forEach((o) => o.addEventListener("click", () => {
     F.tech.clear();
     toggleTech(o.dataset.tech, true);
-    $("#projects") && $("#projects").scrollIntoView({ behavior: motion() === "off" ? "auto" : "smooth" });
+    goPage("projects");
   }));
   const sortSel = $("#sort");
   if (sortSel) sortSel.addEventListener("change", () => { F.sort = sortSel.value; runFilter(); });
@@ -531,7 +586,7 @@ export function clientMain(): void {
     modal.hidden = false;
     document.documentElement.style.overflow = "hidden";
     $(".x", modal).focus();
-    if (push) { history.pushState({ p: id }, "", "#p/" + id); pushed = true; }
+    if (push) { history.pushState({ p: id }, "", (C.multi ? "#/p/" : "#p/") + id); pushed = true; }
   }
   function closeModal(fromPop) {
     if (modal.hidden) return;
@@ -539,17 +594,19 @@ export function clientMain(): void {
     document.documentElement.style.overflow = "";
     if (!fromPop) {
       if (pushed) history.back();
-      else history.replaceState(null, "", location.pathname + location.search);
+      else history.replaceState(null, "", location.pathname + location.search + (C.multi && currentPage !== "home" ? "#/" + currentPage : ""));
     }
     pushed = false;
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
   function fromHash(fromPop) {
-    const m = location.hash.match(/^#p\/(.+)$/);
-    if (m && byId[decodeURIComponent(m[1])]) openProject(decodeURIComponent(m[1]), false);
+    const r = parseRoute();
+    showPage(r.page);
+    if (r.project && byId[r.project]) openProject(r.project, false);
     else closeModal(fromPop);
   }
   addEventListener("popstate", () => fromHash(true));
+  addEventListener("hashchange", () => fromHash(true));
   $$("[data-open]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); openProject(a.dataset.open, true); }));
   $$(".overlay").forEach((o) => o.addEventListener("click", (e) => {
     if (e.target === o || e.target.closest("[data-close]")) { if (o === modal) closeModal(); else o.hidden = true; }
@@ -578,6 +635,7 @@ export function clientMain(): void {
   /* ───────── customizer ───────── */
   const panel = $("#custom");
   const PRESET_SWATCH = {};
+  const BG_SWATCHES = ["#ffffff", "#f6f3ee", "#f1f5f9", "#ecfdf5", "#fdf2f8", "#18181b", "#0d1117", "#0b1020", "#111827", "#1a1625", "#0f1f1a", "#1f1410"];
   function buildCustomizer() {
     if (!panel) return;
     const O = C.options;
@@ -597,11 +655,13 @@ export function clientMain(): void {
       <h3>${esc(S.customize)} <button type="button" class="icon-btn" data-close-panel aria-label="${esc(S.close)}">✕</button></h3>
       <div class="cz-group"><span>${esc(S.theme)}</span><div class="cz-presets">${O.preset.map((p) => `<button type="button" data-k="preset" data-v="${p}" title="${p}" style="background:linear-gradient(135deg,${PRESET_SWATCH[p][0]} 45%,${PRESET_SWATCH[p][1]} 46%,${PRESET_SWATCH[p][2]})"><span>${p}</span></button>`).join("")}</div></div>
       <div class="cz-group"><span>${esc(S.accent)}</span><div class="cz-swatches">${swatches.map((c) => `<button type="button" data-k="accent" data-v="${c}" style="background:${c}" title="${c}"></button>`).join("")}<input type="color" id="cz-color" aria-label="${esc(S.accent)}"></div></div>
+      <div class="cz-group"><span>${esc(S.bgColor)}</span><div class="cz-swatches"><button type="button" class="cz-default" data-k="bgColor" data-v="" title="${esc(S.presetBg)}">∅</button>${BG_SWATCHES.map((c) => `<button type="button" data-k="bgColor" data-v="${c}" style="background:${c}" title="${c}"></button>`).join("")}<input type="color" id="cz-bg" aria-label="${esc(S.bgColor)}"></div></div>
       ${opt("background", O.background)}
       ${opt("cardStyle", O.cardStyle)}
       ${opt("layout", O.layout)}
       ${opt("font", O.font)}
       ${opt("animation", O.animation)}
+      ${opt("glow", O.glow)}
       <div class="cz-group"><label for="cz-radius">${esc(S.radius)} · <b id="cz-rv"></b></label><input type="range" id="cz-radius" min="0" max="32" step="1"></div>
       <div class="cz-group">${tog("covers")}${tog("cursorGlow")}${tog("tilt")}</div>
       <div class="cz-actions"><button type="button" class="btn ghost" id="cz-reset">${esc(S.reset)}</button><button type="button" class="btn primary" id="cz-copy">${esc(S.copyConfig)}</button></div>`;
@@ -615,19 +675,21 @@ export function clientMain(): void {
     });
     panel.addEventListener("change", (e) => { if (e.target.type === "checkbox") set({ [e.target.dataset.k]: e.target.checked }); });
     $("#cz-color", panel).addEventListener("input", (e) => set({ accent: e.target.value }));
+    $("#cz-bg", panel).addEventListener("input", (e) => set({ bgColor: e.target.value }));
     $("#cz-radius", panel).addEventListener("input", (e) => set({ radius: Number(e.target.value) }));
     $("#cz-reset", panel).addEventListener("click", () => { st = Object.assign({}, C.defaults); save(); applyTheme(); toast(S.reset); });
     $("#cz-copy", panel).addEventListener("click", () => {
-      const keys = ["preset", "accent", "background", "cardStyle", "layout", "font", "animation", "radius", "covers", "cursorGlow", "tilt"];
+      const keys = ["preset", "accent", "bgColor", "background", "cardStyle", "layout", "font", "animation", "glow", "radius", "covers", "cursorGlow", "tilt"].filter((k) => st[k] !== undefined && st[k] !== "");
       const yaml = ["site:", "  theme:", ...keys.map((k) => `    ${k}: ${typeof st[k] === "string" && st[k].startsWith("#") ? `"${st[k]}"` : st[k]}`)].join("\n");
       copy(yaml);
     });
   }
   function syncCustomizer() {
     if (!panel || !panel.innerHTML) return;
-    $$("button[data-k]", panel).forEach((b) => b.setAttribute("aria-pressed", String(String(st[b.dataset.k]).toLowerCase() === String(b.dataset.v).toLowerCase())));
+    $$("button[data-k]", panel).forEach((b) => b.setAttribute("aria-pressed", String(String(st[b.dataset.k] ?? "").toLowerCase() === String(b.dataset.v).toLowerCase())));
     $$("input[type=checkbox]", panel).forEach((i) => (i.checked = !!st[i.dataset.k]));
     $("#cz-color", panel).value = st.accent;
+    $("#cz-bg", panel).value = st.bgColor || getComputedStyle(body).getPropertyValue("--bg").trim().slice(0, 7) || "#000000";
     $("#cz-radius", panel).value = st.radius;
     $("#cz-rv", panel).textContent = st.radius + "px";
   }
@@ -654,7 +716,7 @@ export function clientMain(): void {
     A.push({ label: S.copyLink, kw: "copy link share url", run: () => copy(location.href.split("#")[0]) });
     const gh = $('.ctas a[href*="github.com"]');
     if (gh) A.push({ label: S.openGithub, kw: "github profile", run: () => window.open(gh.href, "_blank", "noopener") });
-    $$(".nav nav a").forEach((a) => A.push({ label: `→ ${a.textContent}`, run: () => $(a.getAttribute("href")).scrollIntoView({ behavior: "smooth" }) }));
+    $$(".nav nav a").forEach((a) => A.push({ label: `→ ${a.textContent}`, kw: "go page section", run: () => goPage(a.dataset.nav) }));
     A.push({ label: S.shortcuts, kw: "help keyboard shortcuts", run: () => ($("#help").hidden = false) });
     return A;
   }
@@ -717,7 +779,12 @@ export function clientMain(): void {
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     if (typing || e.metaKey || e.ctrlKey || e.altKey || !modal.hidden || !pal.hidden) return;
     const cycle = (k) => { const arr = C.options[k]; set({ [k]: arr[(arr.indexOf(st[k]) + 1) % arr.length] }, true); toast(`${S[k] || k}: ${st[k]}`); };
-    if (e.key === "/") { e.preventDefault(); if (q) { q.focus(); q.scrollIntoView({ block: "center", behavior: "smooth" }); } }
+    if (e.key === "/") {
+      e.preventDefault();
+      if (!q) return;
+      if (C.multi) showPage("projects"), history.replaceState(null, "", "#/projects");
+      setTimeout(() => { q.focus(); q.scrollIntoView({ block: "center", behavior: "smooth" }); }, 30);
+    }
     else if (e.key === "t") cycle("preset");
     else if (e.key === "b") cycle("background");
     else if (e.key === "," && panel) openCustomizer();

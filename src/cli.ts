@@ -86,7 +86,7 @@ async function main(argv: string[]): Promise<number> {
         console.error("Add a `publish:` block to repofolio.config.yml, e.g.\n  publish:\n    repo: you/you.github.io\n    path: projects");
         return 1;
       }
-      const client = new GitHubClient({ token: await resolveToken(), userAgent: `repofolio/${VERSION}` });
+      const client = new GitHubClient({ token: process.env.REPOFOLIO_PUBLISH_TOKEN || (await resolveToken()), userAgent: `repofolio/${VERSION}` });
       const res = await publishSite(client, config.publish, join(values.out ?? config.output.dir, "site"), { dryRun: values["dry-run"], log: (m) => console.error(m) });
       for (const c of res.changed) console.log(c);
       return 0;

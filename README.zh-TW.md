@@ -6,7 +6,7 @@
 
 [English](README.md)
 
-<p align="center"><img src="docs/screenshots/hero-cyber.jpg" alt="cyber 主題" width="49%"> <img src="docs/screenshots/hero-synthwave.jpg" alt="synthwave 主題" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-paper.jpg" alt="預設 paper 主題" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="cyber 主題" width="49%"></p>
 <p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="專案列表" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="即時自訂面板" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="個人頁動態卡片"></p>
 
@@ -55,7 +55,11 @@
 | 版面 `layout` | grid、bento、list、compact |
 | 字型 `font` | sans、mono、display、system |
 | 動畫 `animation` | full、subtle、off |
-| 其他 | 強調色、圓角、封面圖片、游標光暈、3D 傾斜、區塊順序與顯示、打字動畫內容、終端機、頭像 |
+| 光暈強度 `glow` | none、soft、strong |
+| 頁面 | 預設分成多個分頁：首頁、專案、技術、活動、狀態、時間軸；`singlePage: true` 會改回單一長頁 |
+| 其他 | 背景顏色 `bgColor`（文字顏色會自動調整）、強調色、圓角、封面圖片、游標光暈、3D 傾斜、區塊順序與顯示、打字動畫內容、終端機、頭像 |
+
+預設是樸素的 paper 主題：沒有背景特效，動畫和光暈都是輕微程度。想要科技感的話，可以換成 cyber 或 synthwave。
 
 完整寫法請看[英文 README 的 Customization](README.md#customization)。只想調整外觀時，執行 `repofolio render`，會直接用 `out/inventory.json` 重新產生，不用重新掃描。
 
@@ -93,22 +97,8 @@ npx repofolio scan --lang zh-TW
 
 > 還沒發佈到 npm。在那之前請先 `git clone`、`npm install`、`npm run build`，再執行 `node dist/cli.js scan`。
 
-## 每晚自動執行
+## 在你自己的 GitHub 上設定
 
-1. 建一個 hub repo，例如 `you/projects`
-2. 在裡面執行：
-
-   ```bash
-   npx repofolio init-hub
-   ```
-
-3. 建立 fine-grained PAT：
-   - 存取範圍選所有 repo
-   - 權限唯讀：Contents、Metadata、Deployments、Pages
-   - 要用 `publish` 的話，目標 repo 另外需要 Contents 寫入權限
-   - 存成 hub repo 的 `REPOFOLIO_TOKEN` secret
-4. 選一種方式放網站：
-   - 用 `publish` 推進你現有的公開網站 repo
-   - hub repo 開 Pages：私有 repo 開 Pages 需要 GitHub Pro；hub 改成公開的話，工具會自動移除私有資料
+**一步一步的教學：[docs/SETUP.zh-TW.md](docs/SETUP.zh-TW.md)**。內容包括建立 hub repo、兩個 token 怎麼設、網站要放哪裡、怎麼放到個人頁，以及常見問題。
 
 `.project.yml` 的寫法、完整指令和比較表請看[英文版 README](README.md)。

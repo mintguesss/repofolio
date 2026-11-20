@@ -62,7 +62,9 @@ async function run() {
   }
 
   if (config.publish && bool("publish", true)) {
-    const res = await publishSite(client, config.publish, join(outDir, "site"), { log: (m) => console.log(m) });
+    const publishToken = input("publish-token");
+    const pubClient = publishToken ? new GitHubClient({ token: publishToken, userAgent: `repofolio-action/${VERSION}` }) : client;
+    const res = await publishSite(pubClient, config.publish, join(outDir, "site"), { log: (m) => console.log(m) });
     setOutput("published", res.commit ?? "");
   }
 

@@ -1,5 +1,5 @@
 import type { Config } from "../../schema.js";
-import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, LAYOUTS, THEME_PRESETS } from "../../schema.js";
+import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, GLOWS, LAYOUTS, THEME_PRESETS } from "../../schema.js";
 import type { Inventory } from "../../types.js";
 import { buildShowcase, esc, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
 import { clientMain } from "./client.js";
@@ -127,7 +127,7 @@ ${avatar}
 <p class="roles"><span id="role" data-roles="${esc(JSON.stringify(roles))}">${esc(roles[0] ?? "")}</span><span class="cursor">|</span></p>
 ${intro ? `<p class="intro">${esc(intro)}</p>` : ""}
 ${metaBits.length ? `<p class="hero-meta">${metaBits.join("")}</p>` : ""}
-<div class="ctas"><a class="btn primary magnetic" href="#projects">${esc(s.viewProjects)} →</a><a class="btn ghost magnetic" href="${esc(ghUrl)}" target="_blank" rel="noopener">${icons.icon("github", "bi")} GitHub</a>${extra}</div>
+<div class="ctas"><a class="btn primary magnetic" href="${config.site.singlePage ? "#projects" : "#/projects"}">${esc(s.viewProjects)} →</a><a class="btn ghost magnetic" href="${esc(ghUrl)}" target="_blank" rel="noopener">${icons.icon("github", "bi")} GitHub</a>${extra}</div>
 <dl class="counters">${stats.map(([n, l]) => `<div><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
 </div>
 ${terminal}
@@ -238,7 +238,40 @@ function timelineSection(d: ShowcaseData, s: SiteStrings, idx: number, lang: str
 
 function themeAttrs(config: Config): string {
   const th = config.site.theme;
-  return `data-preset="${th.preset}" data-bg="${th.background}" data-card="${th.cardStyle}" data-layout="${th.layout}" data-font="${th.font}" data-anim="${th.animation}" data-covers="${th.covers}" data-glow="${th.cursorGlow}" data-tilt="${th.tilt}"`;
+  return `data-preset="${th.preset}" data-bg="${th.background}" data-card="${th.cardStyle}" data-layout="${th.layout}" data-font="${th.font}" data-anim="${th.animation}" data-fx="${th.glow}" data-covers="${th.covers}" data-glow="${th.cursorGlow}" data-tilt="${th.tilt}"`;
+}
+
+/** CSS variables for a custom background colour; text colours flip to stay readable. Mirrored in client.ts. */
+export function bgColorVars(hex: string | undefined): string {
+  if (!hex) return "";
+  const light = luminance(hex.slice(1)) > 0.4;
+  return [
+    `--bg:${hex}`,
+    `--bg2:color-mix(in srgb,${hex} 92%,${light ? "#000" : "#fff"})`,
+    `--card:color-mix(in srgb,${hex} 94%,${light ? "#000" : "#fff"})`,
+    `--fg:${light ? "#1c1917" : "#e8edf2"}`,
+    `--muted:${light ? "#6b6560" : "#949ba4"}`,
+    `--line:${light ? "rgba(0,0,0,.1)" : "rgba(255,255,255,.12)"}`,
+    `color-scheme:${light ? "light" : "dark"}`,
+  ].join(";");
+}
+
+const PAGE_OF: Record<string, string> = { hero: "home", featured: "home" };
+
+function homeTiles(d: ShowcaseData, s: SiteStrings, pages: string[]): string {
+  const rows = d.projects.flatMap((p) => p.deployments);
+  const info: Record<string, [string, string]> = {
+    projects: [String(d.totals.projects), s.projectsCount],
+    stack: [String(d.totals.languages), s.languages],
+    activity: [String(d.totals.commitsYear), s.commitsYear],
+    status: [`${rows.filter((r) => r.ok).length}/${rows.length}`, s.up],
+    timeline: [String(Math.min(...d.projects.map((p) => new Date(p.created).getFullYear()).filter((y) => !Number.isNaN(y)))), s.since],
+  };
+  const tiles = pages
+    .filter((p) => p !== "home" && info[p])
+    .map((p) => `<a class="tile reveal" href="#/${p}"><span class="tile-n">${esc(info[p]![0])}</span><span class="tile-l">${esc(info[p]![1])}</span><b>${esc(s.nav[p as keyof SiteStrings["nav"]])} →</b></a>`)
+    .join("");
+  return tiles ? `<section class="sec tiles-sec"><div class="tiles">${tiles}</div></section>` : "";
 }
 
 /** JSON for an inline <script>, safe against `</script>` and U+2028/9. */
@@ -259,9 +292,10 @@ export function renderSite(inv: Inventory, config: Config): string {
   const title = config.site.title || (lang === "zh-TW" ? `${name} · 作品集` : `${name} · Projects`);
   const desc = config.site.tagline || d.profile?.bio || `${d.totals.projects} projects by ${d.owner}`;
 
+  const multi = !config.site.singlePage;
   let idx = 0;
-  const sections = config.site.sections
-    .map((sec) => {
+  const rendered = config.site.sections
+    .map((sec): [string, string] => [sec, (() => {
       switch (sec) {
         case "hero":
           return heroSection(d, config, s, icons);
@@ -278,11 +312,27 @@ export function renderSite(inv: Inventory, config: Config): string {
         case "timeline":
           return timelineSection(d, s, ++idx, lang);
       }
+    })()])
+    .filter(([, html]) => !!html);
+  // Group sections into pages (home = hero + featured, every other section is its own page).
+  const pageOrder: string[] = [];
+  const pageHtml = new Map<string, string[]>();
+  for (const [sec, html] of rendered) {
+    const page = multi ? (PAGE_OF[sec] ?? sec) : "all";
+    if (!pageHtml.has(page)) {
+      pageHtml.set(page, []);
+      pageOrder.push(page);
+    }
+    pageHtml.get(page)!.push(html);
+  }
+  if (multi && pageHtml.has("home")) pageHtml.get("home")!.push(homeTiles(d, s, pageOrder));
+  const sections = pageOrder.map((p) => `<div class="page" data-page="${p}">${pageHtml.get(p)!.join("\n")}</div>`).join("\n");
+  const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
+  const navItems = navTargets
+    .map((x) => {
+      const label = x === "home" ? s.nav.home : s.nav[x as keyof SiteStrings["nav"]];
+      return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
-    .join("\n");
-  const navItems = config.site.sections
-    .filter((x) => x !== "hero" && sections.includes(`id="${x}"`))
-    .map((x) => `<a href="#${x}" data-nav="${x}">${esc(s.nav[x as keyof SiteStrings["nav"]])}</a>`)
     .join("");
   // Icons the client may need for the modal / palette.
   icons.icon("github");
@@ -297,7 +347,9 @@ export function renderSite(inv: Inventory, config: Config): string {
     strings: s,
     defaults: { ...th, accent },
     customizer: config.site.customizer,
-    options: { preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS },
+    multi,
+    options: { preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
+    presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),
     presetAccents: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.accent])),
     terminal: {
       owner: d.owner,
@@ -328,7 +380,7 @@ ${avatar ? `<link rel="icon" href="${esc(avatar)}">` : ""}
 ${fonts}
 <style>${siteCss()}</style>
 </head>
-<body ${themeAttrs(config)} style="--accent:${accent};--radius:${th.radius}px">
+<body ${themeAttrs(config)} data-multi="${multi}" style="--accent:${accent};--radius:${th.radius}px;${bgColorVars(th.bgColor)}">
 ${icons.sprite()}
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -337,7 +389,7 @@ ${icons.sprite()}
 <div class="cursor-glow" aria-hidden="true"></div>
 <div id="progress" aria-hidden="true"></div>
 <header class="nav">
-<a class="brand" href="#hero">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
+<a class="brand" href="${multi ? "#/" : "#hero"}">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
 <nav>${navItems}</nav>
 <div class="nav-actions"><button type="button" class="icon-btn" id="open-palette" title="${esc(s.palette)}"><span>⌕</span><kbd>⌘K</kbd></button>${config.site.customizer ? `<button type="button" class="icon-btn" id="open-custom" title="${esc(s.customize)}" aria-label="${esc(s.customize)}"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>` : ""}</div>
 </header>

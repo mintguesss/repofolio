@@ -21,11 +21,14 @@ site:
   # sections: [hero, featured, projects, stack, activity, status, timeline]
   customizer: true      # let visitors open the ⚙ panel
   theme:
-    preset: cyber       # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
-    background: particles  # particles | grid | matrix | aurora | stars | circuit | none
-    cardStyle: glass    # glass | solid | neon | outline | terminal
+    preset: paper       # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
+    # bgColor: "#fbfaf7" # custom page background; text colour adapts
+    background: none    # particles | grid | matrix | aurora | stars | circuit | none
+    cardStyle: solid    # glass | solid | neon | outline | terminal
     layout: grid        # grid | bento | list | compact
-    animation: full     # full | subtle | off
+    animation: subtle   # full | subtle | off
+    glow: soft          # none | soft | strong
+  # singlePage: false   # true = everything on one long page
 issues:
   stale: true           # open an issue here for each stale project
 # Commit the public site into another repo, e.g. your existing GitHub Pages site.

@@ -6,7 +6,7 @@ You have 20+ repos. Which ones are live? Where is each one deployed? Which Verce
 
 [繁體中文說明](README.zh-TW.md)
 
-<p align="center"><img src="docs/screenshots/hero-cyber.jpg" alt="repofolio showcase: cyber theme" width="49%"> <img src="docs/screenshots/hero-synthwave.jpg" alt="synthwave theme" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-paper.jpg" alt="repofolio showcase: default paper theme" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="cyber theme" width="49%"></p>
 <p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="project grid, aurora background" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="live customizer, matrix theme" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="animated profile card"></p>
 
@@ -67,19 +67,22 @@ site:
     terminal: true
     avatar: true
   sections: [hero, featured, projects, stack, activity, status, timeline]   # order + which to show
+  singlePage: false        # false = separate pages (Home, Projects, Stack, …); true = one long page
   customizer: true         # show the ⚙ panel to visitors
-  theme:
-    preset: cyber          # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
-    accent: "#22d3ee"      # optional, overrides the preset's accent
-    background: particles  # particles | grid | matrix | aurora | stars | circuit | none
-    cardStyle: glass       # glass | solid | neon | outline | terminal
+  theme:                   # defaults below are the calm "paper" look; turn things up as you like
+    preset: paper          # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
+    accent: "#c2410c"      # optional, overrides the preset's accent
+    bgColor: "#fbfaf7"     # optional, overrides the page background; text colour adapts
+    background: none       # particles | grid | matrix | aurora | stars | circuit | none
+    cardStyle: solid       # glass | solid | neon | outline | terminal
     layout: grid           # grid | bento | list | compact
     font: sans             # sans | mono | display | system
-    animation: full        # full | subtle | off
+    animation: subtle      # full | subtle | off
+    glow: soft             # none | soft | strong
     radius: 16             # 0–32 px
     covers: true           # README screenshot / social preview as card cover
-    cursorGlow: true
-    tilt: true
+    cursorGlow: false
+    tilt: false
     webFonts: true         # Inter, JetBrains Mono, Space Grotesk, Noto Sans TC from Google Fonts
 ```
 
@@ -112,28 +115,23 @@ npx repofolio scan
 
 This writes `out/CATALOG.md`, `out/site/index.html` and the other files. Auth comes from `REPOFOLIO_TOKEN`, `GH_TOKEN` or `GITHUB_TOKEN`, and falls back to `gh auth token`.
 
-## Run it nightly (GitHub Action)
+## Run it nightly on your GitHub
 
-1. Create a **private** repo to be your hub, for example `you/projects`
-2. Inside it, run:
+**Step-by-step guide: [docs/SETUP.md](docs/SETUP.md)** ([繁體中文](docs/SETUP.zh-TW.md)). The short version:
 
-   ```bash
-   npx repofolio init-hub
-   ```
-
-   This writes `repofolio.config.yml` and `.github/workflows/repofolio.yml`
-3. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new):
-   - Repository access: **All repositories**
-   - Permissions (all read-only): Contents, Metadata, Deployments, Pages
-   - Save it as the hub repo's `REPOFOLIO_TOKEN` secret
-4. Settings → Pages → Source: **GitHub Actions**
+1. Create a hub repo (private recommended) with `repofolio.config.yml` and [the workflow](templates/hub-workflow.yml)
+2. Add a read-only fine-grained PAT as `REPOFOLIO_TOKEN`
+3. Publish the site, either:
+   - into your existing site repo (`publish:` + a `REPOFOLIO_PUBLISH_TOKEN` that can write only that repo), or
+   - to the hub's GitHub Pages
+4. Put the card in your profile README: `[![projects](https://your-site/projects/card.svg)](https://your-site/projects/)`
 
 ```yaml
 - uses: mintguesss/repofolio@v0
   with:
     token: ${{ secrets.REPOFOLIO_TOKEN }}
+    publish-token: ${{ secrets.REPOFOLIO_PUBLISH_TOKEN }}   # optional
     stale-issues: true
-    profile-readme: README.md   # optional
 ```
 
 ## `.project.yml`: the things GitHub can't know

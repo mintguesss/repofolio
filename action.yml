@@ -29,6 +29,9 @@ inputs:
   site-url:
     description: Public URL of the showcase site (linked from the profile README block). Defaults to site.url in the config.
     required: false
+  publish-token:
+    description: Separate token used only for publish (fine-grained, Contents read/write on the target repo only). Defaults to token.
+    required: false
   publish:
     description: Commit the public site to the repo in the config's publish block (default true when that block exists). The token needs Contents write on that repo.
     required: false

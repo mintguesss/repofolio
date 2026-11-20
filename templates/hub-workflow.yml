@@ -1,13 +1,18 @@
-# repofolio — nightly scan of all your repos.
-# Put this in a PRIVATE "hub" repo (e.g. you/projects). It commits CATALOG.md
-# here and publishes the public showcase site to GitHub Pages.
+# repofolio: nightly scan of all your repos.
+# Put this in a "hub" repo (e.g. you/projects, private recommended).
+# It commits CATALOG.md here and publishes the public showcase.
 #
-# Setup:
-#   1. Create a fine-grained PAT: Repository access = All repositories,
+# Setup (details: https://github.com/mintguesss/repofolio/blob/main/docs/SETUP.md)
+#   1. Secret REPOFOLIO_TOKEN: fine-grained PAT, Repository access = All repositories,
 #      permissions (read-only): Contents, Metadata, Deployments, Pages.
-#      Save it as the REPOFOLIO_TOKEN secret of this repo.
-#   2. (optional) ANTHROPIC_API_KEY secret + llm.enabled: true for README summaries.
-#   3. Settings → Pages → Source: GitHub Actions.
+#   2. Where should the site go? Pick one:
+#      a) Into an existing public site repo (e.g. you/you.github.io):
+#         add `publish:` to repofolio.config.yml and a secret REPOFOLIO_PUBLISH_TOKEN:
+#         fine-grained PAT with access to ONLY that repo, Contents: Read and write.
+#      b) GitHub Pages of this hub repo: Settings → Pages → Source: GitHub Actions,
+#         then Settings → Variables → REPOFOLIO_PAGES = true.
+#         (Pages on a private repo needs GitHub Pro.)
+#   3. (optional) Secret ANTHROPIC_API_KEY + llm.enabled: true for README summaries.
 name: repofolio
 
 on:
@@ -28,6 +33,8 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    outputs:
+      site-dir: ${{ steps.repofolio.outputs.site-dir }}
     steps:
       - uses: actions/checkout@v5
 
@@ -35,6 +42,7 @@ jobs:
         uses: mintguesss/repofolio@v0
         with:
           token: ${{ secrets.REPOFOLIO_TOKEN }}
+          publish-token: ${{ secrets.REPOFOLIO_PUBLISH_TOKEN }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -47,11 +55,13 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: update project catalog"
           git push
 
-      - uses: actions/upload-pages-artifact@v4
+      - if: vars.REPOFOLIO_PAGES == 'true'
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ${{ steps.repofolio.outputs.site-dir }}
 
   deploy:
+    if: vars.REPOFOLIO_PAGES == 'true'
     needs: scan
     runs-on: ubuntu-latest
     environment:

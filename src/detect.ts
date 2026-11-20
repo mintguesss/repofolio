@@ -241,6 +241,9 @@ export function looksLikeSecret(s: string): boolean {
   return s.length >= 24 && /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s) && !/_/.test(s);
 }
 
+/** File names that are icons/logos/diagrams, not screenshots. */
+const NOT_COVER_RE = /icon|logo|favicon|badge|avatar|mipmap|architecture|diagram|pwa-|maskable|apple-touch|qr/i;
+
 const BADGE_RE = /shields\.io|badge|badgen|\/actions\/workflows\/|codecov|travis-ci|circleci|coveralls|deepsource|sonarcloud|vercel\.com\/button|deploy-button|herokucdn|\.svg(\?|$)|img\.youtube|skillicons|readme-stats|github-readme|komarev|visitor/i;
 
 /**
@@ -255,7 +258,7 @@ export function readmeImage(md: string, fullName: string, branch: string): strin
     if (src) found.push(src);
   }
   for (const src of found) {
-    if (BADGE_RE.test(src) || src.startsWith("data:")) continue;
+    if (BADGE_RE.test(src) || src.startsWith("data:") || NOT_COVER_RE.test(src.split("?")[0]!.split("/").pop() ?? "")) continue;
     if (/^https?:\/\//i.test(src)) {
       return src.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\//, "https://raw.githubusercontent.com/$1/");
     }
@@ -271,4 +274,26 @@ export function readmeImage(md: string, fullName: string, branch: string): strin
     return `https://raw.githubusercontent.com/${fullName}/${branch}/${path.split("/").map((seg) => encodeURIComponent(decode(seg))).join("/")}`;
   }
   return undefined;
+}
+
+/** Best screenshot-like image in a repo tree, as a raw URL. Used when the README has none. */
+export function pickScreenshot(paths: string[], fullName: string, branch: string): string | undefined {
+  let best: { path: string; score: number } | undefined;
+  for (const path of paths) {
+    if (!/\.(png|jpe?g|webp|gif)$/i.test(path)) continue;
+    if (/(^|\/)(node_modules|vendor|dist|build|\.next|out|android|ios|test|tests|__tests__|fixtures?)\//i.test(path)) continue;
+    const file = path.split("/").pop()!;
+    if (NOT_COVER_RE.test(path)) continue;
+    // Only where repos keep their own screenshots: the root, docs/.github/assets-style folders, or a screenshot folder.
+    const top = path.includes("/") ? path.split("/")[0]!.toLowerCase() : "";
+    if (top && !/^(docs?|\.github|assets|screenshots?|images?|img|media|preview)$/.test(top) && !/screenshot/i.test(path)) continue;
+    let score = 0;
+    if (/screenshot|screen|preview|demo|showcase/i.test(path)) score += 4;
+    if (/hero|home|cover|banner|main|overview|dashboard/i.test(file)) score += 3;
+    if (/(^|\/)(docs?|assets|images?|img|media|public)\//i.test(path)) score += 1;
+    if (/-zh|_zh|zh-/i.test(file)) score -= 1;
+    score -= path.split("/").length * 0.1;
+    if (score > 0 && (!best || score > best.score)) best = { path, score };
+  }
+  return best ? `https://raw.githubusercontent.com/${fullName}/${branch}/${best.path.split("/").map(encodeURIComponent).join("/")}` : undefined;
 }

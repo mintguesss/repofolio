@@ -197,6 +197,8 @@ export const ConfigSchema = z.object({
   }).default({ enabled: false, model: "claude-opus-5-5" }),
   /** Fetch 52-week commit activity per repo (one extra request each). */
   activity: z.boolean().default(true),
+  /** Cover image per repo (name or owner/name → image URL). Wins over README screenshots; private repos never get one. */
+  images: z.record(z.string(), z.string().url()).default({}),
   site: SiteSchema.default(SiteSchema.parse({})),
   /** Push the public site into another repo (e.g. your existing GitHub Pages site). */
   publish: PublishSchema.optional(),

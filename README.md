@@ -51,7 +51,7 @@ Pages:
   - language share and a tech cloud (click to filter)
   - a status donut, hosting providers and projects started per year
   - a live status board for every public deployment
-- **Timeline**: an alternating timeline of when each project started, with cover thumbnails
+- **Timeline**: an auto-playing timeline that steps through your projects in the order you started them (cover, date, tech), with a scrubbable track and a compact list below
 
 Also included: a **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a **live customizer (⚙)**. The customizer groups its options: style, colours and layout come first, and all tech effects sit in one "Effects" group. "Copy as config" gives you YAML to paste into `repofolio.config.yml`. The site respects `prefers-reduced-motion`, is keyboard accessible and has no horizontal scroll down to 375px.
 
@@ -93,6 +93,8 @@ site:
     tilt: true
     webFonts: true         # Inter, JetBrains Mono, Space Grotesk, Noto Sans TC from Google Fonts
 ```
+
+Cover images are picked automatically: the first screenshot in the README, then a screenshot found in the repo (`docs/`, `screenshots/`, `.github/`…), then GitHub's social preview. To choose one yourself, set `images:` in the config (`images: { my-repo: https://…/shot.png }`) or `image:` in the repo's `.project.yml`.
 
 Per project, `.project.yml` can set `image:` (cover screenshot), `featured: true`, `showcase: false`, `summary`, `purpose`, `tags` and `links`.
 

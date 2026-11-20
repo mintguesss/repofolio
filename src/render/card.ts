@@ -1,13 +1,8 @@
 import type { Lang } from "../i18n.js";
 import type { Inventory } from "../types.js";
 import { buildShowcase, esc, selectShowcase } from "./site.js";
+import { langColor } from "./colors.js";
 
-const LANG_COLORS: Record<string, string> = {
-  TypeScript: "#3178c6", JavaScript: "#f1e05a", Python: "#3572A5", HTML: "#e34c26", CSS: "#663399", Kotlin: "#A97BFF",
-  Java: "#b07219", Shell: "#89e051", Go: "#00ADD8", Rust: "#dea584", Vue: "#41b883", "C++": "#f34b7d", C: "#555555",
-  "C#": "#178600", Swift: "#F05138", Dart: "#00B4AB", PHP: "#4F5D95", Ruby: "#701516", "Jupyter Notebook": "#DA5B0B",
-};
-const langColor = (n: string) => LANG_COLORS[n] ?? `hsl(${[...n].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)} 65% 55%)`;
 
 /**
  * Animated, neon "projects" card for a GitHub profile README (GitHub renders SVG animations in <img>).

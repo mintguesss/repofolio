@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import { detectFromFiles, detectStack, inferStatus, mergeDeployments, preferStableUrls, providerFromUrl, readmeExcerpt, readmeImage } from "./detect.js";
+import { detectFromFiles, detectStack, inferStatus, mergeDeployments, pickScreenshot, preferStableUrls, providerFromUrl, readmeExcerpt, readmeImage } from "./detect.js";
 import type { GhContentEntry, GhDeployment, GhDeploymentStatus, GhRepo, GhUser } from "./github.js";
 import { GitHubClient } from "./github.js";
 import { checkHealth, healthScore } from "./health.js";
@@ -165,6 +165,16 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     };
   }
 
+  // Cover: config override > README image > a screenshot somewhere in the repo. Never for private repos.
+  let cover: string | undefined;
+  if (!gh.private) {
+    cover = config.images[gh.name] ?? config.images[full] ?? readme?.image;
+    if (!cover && !meta.image) {
+      const tree = await client.get<{ tree: { path: string; type: string }[] }>(`/repos/${full}/git/trees/${encodeURIComponent(gh.default_branch)}?recursive=1`).catch(() => null);
+      cover = pickScreenshot((tree?.tree ?? []).filter((e) => e.type === "blob").map((e) => e.path), full, gh.default_branch);
+    }
+  }
+
   // Summary: explicit > LLM > GitHub description > README excerpt
   let summary = "";
   let summarySource: RepoRecord["summarySource"] = "none";
@@ -230,6 +240,7 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     daysSincePush,
     stale,
     showcase,
+    cover,
     activity: Array.isArray(participation?.owner) && participation.owner.length ? participation.owner : undefined,
   };
   return { ...base, health: [], healthScore: 100 };

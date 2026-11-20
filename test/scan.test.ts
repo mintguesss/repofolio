@@ -229,3 +229,11 @@ describe("parseNextLink", () => {
     expect(parseNextLink(null)).toBeNull();
   });
 });
+
+describe("pickScreenshot", () => {
+  it("prefers screenshot folders and skips icons and other projects' assets", async () => {
+    const { pickScreenshot } = await import("../src/detect.js");
+    expect(pickScreenshot(["web/icons/icon-192.png", "docs/screenshots/chart-en.png", "docs/architecture.png"], "a/b", "main")).toBe("https://raw.githubusercontent.com/a/b/main/docs/screenshots/chart-en.png");
+    expect(pickScreenshot(["public/projects/aidit/home.png", "android/app/ic_launcher.png"], "a/b", "main")).toBeUndefined();
+  });
+});

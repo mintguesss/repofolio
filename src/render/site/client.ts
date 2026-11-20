@@ -325,6 +325,7 @@ export function clientMain(): void {
       body.dataset.page = name;
       if (currentPage) scrollTo({ top: 0 });
       currentPage = name;
+      dispatchEvent(new CustomEvent("rf:page", { detail: name }));
     };
     if (currentPage && document.startViewTransition && motion() === "full") document.startViewTransition(go);
     else go();
@@ -354,11 +355,12 @@ export function clientMain(): void {
     const to = Number(el.dataset.to || 0);
     if (el.dataset.done) return;
     el.dataset.done = "1";
-    if (motion() === "off") { el.textContent = to.toLocaleString(); return; }
+    const f = (v) => (el.dataset.plain ? String(v) : v.toLocaleString());
+    if (motion() === "off") { el.textContent = f(to); return; }
     const start = performance.now(), dur = 1400;
     (function step(t) {
       const k = Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = Math.round(to * e).toLocaleString();
+      el.textContent = f(el.dataset.plain ? Math.round(to - (1 - e) * Math.min(to, 30)) : Math.round(to * e));
       if (k < 1) requestAnimationFrame(step);
     })(start);
   }
@@ -407,15 +409,19 @@ export function clientMain(): void {
   const term = $("#term");
   if (term) {
     const T = C.terminal;
+    const zh = C.lang === "zh-TW";
+    const shownNames = T.projects.slice(0, 6);
     const lines = [
-      ["cmd", "npx repofolio scan"],
-      ["out", `<span class="dim">→</span> fetching repositories for <span class="hl">@${esc(T.owner)}</span>…`],
-      ["out", `<span class="ok">✓</span> ${T.shown} projects found`],
-      ["out", `<span class="dim">→</span> detecting deployments · checking live URLs`],
-      ["out", T.down ? `<span class="hl">!</span> ${T.live} live · ${T.down} not responding` : `<span class="ok">✓</span> ${T.live} live projects, all responding`],
-      ["out", `<span class="dim">→</span> top stack: <span class="hl">${esc(T.langs.join(", "))}</span>`],
-      ["out", `<span class="ok">✓</span> showcase built · ${T.shown} projects`],
-      ["cmd", "open ./site"],
+      ["cmd", "whoami"],
+      ["out", `<span class="hl">${esc(T.name)}</span>${T.roles.length ? ` <span class="dim">·</span> ${esc(T.roles.join(" / "))}` : ""}`],
+      ["cmd", "ls ~/projects"],
+      ["out", shownNames.map((n) => `<span class="ok">${esc(n)}/</span>`).join("  ") + (T.projects.length > shownNames.length ? `  <span class="dim">+${T.projects.length - shownNames.length}</span>` : "")],
+      ["cmd", "cat stack.txt"],
+      ["out", T.langs.map((l) => `<span class="hl">${esc(l)}</span>`).join(" <span class=\"dim\">·</span> ")],
+      ["cmd", "uptime"],
+      ["out", zh
+        ? `${T.shown} 個專案 <span class="dim">·</span> <span class="ok">${T.live} 個上線中</span>${T.commits ? ` <span class="dim">·</span> 今年 ${T.commits} 次提交` : ""}`
+        : `${T.shown} projects <span class="dim">·</span> <span class="ok">${T.live} live</span>${T.commits ? ` <span class="dim">·</span> ${T.commits} commits this year` : ""}`],
     ];
     const prompt = '<span class="p">❯</span> ';
     let html = "";
@@ -439,6 +445,82 @@ export function clientMain(): void {
       const tObs = new IntersectionObserver((e) => { if (e[0].isIntersecting) { tObs.disconnect(); setTimeout(next, 600); } });
       tObs.observe(term);
     }
+  }
+
+  $$(".stat").forEach((el) => el.addEventListener("pointermove", (e) => {
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", e.clientX - r.left + "px");
+    el.style.setProperty("--my", e.clientY - r.top + "px");
+  }));
+
+  /* ───────── timeline player: auto-advances, pauses on hover / when hidden ───────── */
+  const tlx = $("#tlx");
+  if (tlx) {
+    const slides = $$(".tlx-slide", tlx);
+    const dots = $$(".tlx-track button", tlx);
+    const fill = $(".tlx-fill", tlx);
+    const prog = $(".tlx-prog i", tlx);
+    const count = $(".tlx-count b", tlx);
+    const track = $(".tlx-track", tlx);
+    const playBtn = $('[data-tlx="play"]', tlx);
+    const n = slides.length;
+    const DUR = 5200;
+    let cur = n - 1, elapsed = 0, last = 0, raf = 0, hover = false, playing = true;
+    const visible = () => (!C.multi || currentPage === "timeline") && !document.hidden;
+    function go(i) {
+      cur = (i + n) % n;
+      slides.forEach((s, k) => { s.classList.toggle("on", k === cur); s.setAttribute("aria-hidden", String(k !== cur)); });
+      dots.forEach((d, k) => { if (k === cur) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current"); d.classList.toggle("past", k < cur); });
+      fill.style.setProperty("--p", n > 1 ? String(cur / (n - 1)) : "1");
+      count.textContent = String(cur + 1);
+      const d = dots[cur];
+      if (d && track.scrollWidth > track.clientWidth) track.scrollTo({ left: d.offsetLeft - track.clientWidth / 2, behavior: motion() === "off" ? "auto" : "smooth" });
+      // preload the next cover
+      const nx = slides[(cur + 1) % n] && $("img", slides[(cur + 1) % n]);
+      if (nx) nx.loading = "eager";
+      elapsed = 0;
+      prog.style.setProperty("--p", "0");
+    }
+    function loop(t) {
+      raf = 0;
+      if (!playing || motion() === "off" || !visible()) { last = 0; return; }
+      if (last && !hover) elapsed += t - last;
+      last = t;
+      prog.style.setProperty("--p", String(Math.min(1, elapsed / DUR)));
+      if (elapsed >= DUR) go(cur + 1);
+      raf = requestAnimationFrame(loop);
+    }
+    const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
+    const setPlaying = (v) => { playing = v; playBtn.setAttribute("aria-pressed", String(v)); tlx.classList.toggle("paused", !v); if (v) kick(); };
+    dots.forEach((d) => d.addEventListener("click", () => { go(Number(d.dataset.i)); kick(); }));
+    $('[data-tlx="prev"]', tlx).addEventListener("click", () => { go(cur - 1); kick(); });
+    $('[data-tlx="next"]', tlx).addEventListener("click", () => { go(cur + 1); kick(); });
+    playBtn.addEventListener("click", () => setPlaying(!playing));
+    const stage = $(".tlx-stage", tlx);
+    stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
+    stage.addEventListener("pointerleave", () => { hover = false; });
+    let sx = null;
+    stage.addEventListener("pointerdown", (e) => { sx = e.clientX; });
+    let swiped = false;
+    stage.addEventListener("pointerup", (e) => { swiped = sx != null && Math.abs(e.clientX - sx) > 40; if (swiped) { go(cur + (e.clientX < sx ? 1 : -1)); kick(); } sx = null; });
+    stage.addEventListener("click", (e) => { if (swiped) { e.preventDefault(); e.stopPropagation(); swiped = false; } }, true);
+    tlx.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") { go(cur + 1); kick(); e.preventDefault(); }
+      else if (e.key === "ArrowLeft") { go(cur - 1); kick(); e.preventDefault(); }
+    });
+    addEventListener("rf:page", kick);
+    document.addEventListener("visibilitychange", kick);
+    // Start from the oldest project once the timeline is first seen, so it plays forward in time.
+    let started = false;
+    const startObs = new IntersectionObserver((e) => {
+      if (!e[0].isIntersecting || started) return;
+      started = true;
+      startObs.disconnect();
+      if (n > 1 && motion() !== "off") go(0);
+      kick();
+    }, { threshold: 0.3 });
+    startObs.observe(tlx);
+    go(cur);
   }
 
   /* ───────── tilt + glow follow + magnetic ───────── */

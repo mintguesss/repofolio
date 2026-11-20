@@ -63,6 +63,8 @@ export interface RepoRecord {
   stale: boolean;
   /** Owner's commits per week for the last 52 weeks (oldest first), from /stats/participation. */
   activity?: number[];
+  /** Cover image chosen at scan time: config `images` > README image > screenshot found in the repo. Public repos only. */
+  cover?: string;
   health: HealthIssue[];
   healthScore: number;
   showcase: boolean;

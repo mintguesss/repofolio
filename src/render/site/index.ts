@@ -6,6 +6,7 @@ import { clientMain } from "./client.js";
 import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
+import { homeStats, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -94,6 +95,9 @@ function sectionHead(id: string, title: string, sub: string, idx: number): strin
   return `<div class="sec-head reveal"><span class="sec-idx">${String(idx).padStart(2, "0")}</span><div><h2 data-scramble>${esc(title)}</h2><p>${esc(sub)}</p></div></div>`;
 }
 
+const GLOBE = `<svg class="bi" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`;
+const norm = (u: string) => u.replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase();
+
 function heroSection(d: ShowcaseData, config: Config, s: SiteStrings, icons: IconSprite): string {
   const p = d.profile;
   const name = config.site.title || p?.name || d.owner;
@@ -102,17 +106,10 @@ function heroSection(d: ShowcaseData, config: Config, s: SiteStrings, icons: Ico
   const metaBits = [
     p?.location ? `<span>⌖ ${esc(p.location)}</span>` : "",
     p?.company ? `<span>⌂ ${esc(p.company)}</span>` : "",
-    p?.blog ? `<a href="${esc(/^https?:/.test(p.blog) ? p.blog : `https://${p.blog}`)}" target="_blank" rel="noopener">↗ ${esc(p.blog.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a>` : "",
+    p?.blog && !config.site.links.some((l) => norm(l.url) === norm(p.blog!)) ? `<a href="${esc(/^https?:/.test(p.blog) ? p.blog : `https://${p.blog}`)}" target="_blank" rel="noopener">↗ ${esc(p.blog.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a>` : "",
   ].filter(Boolean);
   const ghUrl = p?.url ?? `https://github.com/${d.owner}`;
-  const extra = config.site.links.map((l) => `<a class="btn ghost magnetic" href="${esc(l.url)}" target="_blank" rel="noopener">${icons.icon(l.label, "bi")} ${esc(l.label)}</a>`).join("");
-  const stats: [number, string][] = [
-    [d.totals.projects, s.projectsCount],
-    [d.totals.live, s.liveCount],
-    [d.totals.stars, s.stars],
-    [d.totals.languages, s.languages],
-    ...(d.totals.commitsYear ? [[d.totals.commitsYear, s.commitsYear] as [number, string]] : []),
-  ];
+  const extra = config.site.links.map((l) => `<a class="btn ghost magnetic" href="${esc(l.url)}" target="_blank" rel="noopener">${iconKey(l.label) ? icons.icon(l.label, "bi") : GLOBE} ${esc(l.label)}</a>`).join("");
   const avatar = config.site.hero.avatar && p?.avatarUrl
     ? `<div class="avatar"><img src="${esc(p.avatarUrl)}&s=240" alt="${esc(name)}" width="120" height="120"></div>`
     : "";
@@ -128,21 +125,9 @@ ${avatar}
 ${intro ? `<p class="intro">${esc(intro)}</p>` : ""}
 ${metaBits.length ? `<p class="hero-meta">${metaBits.join("")}</p>` : ""}
 <div class="ctas"><a class="btn primary magnetic" href="${config.site.singlePage ? "#projects" : "#/projects"}">${esc(s.viewProjects)} →</a><a class="btn ghost magnetic" href="${esc(ghUrl)}" target="_blank" rel="noopener">${icons.icon("github", "bi")} GitHub</a>${extra}</div>
-<dl class="counters">${stats.map(([n, l]) => `<div><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
 </div>
 ${terminal}
-${heroShots(d)}
 </section>`;
-}
-
-/** Simple-mode hero art: a small mosaic of project covers (featured first, then most recent). */
-function heroShots(d: ShowcaseData): string {
-  const byRecent = [...d.projects].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
-  const pick = [...byRecent.filter((p) => p.featured), ...byRecent.filter((p) => !p.featured)].filter((p) => p.image).slice(0, 4);
-  if (pick.length < 2) return "";
-  return `<div class="hero-shots simple-only reveal n${pick.length}">${pick
-    .map((p) => `<a class="shot" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}" title="${esc(p.name)}"><img loading="lazy" decoding="async" src="${esc(p.image!)}" alt="${esc(p.name)}" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"><span class="shot-fb" aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span><b>${esc(p.name)}</b></a>`)
-    .join("")}</div>`;
 }
 
 function featuredSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number): string {
@@ -175,10 +160,6 @@ ${topTech.length ? `<button type="button" class="filter-toggle" id="tech-toggle"
 const LAYOUT_ICON: Record<string, string> = {
   grid: `<svg viewBox="0 0 16 16"><path d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"/></svg>`,
   list: `<svg viewBox="0 0 16 16"><path d="M1 2h14v3H1zM1 6.5h14v3H1zM1 11h14v3H1z"/></svg>`,
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "#22c55e", wip: "#3b82f6", maintenance: "#eab308", paused: "#f97316", done: "#a855f7", idea: "#06b6d4", archived: "#6b7280",
 };
 
 function activityChart(d: ShowcaseData, s: SiteStrings, lang: string): string {
@@ -237,15 +218,6 @@ function statsSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: n
     const y = new Date(p.created).getFullYear();
     if (!Number.isNaN(y)) years.set(y, (years.get(y) ?? 0) + 1);
   }
-  const active = statusCounts.get("active") ?? 0;
-  const kpis: [number, string][] = [
-    [d.totals.projects, s.projectsCount],
-    [d.totals.live, s.liveCount],
-    [active, s.activeCount],
-    [d.totals.stars, s.stars],
-    [d.totals.commitsYear, s.commitsYear],
-    [d.totals.languages, s.languages],
-  ];
   const busiest = Math.max(...d.activity, 0);
   const top = [...d.projects]
     .filter((p) => p.activity?.some((n) => n > 0))
@@ -262,7 +234,7 @@ function statsSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: n
   const statusParts = [...statusCounts.entries()].sort((a, b) => b[1] - a[1]).map(([st, n]) => ({ label: s.statusLabels[st as keyof SiteStrings["statusLabels"]], n, color: STATUS_COLORS[st] ?? "#888" }));
 
   return `<section id="stats" class="sec">${sectionHead("stats", s.stats, s.statsSub, idx)}
-<dl class="kpi-grid">${kpis.map(([n, l]) => `<div class="kpi panel reveal"><dt class="count" data-to="${n}">0</dt><dd>${esc(l)}</dd></div>`).join("")}</dl>
+${statsKpis(d, s)}
 ${d.totals.commitsYear ? `<h3 class="sub-h">${esc(s.activity)}</h3>
 <div class="activity-grid"><div class="panel reveal chart-wrap">${activityChart(d, s, lang)}</div>
 <div class="panel reveal act-side"><dl class="kpis"><div><dt class="count" data-to="${d.totals.commitsWeek}">0</dt><dd>${esc(s.thisWeek)}</dd></div><div><dt class="count" data-to="${busiest}">0</dt><dd>${esc(s.busiest)}</dd></div></dl>
@@ -292,31 +264,6 @@ function statusSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: 
     .join("")}</ul></div></section>`;
 }
 
-function timelineSection(d: ShowcaseData, s: SiteStrings, idx: number, lang: string): string {
-  const list = [...d.projects].sort((a, b) => Date.parse(b.created) - Date.parse(a.created));
-  if (!list.length) return "";
-  const perYear = new Map<string, number>();
-  for (const p of list) {
-    const y = String(new Date(p.created).getFullYear());
-    perYear.set(y, (perYear.get(y) ?? 0) + 1);
-  }
-  let lastYear = "";
-  let side = 0;
-  const items = list
-    .map((p) => {
-      const y = String(new Date(p.created).getFullYear());
-      const yearTag = y !== lastYear && y !== "NaN" ? `<li class="tl-year reveal"><span>${y}</span><small>${perYear.get(y)} ${esc(s.projectsCount)}</small></li>` : "";
-      lastYear = y;
-      const tech = [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
-      const thumb = p.image
-        ? `<div class="tl-thumb"><img loading="lazy" decoding="async" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()"><span aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span></div>`
-        : `<div class="tl-thumb noimg"><span aria-hidden="true">${esc(p.name.slice(0, 1).toUpperCase())}</span></div>`;
-      return `${yearTag}<li class="tl-item reveal ${side++ % 2 ? "r" : "l"}"><span class="tl-dot st-${p.status}" title="${esc(s.statusLabels[p.status])}"></span><a class="tl-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${thumb}<div class="tl-txt"><time datetime="${esc(p.created.slice(0, 10))}">${esc(new Date(p.created).toLocaleDateString(lang === "zh-TW" ? "zh-TW" : "en-US", { month: "short", day: "numeric" }))}</time><h3>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}${tech.length ? `<div class="tl-tags">${tech.map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}</div></a></li>`;
-    })
-    .join("");
-  return `<section id="timeline" class="sec">${sectionHead("timeline", s.timeline, s.timelineSub, idx)}<ol class="tl">${items}<li class="tl-end" aria-hidden="true"></li></ol></section>`;
-}
-
 function themeAttrs(config: Config): string {
   const e = effectiveTheme(config.site.theme);
   return `data-mode="${e.mode}" data-scheme="${e.scheme}" data-preset="${e.preset}" data-bg="${e.background}" data-card="${e.cardStyle}" data-layout="${e.layout}" data-font="${e.font}" data-anim="${e.animation}" data-fx="${e.glow}" data-covers="${e.covers}" data-glow="${e.cursorGlow}" data-tilt="${e.tilt}"`;
@@ -344,22 +291,6 @@ export function bgColorVars(hex: string | undefined): string {
 }
 
 const PAGE_OF: Record<string, string> = { hero: "home", featured: "home", stack: "stats", activity: "stats", status: "stats" };
-
-function homeTiles(d: ShowcaseData, s: SiteStrings, pages: string[]): string {
-  const rows = d.projects.flatMap((p) => p.deployments);
-  const info: Record<string, [string, string]> = {
-    projects: [String(d.totals.projects), s.projectsCount],
-    stats: d.totals.commitsYear ? [String(d.totals.commitsYear), s.commitsYear] : [String(d.totals.languages), s.languages],
-    status: [`${rows.filter((r) => r.ok).length}/${rows.length}`, s.up],
-    timeline: [String(Math.min(...d.projects.map((p) => new Date(p.created).getFullYear()).filter((y) => !Number.isNaN(y)))), s.since],
-  };
-
-  const tiles = pages
-    .filter((p) => p !== "home" && info[p])
-    .map((p) => `<a class="tile reveal" href="#/${p}"><span class="tile-n">${esc(info[p]![0])}</span><span class="tile-l">${esc(info[p]![1])}</span><b>${esc(s.nav[p as keyof SiteStrings["nav"]])} →</b></a>`)
-    .join("");
-  return tiles ? `<section class="sec tiles-sec"><div class="tiles">${tiles}</div></section>` : "";
-}
 
 /** JSON for an inline <script>, safe against `</script>` and U+2028/9. */
 function inlineJson(v: unknown): string {
@@ -395,7 +326,7 @@ export function renderSite(inv: Inventory, config: Config): string {
         case "status":
           return statusSection(d, s, icons, ++idx);
         case "timeline":
-          return timelineSection(d, s, ++idx, lang);
+          return timelineSection(d, s, sectionHead("timeline", s.timeline, s.timelineSub, ++idx), lang);
       }
     })()])
     .filter(([, html]) => !!html);
@@ -410,7 +341,7 @@ export function renderSite(inv: Inventory, config: Config): string {
     }
     pageHtml.get(page)!.push(html);
   }
-  if (multi && pageHtml.has("home")) pageHtml.get("home")!.push(homeTiles(d, s, pageOrder));
+  if (pageHtml.has(multi ? "home" : "all") && rendered[0]?.[0] === "hero") pageHtml.get(multi ? "home" : "all")!.splice(1, 0, homeStats(d, s, multi ? pageOrder : rendered.map(([x]) => x), multi));
   const sections = pageOrder.map((p) => `<div class="page" data-page="${p}">${pageHtml.get(p)!.join("\n")}</div>`).join("\n");
   const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
   const navItems = navTargets
@@ -442,7 +373,12 @@ export function renderSite(inv: Inventory, config: Config): string {
       shown: d.totals.projects,
       live: d.totals.live,
       down: d.projects.reduce((n, p) => n + p.deployments.filter((x) => !x.ok).length, 0),
-      langs: d.languages.slice(0, 3).map((l) => l.name),
+      langs: d.languages.slice(0, 4).map((l) => l.name),
+      name: config.site.title || d.profile?.name || d.owner,
+      roles: config.site.hero.roles,
+      projects: [...d.projects].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)).map((p) => p.name),
+      commits: d.totals.commitsYear,
+      stars: d.totals.stars,
     },
   };
   const avatar = d.profile?.avatarUrl ? `${d.profile.avatarUrl}&s=64` : "";

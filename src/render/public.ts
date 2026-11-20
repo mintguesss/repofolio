@@ -83,7 +83,7 @@ export function toPublic(r: RepoRecord): PublicProject {
     .slice(0, 6)
     .map(([name, bytes]) => ({ name, pct: totalBytes ? Math.round((bytes / totalBytes) * 1000) / 10 : 0 }));
 
-  const image = r.meta.image ?? (r.private ? undefined : (r.readme?.image ?? `https://opengraph.githubassets.com/1/${r.fullName}`));
+  const image = r.meta.image ?? (r.private ? undefined : (r.cover ?? r.readme?.image ?? `https://opengraph.githubassets.com/1/${r.fullName}`));
 
   return {
     id: slug(r.private ? r.name : r.fullName),

@@ -202,6 +202,17 @@ export const ConfigSchema = z.object({
   site: SiteSchema.default(SiteSchema.parse({})),
   /** Push the public site into another repo (e.g. your existing GitHub Pages site). */
   publish: PublishSchema.optional(),
+  /**
+   * Private admin view: the same site with every repo + health/env info, written to out/admin.html.
+   * Commit it to your (private) hub repo; the public site gets an admin.html login page that loads it
+   * with a GitHub token that can read the hub repo, so the data never leaves GitHub's access control.
+   */
+  admin: z.object({
+    enabled: z.boolean().default(true),
+    /** owner/name of the private repo holding admin.html. Defaults to GITHUB_REPOSITORY in Actions. */
+    repo: z.string().optional(),
+    path: z.string().default("admin.html"),
+  }).default({ enabled: true, path: "admin.html" }),
   output: z.object({
     dir: z.string().default("out"),
   }).default({ dir: "out" }),

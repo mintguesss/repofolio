@@ -111,7 +111,15 @@ publish:
   branch: main                 # optional, defaults to the repo's default branch
 ```
 
-`repofolio publish` (or the Action, automatically) commits only `index.html`, `card.svg` and `projects.json`, and only when they changed. Never `inventory.json` or `CATALOG.md`. `projects.json` has the same public data as the page, so your own site can render it however it likes.
+`repofolio publish` (or the Action, automatically) commits only `index.html`, `card.svg`, `projects.json` and the `admin.html` login page, and only when they changed. Never `inventory.json`, `CATALOG.md` or the admin data. `projects.json` has the same public data as the page, so your own site can render it however it likes.
+
+### Private admin view
+
+The same site, for your eyes only: every repo including private ones, a health score on each card, an **Admin** page listing what to fix (worst first), and env-var locations / next steps / cost in each project's details.
+
+- `out/admin.html` is the full admin build. The hub workflow commits it to your **private** hub repo.
+- The public site gets `admin.html`, a login page with no data in it (there's a small 🔒 in the footer). Paste a fine-grained token that can read the hub repo (Contents: Read-only, that repo only) and it loads the admin build straight from GitHub's API. Without access to the repo, GitHub returns 404 and there's nothing to see.
+- Turn it off with `admin: { enabled: false }`; point it elsewhere with `admin: { repo: you/hub, path: admin.html }`.
 
 ## Try it in 10 seconds
 

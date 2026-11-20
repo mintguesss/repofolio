@@ -4,6 +4,7 @@ import { GitHubClient, parseNextLink } from "../src/github.js";
 import { openStaleIssues } from "../src/issues.js";
 import { renderCard, renderProfileSection, spliceProfile } from "../src/render/card.js";
 import { renderCatalog } from "../src/render/markdown.js";
+import { renderAdminLogin } from "../src/render/admin.js";
 import { buildShowcase, renderSite } from "../src/render/site.js";
 import { ConfigSchema } from "../src/schema.js";
 import { scan } from "../src/scan.js";
@@ -144,6 +145,20 @@ describe("scan", () => {
     }
     expect(html).toContain("A public thing");
     expect(html).toContain("https://demo.example.com");
+  });
+
+  it("keeps private data in the admin build only; the public login page carries none", async () => {
+    const { inv, config } = await runScan();
+    const admin = renderSite(inv, config, { admin: true });
+    expect(admin).toContain("Secret side project");
+    expect(admin).toContain('data-page="admin"');
+    const login = renderAdminLogin(config, "me/hub");
+    for (const leak of ["Secret side project", "secret-app.vercel.app", "SUPABASE_SERVICE_ROLE", "A public thing"]) expect(login).not.toContain(leak);
+    expect(login).toContain("https://api.github.com/repos/me/hub/contents/admin.html");
+    const pub = renderSite(inv, config, { adminLink: true });
+    expect(pub).toContain('href="admin.html"');
+    expect(pub).not.toContain("Secret side project");
+    expect(JSON.stringify(buildShowcase(inv, config))).not.toContain('"admin":{"shown"');
   });
 
   it("builds showcase data with profile and activity from public repos only", async () => {

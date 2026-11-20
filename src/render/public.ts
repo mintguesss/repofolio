@@ -44,6 +44,19 @@ export interface PublicProject {
   activity?: number[];
   links: { label: string; url: string }[];
   deployments: PublicDeployment[];
+  /** Only in the private admin build (never in the public site / projects.json). */
+  admin?: AdminInfo;
+}
+
+export interface AdminInfo {
+  shown: boolean;
+  health: number;
+  issues: { level: "error" | "warn" | "info"; message: string }[];
+  env?: { location?: string; vars: string[] };
+  next: string[];
+  cost?: string;
+  archived: boolean;
+  fork: boolean;
 }
 
 export function slug(s: string): string {
@@ -111,6 +124,36 @@ export function toPublic(r: RepoRecord): PublicProject {
   };
 }
 
+/** Admin build: every field, private repos in full. The output must never be published. */
+export function toAdmin(r: RepoRecord): PublicProject {
+  const p = toPublic(r);
+  const deployments = r.deployments
+    .filter((d) => d.url)
+    .map((d) => ({ name: d.name, provider: d.provider, url: d.url!, ok: d.check?.ok ?? true, ms: d.check?.ms, status: d.check?.status }));
+  return {
+    ...p,
+    id: slug(r.fullName),
+    repo: r.fullName,
+    codeUrl: r.url,
+    stars: r.stars,
+    forks: r.forks,
+    license: r.license ?? undefined,
+    release: r.latestRelease?.tag,
+    image: r.meta.image ?? r.cover ?? (r.private ? undefined : p.image),
+    deployments,
+    admin: {
+      shown: r.showcase,
+      health: r.healthScore,
+      issues: r.health.filter((i) => i.level !== "info").map((i) => ({ level: i.level, message: i.message })),
+      env: r.meta.env ? { location: r.meta.env.location, vars: r.meta.env.vars } : undefined,
+      next: r.meta.next,
+      cost: r.meta.cost?.monthly != null ? `${r.meta.cost.monthly} ${r.meta.cost.currency}/mo` : r.meta.cost?.notes,
+      archived: r.archived,
+      fork: r.fork,
+    },
+  };
+}
+
 export function selectShowcase(inv: Inventory): PublicProject[] {
   return inv.repos
     .filter((r) => r.showcase)
@@ -140,9 +183,11 @@ export interface ShowcaseData {
 }
 
 /** Everything the public site (and projects.json) shows. Built only from public-safe fields. */
-export function buildShowcase(inv: Inventory, config?: Pick<Config, "owners">): ShowcaseData {
-  const projects = selectShowcase(inv);
-  const shownRepos = inv.repos.filter((r) => r.showcase);
+export function buildShowcase(inv: Inventory, config?: Pick<Config, "owners">, admin = false): ShowcaseData {
+  const projects = admin
+    ? inv.repos.map(toAdmin).sort((a, b) => Number(b.featured) - Number(a.featured) || Date.parse(b.updated) - Date.parse(a.updated))
+    : selectShowcase(inv);
+  const shownRepos = admin ? inv.repos : inv.repos.filter((r) => r.showcase);
   const langBytes = new Map<string, number>();
   for (const r of shownRepos) for (const [k, v] of Object.entries(r.languages)) langBytes.set(k, (langBytes.get(k) ?? 0) + v);
   const total = [...langBytes.values()].reduce((a, b) => a + b, 0);

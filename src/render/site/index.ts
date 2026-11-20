@@ -81,7 +81,7 @@ function card(p: PublicProject, s: SiteStrings, icons: IconSprite, opts: { big?:
   return `<article class="card reveal${p.featured ? " featured" : ""}${opts.big ? " big" : ""}" tabindex="0" data-id="${esc(p.id)}" data-status="${p.status}" data-tech="${esc(tech.map((x) => x.toLowerCase()).join("|"))}" data-text="${esc(text)}" data-stars="${p.stars}" data-updated="${esc(p.updated)}" data-created="${esc(p.created)}" data-name="${esc(p.name.toLowerCase())}" data-featured="${p.featured ? 1 : 0}">
 <div class="cover">${p.image ? `<img loading="lazy" decoding="async" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">` : ""}<div class="cover-fallback" aria-hidden="true"><span>${esc(p.name.slice(0, 1).toUpperCase())}</span></div></div>
 <div class="card-body">
-<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}</div>
+<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}${p.admin && !p.admin.shown ? `<span class="pill">${esc(s.admin.hidden)}</span>` : ""}${p.admin ? `<span class="hp sm" style="--hc:${healthColor(p.admin.health)}" title="${esc(s.admin.health)}"><b>${p.admin.health}</b></span>` : ""}</div>
 <p class="sum">${esc(p.summary || "—")}</p>
 <div class="techs">${tech.slice(0, 6).map((t) => `<span class="tech" title="${esc(t)}">${icons.icon(t)}<em>${esc(t)}</em></span>`).join("")}</div>
 ${sparkline(p.activity)}
@@ -89,6 +89,32 @@ ${sparkline(p.activity)}
 </div>
 <span class="shine" aria-hidden="true"></span>
 </article>`;
+}
+
+const healthColor = (h: number) => (h >= 80 ? "#22c55e" : h >= 60 ? "#eab308" : "#ef4444");
+
+/** Admin-only page: totals and everything that needs fixing, worst first. */
+function adminSection(d: ShowcaseData, s: SiteStrings, idx: number): string {
+  const A = s.admin;
+  const ps = d.projects.filter((p) => p.admin);
+  const count = (f: (p: PublicProject) => boolean) => ps.filter(f).length;
+  const lv = (l: string) => ps.reduce((k, p) => k + p.admin!.issues.filter((i) => i.level === l).length, 0);
+  const errors = lv("error");
+  const down = ps.reduce((k, p) => k + p.deployments.filter((x) => !x.ok).length, 0);
+  const kpi = (label: string, v: number, bad = false) =>
+    `<div class="stat reveal${bad ? " bad" : ""}"><div class="stat-head"><span class="stat-l">${esc(label)}</span></div><div class="stat-main"><span class="stat-n count" data-to="${v}">0</span></div></div>`;
+  const list = ps.filter((p) => p.admin!.issues.length).sort((a, b) => a.admin!.health - b.admin!.health);
+  const rows = list
+    .map((p) => {
+      const a = p.admin!;
+      return `<li class="adm-row reveal"><button type="button" class="adm-name" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.shown ? "" : `<span class="pill">${esc(A.hidden)}</span>`}<span class="hp" style="--hc:${healthColor(a.health)}"><b>${a.health}</b></span></button><ul class="adm-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul></li>`;
+    })
+    .join("");
+  const ok = ps.length - list.length;
+  return `<section id="admin" class="sec">${sectionHead("admin", A.title, A.sub, idx)}
+<div class="stat-grid kpi6">${kpi(A.repos, ps.length)}${kpi(A.private, count((p) => p.private))}${kpi(A.hidden, count((p) => !p.admin!.shown))}${kpi(A.errors, errors, errors > 0)}${kpi(A.warns, lv("warn"))}${kpi(A.down, down, down > 0)}</div>
+<h3 class="sub-h">${esc(A.issues)}</h3><ol class="adm-list">${rows}</ol>${ok ? `<p class="adm-ok">✓ ${ok} · ${esc(A.allGood)}</p>` : ""}
+</section>`;
 }
 
 function sectionHead(id: string, title: string, sub: string, idx: number): string {
@@ -300,14 +326,15 @@ function inlineJson(v: unknown): string {
     .replace(new RegExp(String.fromCharCode(0x2029), "g"), "\\u2029");
 }
 
-export function renderSite(inv: Inventory, config: Config): string {
+export function renderSite(inv: Inventory, config: Config, opts: { admin?: boolean; adminLink?: boolean } = {}): string {
+  const admin = !!opts.admin;
   const lang = config.language;
   const s = siteStrings(lang);
-  const d = buildShowcase(inv, config);
+  const d = buildShowcase(inv, config, admin);
   const icons = new IconSprite();
   const th = config.site.theme;
   const name = config.site.title || d.profile?.name || d.owner;
-  const title = config.site.title || (lang === "zh-TW" ? `${name} · 作品集` : `${name} · Projects`);
+  const title = (admin ? `🔒 ${s.admin.title} · ` : "") + (config.site.title || (lang === "zh-TW" ? `${name} · 作品集` : `${name} · Projects`));
   const desc = config.site.tagline || d.profile?.bio || `${d.totals.projects} projects by ${d.owner}`;
 
   const multi = !config.site.singlePage;
@@ -330,6 +357,10 @@ export function renderSite(inv: Inventory, config: Config): string {
       }
     })()])
     .filter(([, html]) => !!html);
+  if (admin) {
+    const at = rendered.reduce((k, [sec], i) => (sec === "hero" || sec === "featured" ? i + 1 : k), 0);
+    rendered.splice(at, 0, ["admin", adminSection(d, s, 0)]);
+  }
   // Group sections into pages (home = hero + featured, every other section is its own page).
   const pageOrder: string[] = [];
   const pageHtml = new Map<string, string[]>();
@@ -346,7 +377,7 @@ export function renderSite(inv: Inventory, config: Config): string {
   const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
   const navItems = navTargets
     .map((x) => {
-      const label = x === "home" ? s.nav.home : s.nav[x as keyof SiteStrings["nav"]];
+      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : s.nav[x as keyof SiteStrings["nav"]];
       return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
     .join("");
@@ -397,7 +428,7 @@ export function renderSite(inv: Inventory, config: Config): string {
 ${d.profile?.avatarUrl ? `<meta property="og:image" content="${esc(d.profile.avatarUrl)}">` : ""}
 ${config.site.url ? `<meta property="og:url" content="${esc(config.site.url)}"><link rel="canonical" href="${esc(config.site.url)}">` : ""}
 <meta name="twitter:card" content="summary">
-<meta name="generator" content="repofolio">
+<meta name="generator" content="repofolio">${admin ? `<meta name="robots" content="noindex,nofollow">` : ""}
 ${avatar ? `<link rel="icon" href="${esc(avatar)}">` : ""}
 ${fonts}
 <style>${siteCss()}</style>
@@ -410,6 +441,7 @@ ${icons.sprite()}
 <div class="noise" aria-hidden="true"></div>
 <div class="cursor-glow" aria-hidden="true"></div>
 <div id="progress" aria-hidden="true"></div>
+${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{localStorage.removeItem('repofolio-admin-token');sessionStorage.removeItem('repofolio-admin-token')}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
 <header class="nav">
 <a class="brand" href="${multi ? "#/" : "#hero"}">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
 <nav>${navItems}</nav>
@@ -418,7 +450,7 @@ ${icons.sprite()}
 <main>
 ${sections}
 </main>
-<footer class="foot"><p>${esc(s.generated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 10))}</span> · ${esc(s.builtWith)} <a href="${REPO_URL}" target="_blank" rel="noopener">repofolio</a> · <button type="button" class="linklike" id="open-help">?</button></p></footer>
+<footer class="foot"><p>${esc(s.generated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 10))}</span> · ${esc(s.builtWith)} <a href="${REPO_URL}" target="_blank" rel="noopener">repofolio</a> · <button type="button" class="linklike" id="open-help">?</button>${opts.adminLink && !admin ? ` · <a href="admin.html" class="adm-link" title="${esc(s.admin.nav)}" aria-label="${esc(s.admin.nav)}">🔒</a>` : ""}</p></footer>
 <div class="overlay" id="modal" hidden><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title"><button type="button" class="x" data-close aria-label="${esc(s.close)}">✕</button><div id="m-body"></div></div></div>
 <div class="overlay" id="palette" hidden><div class="palette" role="dialog" aria-modal="true" aria-label="${esc(s.palette)}"><input id="pal-q" placeholder="${esc(s.palette)}" autocomplete="off"><ul id="pal-list" role="listbox"></ul></div></div>
 <div class="overlay" id="help" hidden><div class="modal small" role="dialog" aria-modal="true"><button type="button" class="x" data-close aria-label="${esc(s.close)}">✕</button><h3>${esc(s.shortcuts)}</h3><dl class="keys">${s.scShortcuts.map(([k, v]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(v)}</dd>`).join("")}</dl></div></div>

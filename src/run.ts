@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderCard, renderProfileSection } from "./render/card.js";
 import { renderCatalog, stats } from "./render/markdown.js";
+import { renderAdminLogin } from "./render/admin.js";
 import { buildShowcase, renderSite } from "./render/site.js";
 import type { Config } from "./schema.js";
 import type { Inventory } from "./types.js";
@@ -19,6 +20,8 @@ export interface Outputs {
  *   out/site/card.svg     public stats card for a profile README
  *   out/site/projects.json public showcase data (same fields as the site) for your own site to consume
  *   out/profile.md        public markdown block for a profile README
+ *   out/admin.html        admin view of the site (PRIVATE: every repo, health, env locations)
+ *   out/site/admin.html   public login page that loads admin.html from the private hub repo
  */
 export function writeOutputs(inv: Inventory, config: Config, dir = config.output.dir): Outputs {
   const site = join(dir, "site");
@@ -26,11 +29,16 @@ export function writeOutputs(inv: Inventory, config: Config, dir = config.output
   const files: [string, string][] = [
     [join(dir, "inventory.json"), JSON.stringify(inv, null, 2)],
     [join(dir, "CATALOG.md"), renderCatalog(inv, config.language)],
-    [join(site, "index.html"), renderSite(inv, config)],
+    [join(site, "index.html"), renderSite(inv, config, { adminLink: !!(config.admin.enabled && (config.admin.repo ?? process.env.GITHUB_REPOSITORY)) })],
     [join(site, "card.svg"), renderCard(inv, config.language, { accent: config.site.theme.accent, owners: config.owners })],
     [join(site, "projects.json"), JSON.stringify(buildShowcase(inv, config), null, 2)],
     [join(dir, "profile.md"), renderProfileSection(inv, config.language)],
   ];
+  const adminRepo = config.admin.repo ?? process.env.GITHUB_REPOSITORY;
+  if (config.admin.enabled) {
+    files.push([join(dir, "admin.html"), renderSite(inv, config, { admin: true })]);
+    if (adminRepo) files.push([join(site, "admin.html"), renderAdminLogin(config, adminRepo)]);
+  }
   for (const [p, c] of files) writeFileSync(p, c);
   return { dir, files: files.map(([p]) => p) };
 }

@@ -86,6 +86,14 @@ publish:
 - 檔案沒變就不會產生 commit
 - **永遠不會**推送 `inventory.json` 或 `CATALOG.md`
 
+### 私有管理版
+
+和公開網站長得一樣，但只有你看得到：包含私有 repo、每張卡片有健康分數、多一個「管理」頁列出要處理的事（最糟的在前面），專案詳情裡還有環境變數放在哪、下一步、費用。
+
+- `out/admin.html` 是完整的管理版，hub workflow 會把它提交到你的**私有** hub repo。
+- 公開網站會多一個 `admin.html` 登入頁（頁尾有個小 🔒），裡面沒有任何資料。貼上一把能讀取 hub repo 的 fine-grained token（只選那個 repo、Contents 唯讀），它就直接從 GitHub API 載入管理版。沒有權限的人只會拿到 404。
+- 不要的話設 `admin: { enabled: false }`；要換位置用 `admin: { repo: you/hub, path: admin.html }`。
+
 ## 盤點功能
 
 - **倉庫盤點**：你的所有 repo，加上指定的組織或額外 repo。從 `package.json`、`requirements.txt`、`pyproject.toml` 偵測技術

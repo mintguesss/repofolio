@@ -663,6 +663,14 @@ export function clientMain(): void {
         ${p.purpose ? `<p class="m-purpose">${esc(p.purpose)}</p>` : ""}
         <div class="techs">${tech.map((t) => `<span class="tech">${iconHtml(t)}<em>${esc(t)}</em></span>`).join("")}${p.tags.filter((t) => !tech.some((x) => x.toLowerCase() === t.toLowerCase())).map((t) => `<span class="tech">#${esc(t)}</span>`).join("")}</div>
         <div class="m-actions">${live ? `<a class="btn primary" href="${esc(live.url)}" target="_blank" rel="noopener">${esc(S.visit)} ↗</a>` : ""}${p.codeUrl ? `<a class="btn ghost" href="${esc(p.codeUrl)}" target="_blank" rel="noopener">${iconHtml("github")} ${esc(S.code)}</a>` : ""}</div>
+        ${p.admin ? (() => {
+          const A = S.admin, a = p.admin;
+          const hc = a.health >= 80 ? "#22c55e" : a.health >= 60 ? "#eab308" : "#ef4444";
+          return `<div class="m-admin"><div class="m-admin-top"><span class="hp" style="--hc:${hc}"><b>${a.health}</b> ${esc(A.health)}</span><span class="pill ${a.shown ? "ok" : ""}">${esc(a.shown ? A.shown : A.notShown)}</span>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.cost ? `<span class="pill">${esc(A.cost)} ${esc(a.cost)}</span>` : ""}</div>
+          ${a.issues.length ? `<ul class="m-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul>` : `<p class="m-ok">✓ ${esc(A.allGood)}</p>`}
+          ${a.env ? `<p class="m-env"><b>${esc(A.env)}</b> ${a.env.vars.map((v) => `<code>${esc(v)}</code>`).join(" ")}${a.env.location ? ` · ${esc(A.envAt)} <b>${esc(a.env.location)}</b>` : ""}</p>` : ""}
+          ${a.next.length ? `<p class="m-env"><b>${esc(A.next)}</b></p><ul class="m-next">${a.next.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</div>`;
+        })() : ""}
         <div class="m-grid">
           ${p.languages.length ? `<div class="m-box"><h4>${esc(S.stack)}</h4><div class="langbar">${p.languages.map((l) => `<i style="width:${l.pct}%;background:${langColor(l.name)}" title="${esc(l.name)} ${l.pct}%"></i>`).join("")}</div><div class="lang-legend">${p.languages.map((l) => `<span style="--c:${langColor(l.name)}">${esc(l.name)} ${l.pct}%</span>`).join("")}</div></div>` : ""}
           ${p.deployments.length ? `<div class="m-box"><h4>${esc(S.deployments)}</h4><ul>${p.deployments.map((d) => `<li><span class="dot ${d.ok ? "st-active" : ""}" style="${d.ok ? "" : "background:#ef4444"}"></span>${d.provider ? iconHtml(d.provider) : ""}<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.url.replace(/^https?:\/\//, ""))}</a>${d.ms != null ? `<small style="margin-left:auto;color:var(--muted)">${d.ms} ms</small>` : ""}</li>`).join("")}</ul></div>` : ""}

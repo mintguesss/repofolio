@@ -105,6 +105,7 @@ const en = {
   copyLink: "Copy link to this page",
   openGithub: "Open GitHub profile",
   toggleMotion: "Toggle motion",
+  admin: { nav: "Admin", title: "Admin", sub: "Everything that needs attention, private repos included.", mode: "Admin mode: only you can see this", logout: "Log out", publicSite: "Public site", repos: "Repos", private: "Private", hidden: "Not on public site", errors: "Errors", warns: "Warnings", down: "URLs down", health: "Health", issues: "To fix", env: "Env vars", envAt: "stored in", next: "Next", cost: "Cost", shown: "On public site", notShown: "Hidden from public site", allGood: "Nothing to fix" },
   private: "private",
 };
 
@@ -215,6 +216,7 @@ const zh: SiteStrings = {
   copyLink: "複製這頁的連結",
   openGithub: "開啟 GitHub 個人頁",
   toggleMotion: "開關動畫",
+  admin: { nav: "管理", title: "管理", sub: "所有需要處理的事，包含私有 repo。", mode: "管理模式：只有你看得到", logout: "登出", publicSite: "公開網站", repos: "Repo 數", private: "私有", hidden: "未公開", errors: "錯誤", warns: "警告", down: "連不上", health: "健康度", issues: "待處理", env: "環境變數", envAt: "存放在", next: "下一步", cost: "費用", shown: "公開網站有顯示", notShown: "公開網站沒有顯示", allGood: "沒有要處理的" },
   private: "私有",
 };
 

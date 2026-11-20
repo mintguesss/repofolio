@@ -49,6 +49,9 @@ jobs:
       - name: Commit catalog
         run: |
           cp out/CATALOG.md CATALOG.md
+          # Admin view (private): opened from <your site>/admin.html with a token that can read this repo.
+          # Only keep this if the hub repo is PRIVATE.
+          if [ -f out/admin.html ]; then cp out/admin.html admin.html; git add admin.html; fi
           git config user.name "repofolio[bot]"
           git config user.email "repofolio[bot]@users.noreply.github.com"
           git add CATALOG.md

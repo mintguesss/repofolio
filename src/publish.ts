@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import type { GitHubClient } from "./github.js";
 import type { Config } from "./schema.js";
 
 /** The only files that ever leave the machine / hub: all built from public-safe data. */
-export const PUBLIC_SITE_FILES = ["index.html", "card.svg", "projects.json"] as const;
+export const PUBLIC_SITE_FILES = ["index.html", "card.svg", "projects.json", "admin.html"] as const;
 
 export interface PublishResult {
   repo: string;
@@ -50,6 +50,7 @@ export async function publishSite(
 
   const changes: { path: string; content: Buffer }[] = [];
   for (const name of PUBLIC_SITE_FILES) {
+    if (!existsSync(join(siteDir, name))) continue;
     const content = readFileSync(join(siteDir, name));
     const path = base ? posix.join(base, name) : name;
     if (existing.get(path) === gitBlobSha(content)) continue;

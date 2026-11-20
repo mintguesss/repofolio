@@ -1,0 +1,53 @@
+# The author's own showcase (https://mintguesss.github.io/repofolio/), built nightly with repofolio
+# and deployed to this repo's GitHub Pages. It doubles as the live demo. Forks skip it.
+name: showcase
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/repofolio.config.yml", ".github/workflows/showcase.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: showcase
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository == 'mintguesss/repofolio'
+    runs-on: ubuntu-latest
+    outputs:
+      site-dir: ${{ steps.repofolio.outputs.site-dir }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # This repo is public, so its logs are too: repofolio masks private repo names, the public
+      # pages never include private repos, and the admin page is encrypted with the password.
+      - id: repofolio
+        uses: mintguesss/repofolio@v0.6.0
+        with:
+          token: ${{ secrets.REPOFOLIO_TOKEN }}
+          config: .github/repofolio.config.yml
+        env:
+          REPOFOLIO_ADMIN_PASSWORD: ${{ secrets.REPOFOLIO_ADMIN_PASSWORD }}
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ steps.repofolio.outputs.site-dir }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

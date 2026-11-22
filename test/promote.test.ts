@@ -258,3 +258,46 @@ describe("readme intro", () => {
     expect(r.sections).toEqual(["Features", "How it works"]);
   });
 });
+
+describe("post styles", () => {
+  it("every style fits every platform and differs in shape", async () => {
+    const c = config();
+    const s = emptyState(NOW);
+    detectEvents(inv([rec("a")]), c, s, NOW);
+    const [ev] = detectEvents(inv([rec("a"), rec("b", { readme: { length: 999, sha: "x", excerpt: "e", intro: { paragraphs: [], features: ["Imports Markdown", "Spaced repetition"], sections: [] } } })]), c, s, NOW);
+    const texts = new Set<string>();
+    for (const style of ["launch", "story", "deepdive", "recruiter", "short"] as const) {
+      for (const p of PLATFORMS) {
+        const d = templateDraft(ev!, p, "en", [], style);
+        expect(postLength(p, d.text), `${style} ${p}`).toBeLessThanOrEqual(PLATFORM_INFO[p].limit);
+      }
+      texts.add(templateDraft(ev!, "linkedin", "en", [], style).text);
+    }
+    expect(texts.size).toBe(5);
+    expect(templateDraft(ev!, "linkedin", "en", [], "launch").text).toContain("Spaced repetition");
+    // English features stay out of a Chinese template.
+    expect(templateDraft(ev!, "linkedin", "zh-TW", [], "launch").text).not.toContain("Spaced repetition");
+  });
+
+  it("redraft rewrites a pending post in another style", async () => {
+    const c = config({ promote: { enabled: true, platforms: ["linkedin"], llm: false } });
+    const s = emptyState(NOW);
+    const f = (async () => new Response("", { status: 404 })) as typeof fetch;
+    await runPromote({ inv: inv([rec("a")]), config: c, state: s, requests: [], env: {}, now: NOW, fetch: f });
+    const post = s.posts[0]!;
+    expect(post.style).toBe("recruiter");
+    await runPromote({ inv: inv([rec("a")]), config: c, state: s, requests: [{ op: "redraft", id: post.id, style: "short" }], env: {}, now: NOW, fetch: f });
+    expect(post.style).toBe("short");
+  });
+});
+
+describe("competitor feature table and steps", () => {
+  it("builds rows for demo, licence, activity and shared topics, plus ranked steps", () => {
+    const comp = (n: number, topics: string[]) => ({ fullName: `o/c${n}`, url: "", description: "", stars: n * 100, pushedAt: days(5), language: null, topics, homepage: "https://c.dev", license: "MIT" });
+    const r = compareRules(rec("a", { license: null, topics: ["flashcards"] }), [comp(1, ["flashcards", "anki"]), comp(2, ["anki", "srs"]), comp(3, ["anki"])], "zh-TW", NOW);
+    expect(r.features!.map((x) => x.name)).toEqual(expect.arrayContaining(["線上 demo／網站", "授權", "#anki", "#flashcards"]));
+    expect(r.features!.find((x) => x.name === "#anki")!.mine).toBe("no");
+    expect(r.steps![0]!.impact).toBe("high");
+    expect(r.steps!.map((x) => x.title).join(" ")).toContain("#anki");
+  });
+});

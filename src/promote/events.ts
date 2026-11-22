@@ -41,6 +41,8 @@ export function repoFacts(r: RepoRecord): PostEvent["facts"] {
     code: r.url,
     live: liveUrl(r),
     readme: r.readme?.excerpt?.slice(0, 1500),
+    features: (r.brief?.features ?? r.readme?.intro?.features ?? []).slice(0, 4),
+    next: r.meta.next.slice(0, 2),
   };
 }
 

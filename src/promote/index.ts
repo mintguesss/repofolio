@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { PLATFORMS, type Config, type Platform } from "../schema.js";
+import { PLATFORMS, POST_STYLES, type Config, type Platform } from "../schema.js";
 import type { Post, PostResult, State } from "../state.js";
 import type { Inventory } from "../types.js";
 import { Copywriter } from "./draft.js";
@@ -16,7 +16,8 @@ const Text = z.object({ text: z.string().max(60000), title: z.string().max(300).
 export const RequestSchema = z.array(z.discriminatedUnion("op", [
   z.object({ op: z.literal("approve"), id: z.string(), platforms: z.array(z.enum(PLATFORMS)).default([]), manual: z.array(z.enum(PLATFORMS)).default([]), edits: z.partialRecord(z.enum(PLATFORMS), Text).default({}) }),
   z.object({ op: z.literal("skip"), id: z.string() }),
-  z.object({ op: z.literal("draft"), repo: z.string() }),
+  z.object({ op: z.literal("draft"), repo: z.string(), style: z.enum(POST_STYLES).optional() }),
+  z.object({ op: z.literal("redraft"), id: z.string(), style: z.enum(POST_STYLES) }),
 ])).max(50);
 export type PromoteRequest = z.infer<typeof RequestSchema>[number];
 
@@ -66,18 +67,27 @@ export async function runPromote(opts: {
   const summary: PromoteSummary = { connections: await checkConnections(platforms, env, f), created: 0, published: 0, errors: [] };
   const auto = new Set(summary.connections.filter((c) => c.mode === "auto").map((c) => c.platform));
   const stars = (repo?: string) => inv.repos.find((r) => r.fullName === repo)?.stars;
-  const extra = [];
+  const extra: { ev: ReturnType<typeof spotlightEvent>; style?: (typeof POST_STYLES)[number] }[] = [];
+  const useLlm = (cfg.llm === true || cfg.llm === "auto") && !!env.ANTHROPIC_API_KEY;
+  const writer = new Copywriter({ lang: cfg.language ?? config.language, model: config.llm.model, llm: useLlm, hashtags: cfg.hashtags, log });
 
   // 1. Decisions made in the admin page.
   for (const req of opts.requests) {
     if (req.op === "draft") {
       const r = inv.repos.find((x) => x.fullName === req.repo && postable(x));
-      if (r) extra.push(spotlightEvent(config, r, now));
+      if (r) extra.push({ ev: spotlightEvent(config, r, now), style: req.style });
       else log(`promote: ${req.repo} is not a public showcased repo, not drafting`);
       continue;
     }
     const post = state.posts.find((p) => p.id === req.id);
     if (!post) { log(`promote: post ${req.id} not found`); continue; }
+    if (req.op === "redraft") {
+      if (post.status !== "pending") continue;
+      const { drafts, source, style } = await writer.write(post.event, platforms, req.style);
+      Object.assign(post, { drafts, source, style });
+      log(`promote: rewrote a draft as ${style}`);
+      continue;
+    }
     if (req.op === "skip") {
       if (post.status === "pending") { post.status = "skipped"; post.decidedAt = now.toISOString(); }
       continue;
@@ -111,15 +121,13 @@ export async function runPromote(opts: {
   }
 
   // 2. New events since the last run → drafts.
-  const events = [...extra, ...(cfg.enabled ? detectEvents(inv, config, state, now) : [])];
+  const events = [...extra, ...(cfg.enabled ? detectEvents(inv, config, state, now).map((ev) => ({ ev, style: undefined })) : [])];
   if (events.length) {
-    const useLlm = cfg.llm === true || (cfg.llm === "auto" && !!env.ANTHROPIC_API_KEY);
-    const writer = new Copywriter({ lang: cfg.language ?? config.language, model: config.llm.model, llm: useLlm && !!env.ANTHROPIC_API_KEY, hashtags: cfg.hashtags, log });
-    for (const ev of events) {
+    for (const { ev, style: st } of events) {
       const id = postId(ev.key);
       if (state.posts.some((p) => p.id === id)) continue;
-      const { drafts, source } = await writer.write(ev, platforms);
-      state.posts.push({ id, createdAt: now.toISOString(), event: ev, status: "pending", source, drafts, results: {} });
+      const { drafts, source, style } = await writer.write(ev, platforms, st ?? cfg.style);
+      state.posts.push({ id, createdAt: now.toISOString(), event: ev, status: "pending", source, style, drafts, results: {} });
       summary.created++;
     }
     log(`promote: ${summary.created} new draft(s)${writer.calls ? ` (${writer.calls} Claude call(s))` : ""}`);

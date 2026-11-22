@@ -66,6 +66,8 @@ export interface RepoRecord {
   activity?: number[];
   /** Cover image chosen at scan time: config `images` > README image > screenshot found in the repo. Public repos only. */
   cover?: string;
+  /** Short intro in the site language (Claude, cached on the state branch). */
+  brief?: { about: string; features: string[] };
   health: HealthIssue[];
   healthScore: number;
   showcase: boolean;

@@ -30,6 +30,22 @@ nightly scan ─→ detect events ─→ drafts (Claude or templates) ─→ sto
 
 Links point to `<portfolio>/p/<project>/`, a share page whose preview card uses the project's cover and which opens the project in the portfolio.
 
+## Post styles
+
+Based on how job seekers and build-in-public developers usually write, each draft can switch between five styles in the admin page (the workflow rewrites it, about 2 minutes):
+
+| Style | Shape | Good for |
+|---|---|---|
+| Launch | What you shipped, the problem, 2–4 features, the stack, try it | New project, going live |
+| Build story | Why you built it, an obstacle or trade-off, what you learned, what is next | Milestones, retrospectives |
+| Deep dive | One technical part start to finish, with the code | Reaching engineers |
+| Recruiter-friendly | The project as evidence: built solo, skills shown, a concrete result, open to talk | Portfolio intro, job hunting |
+| Short update | 1–3 lines and the link | Releases, weekly digest |
+
+The default `style: auto` picks per event (intro and spotlight: recruiter-friendly; new project and live: launch; milestones: story; releases and weekly: short). Set `promote.style` to fix one.
+
+Platform length and tone apply on top (LinkedIn long, X and Bluesky short, DEV an article, PTT its own format). Templates only include content in the post language; Claude rewrites in the style, translates into the post language and never invents facts.
+
 ## Config
 
 ```yaml
@@ -105,8 +121,10 @@ Tokens expire after 60 days and self-serve apps get no refresh token. When it ex
 
 With an `ANTHROPIC_API_KEY` secret:
 
+- **Project intros**: a short intro (2 sentences + up to 4 features) in English and Traditional Chinese from each README, shown in the site language and cached by README sha.
+
 - **Drafts**: one Claude call per event, written for each platform (LinkedIn: what you built and learned; X / Bluesky: short; DEV: an article; PTT: PTT format). It never invents features or numbers. A draft over a platform's limit falls back to the template.
-- **Competitors**: GitHub search finds up to 12 candidates, Claude keeps the real competitors and writes positioning, strengths, gaps and next steps.
+- **Competitors**: GitHub search finds up to 12 candidates; Claude keeps the real competitors and writes positioning, a feature comparison table from the READMEs, and next steps ranked by impact and effort.
 
 Without a key: template drafts, and rule-based competitor matching (shared topics and keywords) comparing stars, activity, demo and licence.
 

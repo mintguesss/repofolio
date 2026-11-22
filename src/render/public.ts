@@ -48,6 +48,10 @@ export interface PublicProject {
   deployments: PublicDeployment[];
   /** README intro: paragraphs, features, section outline. Public repos only on the public site. */
   intro?: ReadmeIntro;
+  /** Short intro in the site language (Claude), or null. */
+  brief?: { about: string; features: string[] };
+  /** Language the README is written in (by script), to tell if `intro` matches the site language. */
+  introLang?: "zh" | "en";
   /** Only in the private admin build (never in the public site / projects.json). */
   admin?: AdminInfo;
 }
@@ -79,6 +83,14 @@ export interface AdminInfo {
   };
   /** Posts about this project (attached in the admin build). */
   posts?: { published: number; pending: number; last?: { title: string; at: string; url?: string } };
+  postList?: { title: string; status: string; at: string; links: { label: string; url: string }[] }[];
+}
+
+/** "zh" when a fair share of the letters are CJK. */
+export function scriptOf(text: string): "zh" | "en" {
+  const letters = text.match(/\p{L}/gu) ?? [];
+  const cjk = letters.filter((c) => /[㐀-鿿]/.test(c)).length;
+  return letters.length && cjk / letters.length > 0.15 ? "zh" : "en";
 }
 
 export function slug(s: string): string {
@@ -144,6 +156,8 @@ export function toPublic(r: RepoRecord): PublicProject {
     links,
     deployments,
     intro: r.private ? undefined : r.readme?.intro,
+    brief: r.private ? undefined : r.brief,
+    introLang: r.readme?.intro ? scriptOf(r.readme.intro.paragraphs.join(" ") || r.readme.excerpt) : undefined,
   };
 }
 
@@ -165,6 +179,7 @@ export function toAdmin(r: RepoRecord): PublicProject {
     image: r.meta.image ?? r.cover ?? (r.private ? undefined : p.image),
     deployments,
     intro: r.readme?.intro,
+    brief: r.brief,
     admin: {
       shown: r.showcase,
       health: r.healthScore,

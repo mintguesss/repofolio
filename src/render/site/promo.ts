@@ -1,4 +1,4 @@
-import type { Platform } from "../../schema.js";
+import { POST_STYLES, type Platform } from "../../schema.js";
 import type { CompetitorReport, Post } from "../../state.js";
 import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platforms.js";
 import { esc, type ShowcaseData } from "../public.js";
@@ -62,7 +62,7 @@ ${info.article ? `<input class="pp-title" value="${esc(d.title ?? post.event.tit
   const ev = post.event;
   return `<article class="pp reveal" data-post="${esc(post.id)}" data-url="${esc(ev.url)}" data-title="${esc(ev.title)}">
 <header class="pp-head"><span class="pp-kind k-${ev.kind}">${esc(P.kinds[ev.kind])}</span><h4>${esc(ev.title)}</h4><small>${esc(fmtDate(post.createdAt, lang))} · ${esc(P.by[post.source])}</small>${ev.projectId ? `<button type="button" class="linklike" data-open="${esc(ev.projectId)}">↗</button>` : ""}</header>
-<div class="pp-body">${ev.image ? `<div class="pp-img"><img src="${esc(ev.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>` : ""}<div class="pp-edit"><div class="pp-tabs" role="tablist">${tabs}</div>${panes}</div></div>
+<div class="pp-body">${ev.image ? `<div class="pp-img"><img src="${esc(ev.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>` : ""}<div class="pp-edit"><div class="pp-style"><span>${esc(s.styles.label)}</span><div class="pp-styles" role="radiogroup">${POST_STYLES.filter((x) => x !== "auto").map((st) => `<button type="button" role="radio" class="pp-st${(post.style ?? "launch") === st ? " on" : ""}" data-style="${st}" aria-checked="${(post.style ?? "launch") === st}" title="${esc(s.styles.hints[st])}">${esc(s.styles.names[st])}</button>`).join("")}</div></div><div class="pp-tabs" role="tablist">${tabs}</div>${panes}</div></div>
 <footer class="pp-foot"><button type="button" class="btn primary pp-approve">${esc(P.approve)}</button><button type="button" class="btn ghost pp-skip">${esc(P.skip)}</button><span class="pp-msg" role="status"></span></footer>
 </article>`;
 }
@@ -97,38 +97,45 @@ ${dispatch ? `<p class="pp-runs"><a href="https://github.com/${esc(dispatch.repo
 </section>`;
 }
 
-/** Bars scaled on log(stars) so ★3 vs ★30k still reads. */
-function starBars(rep: CompetitorReport, R: SiteStrings["rivals"]): string {
+/** Star bar on a log scale so ★3 vs ★30k still reads. */
+function starMeter(rep: CompetitorReport): string {
   const c = rep.compare;
-  const max = Math.log10(Math.max(c.topStars, c.myStars, 1) + 1);
-  const w = (n: number) => Math.max(2, Math.round((Math.log10(n + 1) / (max || 1)) * 100));
-  const row = (label: string, n: number, cls: string) => `<div class="rv-bar ${cls}"><span>${esc(label)}</span><i style="width:${w(n)}%"></i><b>★${n}</b></div>`;
-  return `<div class="rv-bars">${row(R.yours, c.myStars, "me")}${row(R.median, c.medianStars, "")}${row(R.top, c.topStars, "")}</div>`;
+  const max = Math.log10(Math.max(c.topStars, c.myStars, 1) + 1) || 1;
+  const w = (n: number) => Math.max(3, Math.round((Math.log10(n + 1) / max) * 100));
+  return `<div class="rv-meter" aria-hidden="true"><i class="top" style="width:${w(c.topStars)}%"></i><i class="med" style="width:${w(c.medianStars)}%"></i><i class="me" style="width:${w(c.myStars)}%"></i></div>`;
 }
 
 export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s: SiteStrings, head: string): string {
-  const R = s.rivals;
+  const R = s.rivals, R2 = s.rv2;
   if (!x) return "";
   const withRep = d.projects.filter((p) => x.reports[p.repo]);
   const without = d.projects.filter((p) => !x.reports[p.repo] && p.admin && !p.admin.fork && !p.admin.archived);
-  withRep.sort((a, b) => {
-    const ra = x.reports[a.repo]!, rb = x.reports[b.repo]!;
-    return rb.gaps.length - ra.gaps.length || rb.compare.topStars - ra.compare.topStars;
-  });
-  const cards = withRep
+  const score = (r: CompetitorReport) => (r.steps ?? []).filter((st) => st.impact === "high").length * 10 + r.gaps.length;
+  withRep.sort((a, b) => Number(!!x.reports[b.repo]!.items.length) - Number(!!x.reports[a.repo]!.items.length) || score(x.reports[b.repo]!) - score(x.reports[a.repo]!));
+  const rows = withRep
     .map((p) => {
       const rep = x.reports[p.repo]!;
-      const first = rep.gaps[0] ?? rep.ideas[0] ?? rep.positioning ?? "";
-      return `<article class="rv reveal"><button type="button" class="rv-name" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒</span>` : ""}<small>${rep.items.length ? `${rep.items.length} · ${esc(rep.source === "llm" ? R.llm : R.rules)}` : esc(R.empty)}</small></button>
-${rep.items.length ? starBars(rep, R) : ""}
-${rep.items.length ? `<ul class="rv-items">${rep.items.slice(0, 3).map((c) => `<li><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.fullName)}</a><span>★${c.stars}</span></li>`).join("")}</ul>` : ""}
-${first ? `<p class="rv-gap">${esc(first)}</p>` : ""}</article>`;
+      const c = rep.compare;
+      const top = [...rep.items].sort((a, b) => b.stars - a.stars)[0];
+      const step = rep.steps?.[0];
+      const fallback = rep.gaps[0] ?? rep.ideas[0] ?? "";
+      return `<li class="rv-row reveal">
+<button type="button" class="rv-proj" data-open="${esc(p.id)}" data-tab="rivals"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒</span>` : ""}</button>
+<div class="rv-stars">${rep.items.length ? `<span><b>★${c.myStars}</b> · ${esc(R2.rank)} ${c.rank}/${rep.items.length + 1}</span>${starMeter(rep)}` : `<span class="rv-none">${esc(R.empty)}</span>`}</div>
+<div class="rv-top">${top ? `<small>${esc(R2.top)}</small><a href="${esc(top.url)}" target="_blank" rel="noopener">${esc(top.fullName)}</a><span>★${top.stars}</span>` : ""}</div>
+<div class="rv-next">${step ? `<small>${esc(R2.next)}</small><b>${esc(step.title)}</b><span class="chip imp-${step.impact}">${esc(R2.impact)} ${esc(R2.levels[step.impact])}</span><span class="chip">${esc(R2.effort)} ${esc(R2.sizes[step.effort])}</span>` : fallback ? `<small>${esc(R2.next)}</small><span>${esc(fallback)}</span>` : ""}</div>
+<button type="button" class="rv-go" data-open="${esc(p.id)}" data-tab="rivals">${esc(R2.open)} →</button>
+</li>`;
     })
     .join("");
+  const analysed = withRep.filter((p) => x.reports[p.repo]!.items.length).length;
+  const leading = withRep.filter((p) => x.reports[p.repo]!.items.length && x.reports[p.repo]!.compare.rank === 1).length;
+  const high = withRep.reduce((n, p) => n + (x.reports[p.repo]!.steps ?? []).filter((st) => st.impact === "high").length, 0);
   return `<section id="rivals" class="sec">${head}
 ${x.enabled ? "" : `<p class="pp-note">${esc(R.off)}</p>`}
-<div class="rv-list">${cards}</div>
-${without.length ? `<p class="pp-note">${esc(R.none)} ${without.map((p) => `<button type="button" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</button>`).join(" ")}</p>` : ""}
+<div class="rv-sum reveal"><div><b>${analysed}</b><span>${esc(s.adminx.analysed)}</span></div><div><b>${leading}</b><span>${esc(s.adminx.leading)}</span></div><div><b>${high}</b><span>${esc(R2.steps)} · ${esc(R2.impact)} ${esc(R2.levels.high)}</span></div></div>
+<ol class="rv-table">${rows}</ol>
+${without.length ? `<p class="pp-note rv-pending">${esc(R.none)} ${without.map((p) => `<button type="button" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</button>`).join(" ")}</p>` : ""}
 </section>`;
 }
 

@@ -7,6 +7,7 @@ import { publishSite } from "./publish.js";
 import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { redact, writeOutputs, summaryLine } from "./run.js";
 import { analyzeCompetitors } from "./competitors.js";
+import { attachBriefs, writeIntros } from "./intro.js";
 import { parseRequests, runPromote } from "./promote/index.js";
 import type { AdminExtras } from "./render/site/promo.js";
 import { scan } from "./scan.js";
@@ -62,7 +63,8 @@ async function run() {
   if (hub && wf) extras.dispatch = { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" };
   const requests = parseRequests(input("posts"), (m) => console.log(m));
   const wantCompetitors = config.competitors.enabled && config.admin.enabled;
-  if (hub && (config.promote.enabled || requests.length || wantCompetitors)) {
+  const hasClaude = !!process.env.ANTHROPIC_API_KEY;
+  if (hub && (config.promote.enabled || requests.length || wantCompetitors || hasClaude)) {
     // Private repos may only enter the state when nobody else can read it: encrypted, or a private hub.
     const allowPrivate = !!password || hubRepo?.private === true;
     const stateClient = new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` });
@@ -75,6 +77,10 @@ async function run() {
       state = emptyState();
     }
     const env = process.env as Record<string, string | undefined>;
+    // Short bilingual intros (Claude), before drafting so posts can use the feature list.
+    if (hasClaude) await writeIntros(full.repos, { state, model: config.llm.model, allowPrivate, log: (m) => console.log(m) }).catch((e) => console.log(`::warning::intros: ${(e as Error).message.slice(0, 200)}`));
+    attachBriefs(full.repos, state, config.language);
+    attachBriefs(inv.repos, state, config.language);
     if (config.promote.enabled || requests.length) {
       const res = await runPromote({ inv: full, config, state, requests, env, log: (m) => console.log(m) });
       extras.promote = {
@@ -94,6 +100,7 @@ async function run() {
       // Plain JSON on a public branch: keep it to public repos.
       const pub = new Set(full.repos.filter((r) => !r.private).map((r) => r.fullName));
       for (const k of Object.keys(state.competitors)) if (!pub.has(k)) delete state.competitors[k];
+      for (const k of Object.keys(state.intros)) if (!pub.has(k)) delete state.intros[k];
     }
     try {
       await store.save(state);

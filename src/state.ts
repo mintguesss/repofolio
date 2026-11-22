@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { GitHubClient } from "./github.js";
-import type { Platform } from "./schema.js";
+import type { Platform, PostStyle } from "./schema.js";
 
 /**
  * State kept between runs on a branch of the hub repo (default `repofolio-data`):
@@ -55,6 +55,8 @@ export interface Post {
   event: PostEvent;
   status: PostStatus;
   source: "llm" | "template";
+  /** Writing style the drafts were made with. */
+  style?: Exclude<PostStyle, "auto">;
   drafts: Partial<Record<Platform, DraftText>>;
   results: Partial<Record<Platform, PostResult>>;
   /** Stars of the repo when the post went out, to show what happened after. */
@@ -72,6 +74,8 @@ export interface Competitor {
   homepage: string | null;
   license: string | null;
 }
+
+export type Has = "yes" | "partial" | "no";
 
 export interface CompetitorReport {
   repo: string;
@@ -94,6 +98,12 @@ export interface CompetitorReport {
     myDaysSincePush: number;
   };
   positioning?: string;
+  /** Feature comparison: rows of capabilities, whether I and each competitor have it. */
+  features?: { name: string; mine: Has; others: { repo: string; has: Has }[] }[];
+  /** Prioritised next steps. */
+  steps?: { title: string; why: string; effort: "S" | "M" | "L"; impact: "high" | "medium" | "low" }[];
+  /** Report format version (2 = features + steps). */
+  v?: number;
   strengths: string[];
   gaps: string[];
   ideas: string[];
@@ -119,11 +129,16 @@ export interface State {
   weekly?: { week: string; stars: Record<string, number> };
   posts: Post[];
   competitors: Record<string, CompetitorReport>;
+  /** Short bilingual intros written by Claude, keyed by owner/name, refreshed when the README changes. */
+  intros: Record<string, Intro>;
 }
+
+export interface Brief { about: string; features: string[] }
+export interface Intro { sha: string; en: Brief; zh: Brief }
 
 export function emptyState(now = new Date()): State {
   const t = now.toISOString();
-  return { v: 1, createdAt: t, updatedAt: t, seen: {}, done: [], posts: [], competitors: {} };
+  return { v: 1, createdAt: t, updatedAt: t, seen: {}, done: [], posts: [], competitors: {}, intros: {} };
 }
 
 /** True until the first run has recorded the repos it saw. */
@@ -152,7 +167,7 @@ export function decryptState(file: string, password: string): string {
 function parse(json: string): State {
   const s = JSON.parse(json) as Partial<State>;
   const base = emptyState();
-  return { ...base, ...s, seen: s.seen ?? {}, done: s.done ?? [], posts: s.posts ?? [], competitors: s.competitors ?? {} } as State;
+  return { ...base, ...s, seen: s.seen ?? {}, done: s.done ?? [], posts: s.posts ?? [], competitors: s.competitors ?? {}, intros: s.intros ?? {} } as State;
 }
 
 export interface StateStore {

@@ -1,4 +1,5 @@
-import type { Config } from "../../schema.js";
+import type { Config, Platform } from "../../schema.js";
+import { PLATFORM_INFO } from "../../promote/platforms.js";
 import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, GLOWS, LAYOUTS, MODES, SCHEMES, THEME_PRESETS } from "../../schema.js";
 import type { Inventory } from "../../types.js";
 import { buildShowcase, esc, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
@@ -379,6 +380,12 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     const done = mine.filter((x) => x.status === "published" || x.status === "partial");
     const last = done.at(-1);
     p.admin.posts = { published: done.length, pending: mine.filter((x) => x.status === "pending").length, last: last ? { title: last.event.title, at: last.decidedAt ?? last.createdAt, url: Object.values(last.results).find((r) => r?.url)?.url } : undefined };
+    p.admin.postList = [...mine].reverse().slice(0, 12).map((x) => ({
+      title: x.event.title,
+      status: x.status,
+      at: x.decidedAt ?? x.createdAt,
+      links: (Object.entries(x.results) as [string, { url?: string } | undefined][]).filter(([, r]) => r?.url).map(([pf, r]) => ({ label: PLATFORM_INFO[pf as Platform]?.label ?? pf, url: r!.url! })),
+    }));
   }
   const icons = new IconSprite();
   const th = config.site.theme;

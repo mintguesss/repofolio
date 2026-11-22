@@ -724,7 +724,16 @@ export function clientMain(): void {
           return `<div class="m-admin"><div class="m-admin-top"><span class="hp" style="--hc:${hc}"><b>${a.health}</b> ${esc(A.health)}</span><span class="pill ${a.shown ? "ok" : ""}">${esc(a.shown ? A.shown : A.notShown)}</span>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.cost ? `<span class="pill">${esc(A.cost)} ${esc(a.cost)}</span>` : ""}</div>
           ${a.issues.length ? `<ul class="m-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul>` : `<p class="m-ok">✓ ${esc(A.allGood)}</p>`}
           ${a.env ? `<p class="m-env"><b>${esc(A.env)}</b> ${a.env.vars.map((v) => `<code>${esc(v)}</code>`).join(" ")}${a.env.location ? ` · ${esc(A.envAt)} <b>${esc(a.env.location)}</b>` : ""}</p>` : ""}
-          ${a.next.length ? `<p class="m-env"><b>${esc(A.next)}</b></p><ul class="m-next">${a.next.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}</div>`;
+          ${a.next.length ? `<p class="m-env"><b>${esc(A.next)}</b></p><ul class="m-next">${a.next.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+          ${a.postable && C.promo && C.promo.dispatch ? `<p class="m-env"><button type="button" class="btn ghost sm" data-spotlight="${esc(p.repo)}">📣 ${esc(S.promo.spotlight)}</button></p>` : ""}
+          ${a.competitors ? (() => {
+            const R = S.rivals, r = a.competitors, c = r.compare;
+            const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
+            return `<div class="m-rivals"><h4>🎯 ${esc(R.title)} <small>${esc(r.source === "llm" ? R.llm : R.rules)} · ${esc(R.analysed)} ${esc(ago(r.at))}</small></h4>
+              ${r.positioning ? `<p class="m-pos">${esc(r.positioning)}</p>` : ""}
+              ${r.items.length ? `<p class="m-cmp">${esc(R.yours)} ★${c.myStars} · ${esc(R.median)} ★${c.medianStars} · ${esc(R.top)} ★${c.topStars}</p><ul class="m-rv">${r.items.map((x) => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.fullName)}</a><span>★${x.stars}</span>${x.homepage ? `<span class="pill">${esc(R.demo)}</span>` : ""}<small>${esc(x.description || "")}</small><small>${esc(R.updated)} ${esc(ago(x.pushedAt))}</small></li>`).join("")}</ul>` : `<p class="m-ok">${esc(R.empty)}</p>`}
+              <div class="m-rv-cols">${r.strengths.length ? `<div><b>${esc(R.strengths)}</b><ul class="m-next">${li(r.strengths)}</ul></div>` : ""}${r.gaps.length ? `<div><b>${esc(R.gaps)}</b><ul class="m-next">${li(r.gaps)}</ul></div>` : ""}${r.ideas.length ? `<div><b>${esc(R.ideas)}</b><ul class="m-next">${li(r.ideas)}</ul></div>` : ""}</div></div>`;
+          })() : ""}</div>`;
         })() : ""}
         <div class="m-grid">
           ${p.languages.length ? `<div class="m-box"><h4>${esc(S.stack)}</h4><div class="langbar">${p.languages.map((l) => `<i style="width:${l.pct}%;background:${langColor(l.name)}" title="${esc(l.name)} ${l.pct}%"></i>`).join("")}</div><div class="lang-legend">${p.languages.map((l) => `<span style="--c:${langColor(l.name)}">${esc(l.name)} ${l.pct}%</span>`).join("")}</div></div>` : ""}
@@ -947,6 +956,145 @@ export function clientMain(): void {
     else if (e.key === "g") scrollTo({ top: 0, behavior: "smooth" });
     else if (e.key === "?") $("#help").hidden = false;
   });
+
+  /* ───────── admin: post review + approvals (dispatches the workflow with the owner's token) ───────── */
+  const PR = C.promo;
+  if (PR) {
+    const SP = S.promo;
+    const TK = "repofolio-admin-gh";
+    const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+    const load = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+    const tokEl = $("#pp-tok"), tokState = $("#pp-tok-state"), tokBox = $("#pp-tok-box");
+    const syncTok = () => {
+      const has = !!load(TK);
+      if (tokState) tokState.textContent = has ? "✓ " + SP.tokenSaved : "";
+      if (tokBox && !has) tokBox.open = true;
+    };
+    if (tokEl) {
+      $("#pp-tok-save").addEventListener("click", () => { const v = tokEl.value.trim(); if (!v) return; store(TK, v); tokEl.value = ""; syncTok(); tokBox.open = false; toast(SP.tokenSaved); });
+      $("#pp-tok-forget").addEventListener("click", () => { store(TK, null); syncTok(); });
+      syncTok();
+    }
+    async function dispatch(reqs) {
+      const tok = load(TK);
+      if (!tok || !PR.dispatch) { if (tokBox) { tokBox.open = true; tokBox.scrollIntoView({ block: "center", behavior: "smooth" }); } throw new Error(SP.needToken); }
+      const d = PR.dispatch;
+      const r = await fetch(`https://api.github.com/repos/${d.repo}/actions/workflows/${encodeURIComponent(d.workflow)}/dispatches`, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: d.ref, inputs: { posts: JSON.stringify(reqs) } }),
+      });
+      if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch (e) {} throw new Error(`${SP.failed} (${r.status}${m ? ": " + m : ""})`); }
+    }
+    // Character count the way each platform counts (X: links = 23, CJK = 2).
+    const seg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter() : null;
+    const glen = (t) => (seg ? Array.from(seg.segment(t)).length : Array.from(t).length);
+    const plen = (pf, t) => {
+      if (pf !== "x") return glen(t);
+      let n = 0;
+      const rest = t.replace(/https?:\/\/\S+/g, () => { n += 23; return ""; });
+      for (const ch of rest) n += /[ᄀ-ᇿ⺀-꓏가-힯豈-﫿︰-﹏＀-￯]/.test(ch) ? 2 : 1;
+      return n;
+    };
+    const enc = encodeURIComponent;
+    const shareUrl = (pf, text, url, title) => ({
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(url)}`,
+      bluesky: `https://bsky.app/intent/compose?text=${enc(text)}`,
+      mastodon: `https://mastodonshare.com/?text=${enc(text)}`,
+      threads: `https://www.threads.net/intent/post?text=${enc(text)}`,
+      x: `https://x.com/intent/post?text=${enc(text)}`,
+      devto: "https://dev.to/new",
+      telegram: `https://t.me/share/url?url=${enc(url)}&text=${enc(text.replace(url, "").trim())}`,
+      hn: `https://news.ycombinator.com/submitlink?u=${enc(url)}&t=${enc(text || title)}`,
+      reddit: `https://www.reddit.com/submit?url=${enc(url)}&title=${enc(text || title)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}`,
+    })[pf];
+    const SENT = (id) => "repofolio-admin-sent:" + id;
+    const DRAFT = (id, pf) => `repofolio-admin-draft:${id}:${pf}`;
+
+    $$(".pp[data-post]").forEach((card) => {
+      const id = card.dataset.post, url = card.dataset.url, title = card.dataset.title;
+      const msg = $(".pp-msg", card), approve = $(".pp-approve", card), skip = $(".pp-skip", card);
+      const panes = $$(".pp-pane", card), tabs = $$(".pp-tab", card);
+      const setMsg = (t, bad) => { msg.textContent = t; msg.classList.toggle("bad", !!bad); };
+      const markSent = (t) => { card.classList.add("sent"); approve.disabled = skip.disabled = true; setMsg(t || SP.sent); };
+      const sentAt = Number(load(SENT(id)) || 0);
+      if (sentAt && Date.now() - sentAt < 30 * 60 * 1000) markSent();
+      tabs.forEach((tb) => tb.addEventListener("click", () => {
+        tabs.forEach((x) => x.classList.toggle("on", x === tb));
+        panes.forEach((pn) => (pn.hidden = pn.dataset.pf !== tb.dataset.pf));
+      }));
+      const countAll = () => {
+        let n = 0;
+        panes.forEach((pn) => {
+          const pf = pn.dataset.pf, ta = $(".pp-text", pn), cnt = $(".pp-count", pn), lim = Number(cnt.dataset.limit);
+          const L = plen(pf, ta.value);
+          cnt.textContent = `${L} / ${lim} ${SP.chars}`;
+          cnt.classList.toggle("bad", L > lim);
+          const inc = $(".pp-inc", pn), done = $(".pp-done", pn);
+          if ((inc && inc.checked) || (done && done.checked)) n++;
+        });
+        approve.textContent = `${SP.approve}${n ? ` (${n})` : ""}`;
+      };
+      panes.forEach((pn) => {
+        const pf = pn.dataset.pf, ta = $(".pp-text", pn), ti = $(".pp-title", pn);
+        const saved = load(DRAFT(id, pf));
+        if (saved != null && saved !== ta.value) ta.value = saved;
+        ta.addEventListener("input", () => { store(DRAFT(id, pf), ta.value === ta.defaultValue ? null : ta.value); countAll(); });
+        $$("input[type=checkbox]", pn).forEach((c) => c.addEventListener("change", countAll));
+        const full = () => (ti ? `${ti.value}\n\n${ta.value}` : ta.value);
+        const cp = $(".pp-copy", pn);
+        if (cp) cp.addEventListener("click", () => copy(full()));
+        const sh = $(".pp-share", pn);
+        if (sh) sh.addEventListener("click", () => {
+          if (pf === "devto" || pf === "linkedin" || pf === "facebook") copy(full());
+          const u = shareUrl(pf, ta.value, url, title);
+          if (u) open(u, "_blank", "noopener");
+          const done = $(".pp-done", pn); if (done) { done.checked = true; countAll(); }
+        });
+      });
+      countAll();
+      approve.addEventListener("click", async () => {
+        const req = { op: "approve", id, platforms: [], manual: [], edits: {} };
+        for (const pn of panes) {
+          const pf = pn.dataset.pf, ta = $(".pp-text", pn), ti = $(".pp-title", pn), inc = $(".pp-inc", pn), done = $(".pp-done", pn);
+          if (inc && inc.checked) req.platforms.push(pf);
+          if (done && done.checked) req.manual.push(pf);
+          if (ta.value !== ta.defaultValue || (ti && ti.value !== ti.defaultValue)) {
+            if (plen(pf, ta.value) > Number($(".pp-count", pn).dataset.limit)) { setMsg(`${PR.platforms[pf].label}: ${$(".pp-count", pn).textContent}`, true); return; }
+            req.edits[pf] = ti ? { text: ta.value, title: ti.value } : { text: ta.value };
+          }
+        }
+        if (!req.platforms.length && !req.manual.length) { setMsg("—", true); return; }
+        approve.disabled = true; setMsg("…");
+        try {
+          await dispatch([req]);
+          store(SENT(id), String(Date.now()));
+          panes.forEach((pn) => store(DRAFT(id, pn.dataset.pf), null));
+          markSent();
+        } catch (e) { approve.disabled = false; setMsg(e.message, true); }
+      });
+      skip.addEventListener("click", async () => {
+        skip.disabled = true; setMsg("…");
+        try { await dispatch([{ op: "skip", id }]); store(SENT(id), String(Date.now())); markSent(SP.status.skipped); }
+        catch (e) { skip.disabled = false; setMsg(e.message, true); }
+      });
+    });
+    $$(".pp-retry").forEach((b) => b.addEventListener("click", async () => {
+      const id = b.closest("[data-post]").dataset.post;
+      b.disabled = true;
+      try { await dispatch([{ op: "approve", id, platforms: b.dataset.pfs.split(","), manual: [], edits: {} }]); b.textContent = SP.sent; }
+      catch (e) { b.disabled = false; toast(e.message); }
+    }));
+    // "Write a post about this" in the project modal (rendered after this runs, so delegate).
+    document.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-spotlight]");
+      if (!b) return;
+      b.disabled = true;
+      try { await dispatch([{ op: "draft", repo: b.dataset.spotlight }]); b.textContent = "✓ " + SP.sentDraft; }
+      catch (err) { b.disabled = false; toast(err.message); }
+    });
+  }
 
   applyTheme();
 }

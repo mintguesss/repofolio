@@ -97,6 +97,15 @@ publish:
 
 公開 repo 的執行紀錄是公開的，所以 Action 會遮蔽私有 repo 名稱、也不會印出來。不要管理版的話設 `admin: { enabled: false }`。
 
+### 自動發文和競品分析
+
+管理頁還有兩個分頁：
+
+- **📣 發文**：新專案、新版本、星星里程碑、網站上線，以及每週「本週做了什麼」，都會自動寫成 LinkedIn、Bluesky、Threads、X、DEV、Mastodon、Discord、Telegram、Hacker News、Reddit、Facebook、PTT 的草稿（有 `ANTHROPIC_API_KEY` 就由 Claude 撰寫，否則用模板）。改好、勾選平台、按「核准並發布」，workflow 就用你自己的金鑰發出去。沒設金鑰的平台有複製按鈕和填好內容的分享連結。貼文連結指向每個專案的分享頁，預覽圖是專案封面。
+- **🎯 競品**：每個專案在 GitHub 上的相似專案、你和它們的比較（星星、活躍度、demo、授權），以及下一步可以做什麼。
+
+私有 repo 永遠不會出現在貼文裡。設定方式和各平台金鑰怎麼拿：[docs/PROMOTE.zh-TW.md](docs/PROMOTE.zh-TW.md)。
+
 ## 盤點功能
 
 - **倉庫盤點**：你的所有 repo，加上指定的組織或額外 repo。從 `package.json`、`requirements.txt`、`pyproject.toml` 偵測技術

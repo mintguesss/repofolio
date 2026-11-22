@@ -6,7 +6,11 @@ import { openStaleIssues } from "./issues.js";
 import { publishSite } from "./publish.js";
 import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { redact, writeOutputs, summaryLine } from "./run.js";
+import { analyzeCompetitors } from "./competitors.js";
+import { parseRequests, runPromote } from "./promote/index.js";
+import type { AdminExtras } from "./render/site/promo.js";
 import { scan } from "./scan.js";
+import { GitHubStateStore, emptyState, type State } from "./state.js";
 import { Summarizer } from "./summarize.js";
 import { VERSION } from "./version.js";
 
@@ -43,17 +47,62 @@ async function run() {
 
   // Safety: if the hub repo itself is public, never write private details into it.
   const hub = process.env.GITHUB_REPOSITORY;
-  if (hub) {
-    const hubRepo = await client.get<{ private: boolean }>(`/repos/${hub}`).catch(() => null);
-    if (hubRepo && !hubRepo.private && inv.repos.some((r) => r.private)) {
-      // Public repo: plaintext outputs never get private repos; only the encrypted admin page sees them.
-      if (!process.env.REPOFOLIO_ADMIN_PASSWORD) console.log(`::notice::${hub} is public, so private repos are left out of CATALOG.md and inventory.json. Set REPOFOLIO_ADMIN_PASSWORD to get them in the encrypted admin page.`);
-      inv = redact(inv);
+  const password = process.env.REPOFOLIO_ADMIN_PASSWORD;
+  const hubRepo = hub ? await client.get<{ private: boolean }>(`/repos/${hub}`).catch(() => null) : null;
+  if (hubRepo && !hubRepo.private && inv.repos.some((r) => r.private)) {
+    // Public repo: plaintext outputs never get private repos; only the encrypted admin page sees them.
+    if (!password) console.log(`::notice::${hub} is public, so private repos are left out of CATALOG.md and inventory.json. Set REPOFOLIO_ADMIN_PASSWORD to get them in the encrypted admin page.`);
+    inv = redact(inv);
+  }
+  const encrypted = !!password && config.admin.mode !== "repo";
+
+  // Promotion + competitor analysis keep state on a branch of the hub repo.
+  const extras: AdminExtras = {};
+  const requests = parseRequests(input("posts"), (m) => console.log(m));
+  const wantCompetitors = config.competitors.enabled && config.admin.enabled;
+  if (hub && (config.promote.enabled || requests.length || wantCompetitors)) {
+    // Private repos may only enter the state when nobody else can read it: encrypted, or a private hub.
+    const allowPrivate = !!password || hubRepo?.private === true;
+    const stateClient = new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` });
+    const store = new GitHubStateStore(stateClient, hub, config.state.branch, password);
+    let state: State;
+    try {
+      state = await store.load();
+    } catch (e) {
+      console.log(`::warning::state: can't read the ${config.state.branch} branch (${(e as Error).message.slice(0, 160)}); starting fresh`);
+      state = emptyState();
+    }
+    const env = process.env as Record<string, string | undefined>;
+    if (config.promote.enabled || requests.length) {
+      const res = await runPromote({ inv: full, config, state, requests, env, log: (m) => console.log(m) });
+      const wf = /\/\.github\/workflows\/([^@]+)@/.exec(process.env.GITHUB_WORKFLOW_REF ?? "")?.[1];
+      extras.promote = {
+        enabled: config.promote.enabled,
+        platforms: config.promote.platforms,
+        posts: state.posts,
+        connections: res.connections,
+        dispatch: wf ? { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" } : undefined,
+      };
+    }
+    if (wantCompetitors) {
+      const useLlm = config.competitors.llm === true || (config.competitors.llm === "auto" && !!process.env.ANTHROPIC_API_KEY);
+      await analyzeCompetitors(full.repos, { config, client, state, allowPrivate, llm: useLlm && !!process.env.ANTHROPIC_API_KEY, log: (m) => console.log(m) })
+        .catch((e) => console.log(`::warning::competitors: ${(e as Error).message.slice(0, 200)}`));
+      extras.competitors = { enabled: true, reports: state.competitors };
+    }
+    if (!allowPrivate) {
+      // Plain JSON on a public branch: keep it to public repos.
+      const pub = new Set(full.repos.filter((r) => !r.private).map((r) => r.fullName));
+      for (const k of Object.keys(state.competitors)) if (!pub.has(k)) delete state.competitors[k];
+    }
+    try {
+      await store.save(state);
+    } catch (e) {
+      console.log(`::warning::state: can't write the ${config.state.branch} branch; give the workflow "permissions: contents: write" (${(e as Error).message.slice(0, 160)})`);
     }
   }
 
-  const encrypted = !!process.env.REPOFOLIO_ADMIN_PASSWORD && config.admin.mode !== "repo";
-  const out = writeOutputs(inv, config, outDir, { adminInv: encrypted ? full : inv, log: (m) => console.log(m) });
+  const out = writeOutputs(inv, config, outDir, { adminInv: encrypted ? full : inv, extras, log: (m) => console.log(m) });
   const line = summaryLine(inv);
   console.log(line);
 

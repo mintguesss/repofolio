@@ -33,3 +33,11 @@ issues:
 # Private admin view: same site + private repos, encrypted with the REPOFOLIO_ADMIN_PASSWORD secret.
 admin:
   page: hq-b1a934b7906b.html
+# Promotion: drafts for new projects / releases / milestones / weekly digest, reviewed in the admin page's 📣 tab.
+promote:
+  enabled: true
+  platforms: [linkedin, threads, bluesky, x, devto, ptt, hn, reddit]
+  hashtags: [buildinpublic]
+# Competitor analysis per project (admin page only).
+competitors:
+  enabled: true

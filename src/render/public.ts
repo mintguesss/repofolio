@@ -1,4 +1,5 @@
 import type { Config } from "../schema.js";
+import type { CompetitorReport } from "../state.js";
 import type { Inventory, Profile, RepoRecord } from "../types.js";
 import { topStack } from "./markdown.js";
 
@@ -57,6 +58,10 @@ export interface AdminInfo {
   cost?: string;
   archived: boolean;
   fork: boolean;
+  /** Competitor report, attached in the admin build when one exists. */
+  competitors?: CompetitorReport;
+  /** Public + showcased: the admin page can ask for a post about it. */
+  postable?: boolean;
 }
 
 export function slug(s: string): string {
@@ -150,6 +155,7 @@ export function toAdmin(r: RepoRecord): PublicProject {
       cost: r.meta.cost?.monthly != null ? `${r.meta.cost.monthly} ${r.meta.cost.currency}/mo` : r.meta.cost?.notes,
       archived: r.archived,
       fork: r.fork,
+      postable: r.showcase && !r.private && !r.fork,
     },
   };
 }

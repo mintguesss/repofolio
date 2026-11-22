@@ -35,3 +35,11 @@ issues:
 # publish:
 #   repo: you/you.github.io
 #   path: projects
+# Post drafts you review and approve in the admin page (docs/PROMOTE.md).
+# promote:
+#   enabled: true
+#   platforms: [linkedin, bluesky, threads, x, devto, hn, reddit]
+#   hashtags: [buildinpublic]
+# Competitor analysis per project, admin page only (on by default).
+# competitors:
+#   enabled: true

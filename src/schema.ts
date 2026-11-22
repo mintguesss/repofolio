@@ -21,6 +21,10 @@ export const PROVIDERS = [
 ] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
+/** Where promotion can post. "auto" ones publish through their API when credentials are set; the rest are copy / share links. */
+export const PLATFORMS = ["linkedin", "bluesky", "mastodon", "threads", "x", "devto", "discord", "telegram", "hn", "reddit", "facebook", "ptt"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
 const url = z.string().url();
 
 export const LinkSchema = z.object({ label: z.string(), url });
@@ -224,6 +228,57 @@ export const ConfigSchema = z.object({
     /** repo mode: path of admin.html inside that repo. */
     path: z.string().default("admin.html"),
   }).default({ enabled: true, mode: "auto", page: "admin.html", link: false, path: "admin.html" }),
+  /**
+   * Promotion: turn what happens across your repos (new project, release, star milestone, site going live,
+   * weekly digest) into per-platform post drafts. You review, edit and approve them in the admin page;
+   * approved posts go out from the Action with your own platform tokens. Needs a GitHub Action run.
+   */
+  promote: z.object({
+    enabled: z.boolean().default(false),
+    /** Platforms to draft for. Ones without credentials get a copy button / prefilled share link instead. */
+    platforms: z.array(z.enum(PLATFORMS)).default(["linkedin", "bluesky", "threads", "x", "devto", "hn"]),
+    /** Language of the drafts. Defaults to `language`. */
+    language: z.enum(["en", "zh-TW"]).optional(),
+    events: z.object({
+      newProject: z.boolean().default(true),
+      release: z.boolean().default(true),
+      live: z.boolean().default(true),
+      /** Star counts that trigger a milestone post. */
+      stars: z.array(z.number().int().positive()).default([10, 25, 50, 100, 250, 500, 1000, 2500, 5000]),
+      /** Day for the weekly "what I shipped" digest, or false. */
+      weekly: z.union([z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]), z.literal(false)]).default("mon"),
+      /** On the very first run, draft one post that introduces the whole portfolio. */
+      intro: z.boolean().default(true),
+    }).prefault({}),
+    /** Weekly digest may say "plus N private projects" (numbers only, never names). */
+    mentionPrivate: z.boolean().default(false),
+    /** Write drafts with Claude (needs ANTHROPIC_API_KEY). auto = when the key is set. Falls back to templates. */
+    llm: z.union([z.boolean(), z.literal("auto")]).default("auto"),
+    /** Extra hashtags for every post (without #). */
+    hashtags: z.array(z.string()).default([]),
+    /** Pending drafts older than this are dropped. */
+    expireDays: z.number().int().positive().default(30),
+  }).prefault({}),
+  /**
+   * Competitor analysis per project (admin page only): similar GitHub repos by topic / keywords,
+   * how you compare (stars, activity, demo, license), and with Claude a short positioning + ideas.
+   */
+  competitors: z.object({
+    enabled: z.boolean().default(true),
+    /** How many competitors to keep per project. */
+    count: z.number().int().min(1).max(10).default(5),
+    /** Re-analyse a project after this many days. */
+    refreshDays: z.number().int().positive().default(14),
+    /** Projects analysed per run (GitHub search allows 30 requests a minute). */
+    perRun: z.number().int().min(1).max(50).default(8),
+    /** Include private projects (results only ever appear in the encrypted / private admin page). */
+    includePrivate: z.boolean().default(true),
+    llm: z.union([z.boolean(), z.literal("auto")]).default("auto"),
+  }).prefault({}),
+  /** Where repofolio keeps state between runs (seen events, drafts, competitor cache): a branch of the hub repo. */
+  state: z.object({
+    branch: z.string().default("repofolio-data"),
+  }).prefault({}),
   output: z.object({
     dir: z.string().default("out"),
   }).default({ dir: "out" }),

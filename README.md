@@ -124,6 +124,15 @@ Two ways to keep it private:
 
 Logs of a public repo are public, so the Action masks private repo names and never prints them. Turn the admin view off with `admin: { enabled: false }`.
 
+### Promotion and competitor analysis
+
+The admin page also gets two tabs:
+
+- **📣 Posts**: new projects, releases, star milestones, sites going live and a weekly "what I shipped" digest become drafts for LinkedIn, Bluesky, Threads, X, DEV, Mastodon, Discord, Telegram, Hacker News, Reddit, Facebook and PTT, written by Claude (with an `ANTHROPIC_API_KEY`) or from templates. Edit them, tick the platforms, hit **Approve & publish**: the workflow posts them with your own tokens. Platforms without a token get a copy button and a prefilled share link. Links go to a per-project share page with the cover as its preview card.
+- **🎯 Competitors**: for each project, similar GitHub repos, how you compare (stars, activity, demo, licence) and what to do next.
+
+Private repos never appear in a post. Setup and every platform's token: [docs/PROMOTE.md](docs/PROMOTE.md).
+
 ## Try it in 10 seconds
 
 You need Node 20+ and the GitHub CLI (`gh`) logged in.
@@ -210,11 +219,13 @@ repofolio profile   <README.md> [--site-url url]
 | Private inventory of all repos | ✅ | — | — | — | ✅ (for companies) |
 | Deployment URLs + uptime | ✅ | — | — | — | plugin |
 | Env, service, domain and cost notes | ✅ | — | — | — | — |
+| Post drafts + approval for 12 platforms | ✅ | — | — | — | — |
+| Competitor analysis per project | ✅ | — | — | — | — |
 | Setup | one workflow | one URL | fork + config | fork + edit | a platform |
 
 ## Roadmap
 
-See [docs/ROADMAP.md](docs/ROADMAP.md). Up next: weekly "what I shipped" digest, star and traffic history, and release-to-LinkedIn post drafts with human approval.
+See [docs/ROADMAP.md](docs/ROADMAP.md). Up next: star and traffic history, and how each post moved them.
 
 ## License
 

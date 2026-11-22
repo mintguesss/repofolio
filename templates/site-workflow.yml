@@ -7,6 +7,8 @@
 #   3. Put your config at .github/repofolio.config.yml with
 #        publish: { repo: <this repo>, path: public/projects }
 #        admin:   { page: some-name-only-you-know.html }
+#   4. (optional) promote.enabled: true for post drafts you approve in the admin page, plus the
+#      platform secrets below (docs/PROMOTE.md). competitors.enabled is on by default.
 #
 # Logs of a public repo are public: repofolio masks private repo names and never prints them.
 name: repofolio
@@ -15,14 +17,20 @@ on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+    inputs:
+      posts:
+        description: Post decisions from the admin page (JSON). Leave empty for a normal run.
+        required: false
+        default: ""
 
 permissions:
   contents: write
   actions: write
 
+# Never cancel a run halfway: it may be publishing posts.
 concurrency:
   group: repofolio
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -36,8 +44,25 @@ jobs:
           token: ${{ secrets.REPOFOLIO_TOKEN }}
           publish-token: ${{ github.token }}
           config: .github/repofolio.config.yml
+          posts: ${{ inputs.posts }}
         env:
           REPOFOLIO_ADMIN_PASSWORD: ${{ secrets.REPOFOLIO_ADMIN_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Promotion (promote.enabled): set the platforms you use; the rest are copy / share links.
+          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       # Commits made with GITHUB_TOKEN don't trigger other workflows, so start the site's
       # deploy workflow explicitly (it needs a `workflow_dispatch:` trigger). Remove if your

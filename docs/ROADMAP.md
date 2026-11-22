@@ -36,11 +36,17 @@
 - [ ] Card variants: top languages, featured projects, live-status board
 - [ ] Domain expiry from RDAP (no manual `expires`)
 
-## v0.3: promotion
+## v0.8: promotion + competitor analysis
 
-- [ ] Release / RSS / star-milestone → post drafts (LinkedIn, Dev.to, Bluesky, Mastodon; Reddit and HN as drafts with a prefilled submit link)
-- [ ] Approval flow inside a GitHub Issue (`/approve`), then publish via the official APIs
-- [ ] LinkedIn token-expiry reminder (60-day tokens)
+- [x] New project / release / star milestone / live / weekly digest / portfolio intro / spotlight → post drafts for 12 platforms (Claude or templates)
+- [x] Review, edit and approve in the encrypted admin page; approvals dispatch the workflow, which publishes via the official APIs (LinkedIn, Bluesky, Threads, DEV, Mastodon, X, Discord, Telegram)
+- [x] HN, Reddit, Facebook, PTT and unconnected platforms: copy + prefilled share link, recorded as posted by hand
+- [x] Connection check each run (shows an expired LinkedIn / Threads token in the admin page)
+- [x] Per-project share pages with the cover as the preview card
+- [x] Competitor analysis per project: GitHub search + relevance ranking, rule-based comparison, Claude picks real competitors and suggests next steps
+- [x] State on an (encrypted) `repofolio-data` branch
+- [ ] Schedule approved posts for a chosen time
+- [ ] Images for LinkedIn / Threads posts (upload the cover instead of a link card)
 
 ## v0.4: analytics
 

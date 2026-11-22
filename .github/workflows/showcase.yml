@@ -1,23 +1,32 @@
 # The author's own showcase (https://mintguesss.github.io/repofolio/), built nightly with repofolio
 # and deployed to this repo's GitHub Pages. It doubles as the live demo. Forks skip it.
+#
+# Also runs promotion: drafts appear in the encrypted admin page's 📣 tab; approving one there
+# dispatches this workflow with the decision in the `posts` input, and the post goes out from here.
 name: showcase
 
 on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+    inputs:
+      posts:
+        description: Post decisions from the admin page (JSON). Leave empty for a normal run.
+        required: false
+        default: ""
   push:
     branches: [main]
     paths: [".github/repofolio.config.yml", ".github/workflows/showcase.yml"]
 
 permissions:
-  contents: read
+  contents: write   # the repofolio-data branch (post queue, competitor cache)
   pages: write
   id-token: write
 
+# Never cancel a run halfway: it may be publishing posts.
 concurrency:
   group: showcase
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -29,14 +38,28 @@ jobs:
       - uses: actions/checkout@v5
 
       # This repo is public, so its logs are too: repofolio masks private repo names, the public
-      # pages never include private repos, and the admin page is encrypted with the password.
+      # pages never include private repos, and the admin page + state branch are encrypted with the password.
       - id: repofolio
-        uses: mintguesss/repofolio@v0.7.0
+        uses: mintguesss/repofolio@v0.8.0
         with:
           token: ${{ secrets.REPOFOLIO_TOKEN || github.token }}
           config: .github/repofolio.config.yml
+          posts: ${{ inputs.posts }}
         env:
           REPOFOLIO_ADMIN_PASSWORD: ${{ secrets.REPOFOLIO_ADMIN_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Platforms: set the ones you use; the rest stay copy / share-link only.
+          LINKEDIN_TOKEN: ${{ secrets.LINKEDIN_TOKEN }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          MASTODON_URL: ${{ secrets.MASTODON_URL }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
 
       - uses: actions/upload-pages-artifact@v4
         with:

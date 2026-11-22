@@ -7,6 +7,7 @@ import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
 import { homeStats, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
+import { postsSection, promoClientConfig, rivalsSection, type AdminExtras } from "./promo.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -326,11 +327,13 @@ function inlineJson(v: unknown): string {
     .replace(new RegExp(String.fromCharCode(0x2029), "g"), "\\u2029");
 }
 
-export function renderSite(inv: Inventory, config: Config, opts: { admin?: boolean; adminLink?: boolean } = {}): string {
+export function renderSite(inv: Inventory, config: Config, opts: { admin?: boolean; adminLink?: boolean; extras?: AdminExtras } = {}): string {
   const admin = !!opts.admin;
   const lang = config.language;
   const s = siteStrings(lang);
   const d = buildShowcase(inv, config, admin);
+  const extras = admin ? opts.extras : undefined;
+  if (extras?.competitors) for (const p of d.projects) if (p.admin && extras.competitors.reports[p.repo]) p.admin.competitors = extras.competitors.reports[p.repo];
   const icons = new IconSprite();
   const th = config.site.theme;
   const name = config.site.title || d.profile?.name || d.owner;
@@ -359,7 +362,10 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     .filter(([, html]) => !!html);
   if (admin) {
     const at = rendered.reduce((k, [sec], i) => (sec === "hero" || sec === "featured" ? i + 1 : k), 0);
-    rendered.splice(at, 0, ["admin", adminSection(d, s, 0)]);
+    const extraSecs: [string, string][] = [["admin", adminSection(d, s, 0)]];
+    if (extras?.promote) extraSecs.push(["posts", postsSection(d, extras.promote, s, sectionHead("posts", s.promo.title, s.promo.sub, 0), lang)]);
+    if (extras?.competitors) extraSecs.push(["rivals", rivalsSection(d, extras.competitors, s, sectionHead("rivals", s.rivals.title, s.rivals.sub, 0))]);
+    rendered.splice(at, 0, ...extraSecs);
   }
   // Group sections into pages (home = hero + featured, every other section is its own page).
   const pageOrder: string[] = [];
@@ -377,7 +383,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
   const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
   const navItems = navTargets
     .map((x) => {
-      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : s.nav[x as keyof SiteStrings["nav"]];
+      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : x === "posts" ? `📣 ${s.promo.nav}` : x === "rivals" ? `🎯 ${s.rivals.nav}` : s.nav[x as keyof SiteStrings["nav"]];
       return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
     .join("");
@@ -394,6 +400,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     strings: s,
     defaults: { ...th, accent },
     customizer: config.site.customizer,
+    promo: promoClientConfig(extras?.promote),
     multi,
     options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
     presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),

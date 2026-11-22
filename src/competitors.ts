@@ -256,7 +256,7 @@ export async function analyzeCompetitors(repos: RepoRecord[], o: CompetitorOptio
   }
   const due = eligible
     .map((r) => ({ r, rep: o.state.competitors[r.fullName] }))
-    .filter(({ r, rep }) => !rep || rep.sig !== reportSig(r) || daysSince(rep.at, now) >= cfg.refreshDays || (o.llm && rep.v !== 2))
+    .filter(({ r, rep }) => !rep || rep.sig !== reportSig(r) || daysSince(rep.at, now) >= cfg.refreshDays || (o.llm && (rep.v !== 2 || rep.source === "rules")))
     .sort((a, b) => (a.rep ? Date.parse(a.rep.at) : 0) - (b.rep ? Date.parse(b.rep.at) : 0))
     .slice(0, cfg.perRun);
   const ai = o.llm && o.meter ? o.meter.client() : undefined;

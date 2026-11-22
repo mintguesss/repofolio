@@ -1,8 +1,14 @@
 # repofolio
 
-**Know, showcase and promote every GitHub repo you own.**
+**Auto-promotion and project management for every GitHub repo you own.**
 
-You have 20+ repos. Which ones are live? Where is each one deployed? Which Vercel URL is the real one? Where do the env vars live? What was `asa` again? repofolio scans all your repos every night and answers that in one place, then turns the public part into a portfolio site and a profile README section.
+repofolio runs as a GitHub Action in one repo and does three jobs:
+
+- **Promote**: new projects, releases, star milestones, sites going live and a weekly digest become post drafts for LinkedIn, Threads, Bluesky, X, DEV, Hacker News, Reddit, PTT and more. You edit and approve them in a private admin page; the Action publishes them with your own tokens.
+- **Manage**: every repo in one place, private ones included: where it's deployed and whether it's up, health issues to fix, what's been idle, env-var locations, costs, and a competitor analysis per project with what to do next.
+- **Showcase**: the public part becomes an animated portfolio site, a profile README card and `projects.json`, which is also where every post links to.
+
+No server and no third-party service: state lives on a branch of your repo, encrypted when it holds private data.
 
 [繁體中文說明](README.zh-TW.md)
 

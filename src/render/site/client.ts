@@ -716,16 +716,37 @@ export function clientMain(): void {
         <div class="m-sub"><span><span class="dot st-${p.status}" style="display:inline-block;margin-right:6px"></span>${esc(S.statusLabels[p.status])}</span>${p.stars ? `<span>★ ${p.stars}</span>` : ""}${p.forks ? `<span>⑂ ${p.forks}</span>` : ""}${p.release ? `<span>⬢ ${esc(p.release)}</span>` : ""}${p.license ? `<span>⚖ ${esc(p.license)}</span>` : ""}<span>${esc(S.created)} ${fmt(p.created)}</span><span>${esc(S.updated)} ${esc(ago(p.updated))}</span></div>
         <p class="m-sum">${esc(p.summary || "—")}</p>
         ${p.purpose ? `<p class="m-purpose">${esc(p.purpose)}</p>` : ""}
+        ${p.intro && (p.intro.paragraphs.length || p.intro.features.length) ? `<div class="m-intro">
+          ${p.intro.paragraphs.filter((x) => x !== p.summary).length ? `<div class="m-about"><h4>${esc(S.about)}</h4>${p.intro.paragraphs.filter((x) => x !== p.summary).map((x) => `<p>${esc(x)}</p>`).join("")}</div>` : ""}
+          ${p.intro.features.length ? `<div class="m-feats"><h4>${esc(S.features)}</h4><ul>${p.intro.features.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+          ${p.intro.sections.length ? `<div class="m-outline"><h4>${esc(S.outline)}</h4><div>${p.intro.sections.map((x) => p.codeUrl ? `<a class="tech" href="${esc(p.codeUrl)}#${esc(x.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-"))}" target="_blank" rel="noopener">${esc(x)}</a>` : `<span class="tech">${esc(x)}</span>`).join("")}</div></div>` : ""}
+        </div>` : ""}
         <div class="techs">${tech.map((t) => `<span class="tech">${iconHtml(t)}<em>${esc(t)}</em></span>`).join("")}${p.tags.filter((t) => !tech.some((x) => x.toLowerCase() === t.toLowerCase())).map((t) => `<span class="tech">#${esc(t)}</span>`).join("")}</div>
         <div class="m-actions">${live ? `<a class="btn primary" href="${esc(live.url)}" target="_blank" rel="noopener">${esc(S.visit)} ↗</a>` : ""}${p.codeUrl ? `<a class="btn ghost" href="${esc(p.codeUrl)}" target="_blank" rel="noopener">${iconHtml("github")} ${esc(S.code)}</a>` : ""}</div>
         ${p.admin ? (() => {
           const A = S.admin, a = p.admin;
           const hc = a.health >= 80 ? "#22c55e" : a.health >= 60 ? "#eab308" : "#ef4444";
           return `<div class="m-admin"><div class="m-admin-top"><span class="hp" style="--hc:${hc}"><b>${a.health}</b> ${esc(A.health)}</span><span class="pill ${a.shown ? "ok" : ""}">${esc(a.shown ? A.shown : A.notShown)}</span>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.cost ? `<span class="pill">${esc(A.cost)} ${esc(a.cost)}</span>` : ""}</div>
+          ${a.metrics ? (() => {
+            const X = S.adminx, m = a.metrics;
+            const cell = (l, v, bad) => `<div class="m-met${bad ? " bad" : ""}"><span>${esc(l)}</span><b>${v}</b></div>`;
+            return `<div class="m-mets">${[
+              cell(X.lastPush, `${m.daysSincePush} ${esc(X.days)}`, m.daysSincePush > 90),
+              cell(X.commits4w, m.commits4w),
+              cell(X.commits52w, m.commits52w),
+              cell(X.openIssues, m.openIssues, m.openIssues > 10),
+              cell(X.deploys, `${m.deploysUp} / ${m.deploysDown}`, m.deploysDown > 0),
+              cell(X.age, `${m.ageDays} ${esc(X.days)}`),
+              cell(X.readme, m.readmeLength ? `${m.readmeLength} ${esc(X.chars)}` : esc(X.no), !m.readmeLength),
+              cell(X.topics, m.topics, m.topics < 3),
+              cell(X.meta, esc(m.hasMetaFile ? X.yes : X.no)),
+              cell(X.posts, a.posts ? `${a.posts.published}${a.posts.pending ? ` +${a.posts.pending}` : ""}` : "0"),
+            ].join("")}</div>${a.posts && a.posts.last ? `<p class="m-env">📣 ${a.posts.last.url ? `<a href="${esc(a.posts.last.url)}" target="_blank" rel="noopener">${esc(a.posts.last.title)}</a>` : esc(a.posts.last.title)} · ${esc(ago(a.posts.last.at))}</p>` : ""}`;
+          })() : ""}
           ${a.issues.length ? `<ul class="m-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul>` : `<p class="m-ok">✓ ${esc(A.allGood)}</p>`}
           ${a.env ? `<p class="m-env"><b>${esc(A.env)}</b> ${a.env.vars.map((v) => `<code>${esc(v)}</code>`).join(" ")}${a.env.location ? ` · ${esc(A.envAt)} <b>${esc(a.env.location)}</b>` : ""}</p>` : ""}
           ${a.next.length ? `<p class="m-env"><b>${esc(A.next)}</b></p><ul class="m-next">${a.next.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
-          ${a.postable && C.promo && C.promo.dispatch ? `<p class="m-env"><button type="button" class="btn ghost sm" data-spotlight="${esc(p.repo)}">📣 ${esc(S.promo.spotlight)}</button></p>` : ""}
+          ${a.postable && C.promo && C.admin && C.admin.dispatch ? `<p class="m-env"><button type="button" class="btn ghost sm" data-spotlight="${esc(p.repo)}">📣 ${esc(S.promo.spotlight)}</button></p>` : ""}
           ${a.competitors ? (() => {
             const R = S.rivals, r = a.competitors, c = r.compare;
             const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
@@ -958,34 +979,44 @@ export function clientMain(): void {
   });
 
   /* ───────── admin: post review + approvals (dispatches the workflow with the owner's token) ───────── */
+  const AD = C.admin;
   const PR = C.promo;
-  if (PR) {
-    const SP = S.promo;
-    const TK = "repofolio-admin-gh";
-    const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
-    const load = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-    const tokEl = $("#pp-tok"), tokState = $("#pp-tok-state"), tokBox = $("#pp-tok-box");
-    const syncTok = () => {
-      const has = !!load(TK);
-      if (tokState) tokState.textContent = has ? "✓ " + SP.tokenSaved : "";
-      if (tokBox && !has) tokBox.open = true;
-    };
-    if (tokEl) {
-      $("#pp-tok-save").addEventListener("click", () => { const v = tokEl.value.trim(); if (!v) return; store(TK, v); tokEl.value = ""; syncTok(); tokBox.open = false; toast(SP.tokenSaved); });
-      $("#pp-tok-forget").addEventListener("click", () => { store(TK, null); syncTok(); });
-      syncTok();
+  const SP = S.promo;
+  const TK = "repofolio-admin-gh";
+  const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+  const load = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  /** Trigger the workflow with the owner's token (approvals, "update now"). */
+  async function dispatch(reqs) {
+    const tok = load(TK);
+    const tokBox = $("#pp-tok-box");
+    if (!tok || !AD || !AD.dispatch) {
+      if (tokBox) { goPage("admin"); setTimeout(() => { tokBox.open = true; tokBox.scrollIntoView({ block: "center", behavior: "smooth" }); }, 120); }
+      throw new Error(SP.needToken);
     }
-    async function dispatch(reqs) {
-      const tok = load(TK);
-      if (!tok || !PR.dispatch) { if (tokBox) { tokBox.open = true; tokBox.scrollIntoView({ block: "center", behavior: "smooth" }); } throw new Error(SP.needToken); }
-      const d = PR.dispatch;
+    const d = AD.dispatch;
       const r = await fetch(`https://api.github.com/repos/${d.repo}/actions/workflows/${encodeURIComponent(d.workflow)}/dispatches`, {
         method: "POST",
         headers: { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
         body: JSON.stringify({ ref: d.ref, inputs: { posts: JSON.stringify(reqs) } }),
       });
       if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch (e) {} throw new Error(`${SP.failed} (${r.status}${m ? ": " + m : ""})`); }
+  }
+  if (AD) {
+    const tokEl = $("#pp-tok"), tokState = $("#pp-tok-state"), tokBox = $("#pp-tok-box");
+    const syncTok = () => { if (tokState) tokState.textContent = load(TK) ? "✓ " + SP.tokenSaved : ""; };
+    if (tokEl) {
+      $("#pp-tok-save").addEventListener("click", () => { const v = tokEl.value.trim(); if (!v) return; store(TK, v); tokEl.value = ""; syncTok(); tokBox.open = false; toast(SP.tokenSaved); });
+      $("#pp-tok-forget").addEventListener("click", () => { store(TK, null); syncTok(); });
+      syncTok();
     }
+    const rb = $("#adm-refresh");
+    if (rb) rb.addEventListener("click", async () => {
+      rb.disabled = true;
+      try { await dispatch([]); rb.textContent = "✓ " + S.adminx.refreshSent; }
+      catch (e) { rb.disabled = false; toast(e.message); }
+    });
+  }
+  if (PR) {
     // Character count the way each platform counts (X: links = 23, CJK = 2).
     const seg = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter() : null;
     const glen = (t) => (seg ? Array.from(seg.segment(t)).length : Array.from(t).length);

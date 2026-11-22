@@ -159,7 +159,8 @@ export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, l
   return `<section id="timeline" class="sec">${head}
 <div class="tlr" id="tlr" data-n="${n}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
 <div class="tlr-stage">
-<div class="tlr-axis" aria-hidden="true"><i></i></div>
+<div class="tlr-axis" aria-hidden="true"><b></b><i></i><i></i><i></i><em></em></div>
+<div class="tlr-gate" aria-hidden="true"></div>
 <div class="tlr-lens" aria-hidden="true"><i></i></div>
 <ol class="tlr-track">${items}</ol>
 </div>

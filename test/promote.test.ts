@@ -217,7 +217,7 @@ describe("admin page and share pages", () => {
     const i = inv([rec("a"), rec("secret", { private: true, showcase: false })]);
     await runPromote({ inv: i, config: c, state: s, requests: [], env: {}, now: NOW, fetch: (async () => new Response("", { status: 404 })) as typeof fetch });
     s.competitors["me/a"] = { repo: "me/a", at: NOW.toISOString(), sig: "", query: "q", items: [], compare: { myStars: 4, medianStars: 0, topStars: 0, rank: 1, active: 0, withDemo: 0, withLicense: 0, myDemo: false, myLicense: true, myDaysSincePush: 3 }, strengths: [], gaps: ["GAP_TEXT"], ideas: [], source: "rules" };
-    const extras = { promote: { enabled: true, platforms: c.promote.platforms, posts: s.posts, connections: [], dispatch: { repo: "me/hub", workflow: "showcase.yml", ref: "main" } }, competitors: { enabled: true, reports: s.competitors } };
+    const extras = { promote: { enabled: true, platforms: c.promote.platforms, posts: s.posts, connections: [] }, dispatch: { repo: "me/hub", workflow: "showcase.yml", ref: "main" }, competitors: { enabled: true, reports: s.competitors } };
     const admin = renderSite(i, c, { admin: true, extras });
     expect(admin).toContain('id="posts"');
     expect(admin).toContain('id="rivals"');
@@ -245,5 +245,16 @@ describe("action manifest", () => {
     }
     const action = parse(readFileSync("action.yml", "utf8"));
     expect(Object.keys(action.inputs)).toEqual(expect.arrayContaining(["posts", "state-token"]));
+  });
+});
+
+describe("readme intro", () => {
+  it("extracts paragraphs, the feature list and the outline", async () => {
+    const { readmeIntro } = await import("../src/detect.js");
+    const md = `# App\n\n[![ci](x)](y)\n\nApp turns **notes** into [flashcards](https://x).\n\nIt works offline.\n\n## ✨ Features\n\n- Spaced repetition\n- Markdown import\n- Sync\n\n## Installation\n\n- npm i app\n\n## How it works\n\nText.\n\n## License\n\nMIT`;
+    const r = readmeIntro(md);
+    expect(r.paragraphs.slice(0, 2)).toEqual(["App turns notes into flashcards.", "It works offline."]);
+    expect(r.features).toEqual(["Spaced repetition", "Markdown import", "Sync"]);
+    expect(r.sections).toEqual(["Features", "How it works"]);
   });
 });

@@ -233,6 +233,78 @@ export function readmeExcerpt(md: string, max = 280): string {
   return first.length > max ? first.slice(0, max - 1) + "…" : first;
 }
 
+export interface ReadmeIntro {
+  /** First descriptive paragraphs (plain text). */
+  paragraphs: string[];
+  /** Bullet points from a Features / 功能 section (or the first real list). */
+  features: string[];
+  /** Section headings, as a table of contents. */
+  sections: string[];
+}
+
+const plain = (s: string) =>
+  s
+    .replace(/^>\s?/gm, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[*_`~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const SKIP_HEADINGS = /^(table of contents|contents|目錄|license|授權|installation|install|安裝|setup|getting started|快速開始|開始使用|usage|使用方式|development|開發|contributing|貢獻|credits|acknowledg|致謝|faq|常見問題|changelog|更新紀錄)/i;
+const FEATURE_HEADINGS = /(features?|highlights?|what it does|why|功能|特色|亮點|特點|能做什麼|主要)/i;
+
+/** A richer README intro for the project details: a few paragraphs, the feature list and the section outline. */
+export function readmeIntro(md: string): ReadmeIntro {
+  const text = md.replace(/<!--[\s\S]*?-->/g, "").replace(/```[\s\S]*?```/g, "").replace(/\r\n/g, "\n");
+  const lines = text.split("\n");
+  const sections: string[] = [];
+  const features: string[] = [];
+  let heading = "";
+  let firstList: string[] = [];
+  let curList: string[] = [];
+  let inFeatures = false;
+  const flush = () => {
+    if (curList.length >= 3 && !firstList.length && !SKIP_HEADINGS.test(heading)) firstList = curList;
+    curList = [];
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    const h = /^(#{2,3})\s+(.+)$/.exec(line);
+    if (h) {
+      flush();
+      heading = plain(h[2]!).replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, "");
+      if (h[1] === "##" && heading && !SKIP_HEADINGS.test(heading) && sections.length < 10) sections.push(heading.slice(0, 60));
+      inFeatures = FEATURE_HEADINGS.test(heading) && !features.length;
+      continue;
+    }
+    const li = /^(?:[-*+]|\d+\.)\s+(.+)$/.exec(line);
+    if (li) {
+      const full = plain(li[1]!);
+      const item = full.length > 160 ? full.slice(0, 159) + "…" : full;
+      if (item.length < 4 || /^(npm|pnpm|yarn|pip|git|cd|docker)\s/.test(item)) continue;
+      if (inFeatures && features.length < 8) features.push(item);
+      curList.push(item);
+    } else if (line) {
+      flush();
+    }
+  }
+  flush();
+  if (!features.length) features.push(...firstList.slice(0, 6));
+
+  const paragraphs = text
+    .replace(/^#{1,6}\s.*$/gm, "\n")
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p && !/^(\[!\[|!\[|\||[-*+]\s|\d+\.\s|---)/.test(p) && !/localhost|^(\$ |npm |pnpm |yarn |pip |git |cd )/i.test(p) && /[\p{L}]{2,}/u.test(p.replace(/\[[^\]]*\]\([^)]*\)/g, "")))
+    .map(plain)
+    .filter((p) => p.length >= 12)
+    .slice(0, 3)
+    .map((p) => (p.length > 420 ? p.slice(0, 419) + "…" : p));
+  return { paragraphs, features, sections };
+}
+
 /** Heuristic: does a string look like a secret value rather than a variable name? */
 export function looksLikeSecret(s: string): boolean {
   if (s.includes("=")) return true;

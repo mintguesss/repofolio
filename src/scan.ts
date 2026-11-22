@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import { detectFromFiles, detectStack, inferStatus, mergeDeployments, pickScreenshot, preferStableUrls, providerFromUrl, readmeExcerpt, readmeImage } from "./detect.js";
+import { detectFromFiles, detectStack, inferStatus, mergeDeployments, pickScreenshot, preferStableUrls, providerFromUrl, readmeExcerpt, readmeIntro, readmeImage } from "./detect.js";
 import type { GhContentEntry, GhDeployment, GhDeploymentStatus, GhRepo, GhUser } from "./github.js";
 import { GitHubClient } from "./github.js";
 import { checkHealth, healthScore } from "./health.js";
@@ -168,6 +168,7 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
       length: readmeText.length,
       sha: readmeJson.sha,
       excerpt: readmeExcerpt(readmeText),
+      intro: readmeIntro(readmeText),
       image: gh.private ? undefined : readmeImage(readmeText, full, gh.default_branch),
     };
   }

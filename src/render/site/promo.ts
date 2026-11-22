@@ -4,6 +4,8 @@ import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platfo
 import { esc, type ShowcaseData } from "../public.js";
 import type { SiteStrings } from "./strings.js";
 
+export interface Dispatch { repo: string; workflow: string; ref: string }
+
 /** Extra data only the admin build gets. */
 export interface AdminExtras {
   promote?: {
@@ -11,9 +13,9 @@ export interface AdminExtras {
     platforms: Platform[];
     posts: Post[];
     connections: Connection[];
-    /** Where approvals are sent (workflow_dispatch). */
-    dispatch?: { repo: string; workflow: string; ref: string };
   };
+  /** The workflow the admin page can trigger (approvals, "update now"). */
+  dispatch?: Dispatch;
   competitors?: { enabled: boolean; reports: Record<string, CompetitorReport> };
 }
 
@@ -27,7 +29,6 @@ export function promoClientConfig(x: AdminExtras["promote"]) {
   if (!x) return undefined;
   const conn = Object.fromEntries(x.connections.map((c) => [c.platform, c]));
   return {
-    dispatch: x.dispatch,
     platforms: Object.fromEntries(x.platforms.map((p) => [p, { label: PLATFORM_INFO[p].label, limit: PLATFORM_INFO[p].limit, mode: conn[p]?.mode ?? "manual", article: !!PLATFORM_INFO[p].article, titleOnly: TITLE_ONLY.has(p) }])),
   };
 }
@@ -80,21 +81,19 @@ function historyRow(post: Post, s: SiteStrings, lang: string, stars?: number): s
   return `<li class="pp-row st-${post.status}" data-post="${esc(post.id)}"><span class="pill">${esc(P.status[post.status])}</span><span class="pp-kind k-${post.event.kind}">${esc(P.kinds[post.event.kind])}</span><b>${esc(post.event.title)}</b><small>${esc(fmtDate(post.decidedAt ?? post.createdAt, lang))}</small><span class="pp-chips">${chips}</span>${delta}${failed.length ? `<button type="button" class="linklike pp-retry" data-pfs="${failed.join(",")}">${esc(P.retry)}</button>` : ""}</li>`;
 }
 
-export function postsSection(d: ShowcaseData, x: AdminExtras["promote"], s: SiteStrings, head: string, lang: string): string {
+export function postsSection(d: ShowcaseData, x: AdminExtras["promote"], s: SiteStrings, head: string, lang: string, dispatch?: Dispatch): string {
   const P = s.promo;
   if (!x) return "";
   const pending = x.posts.filter((p) => p.status === "pending").reverse();
   const done = x.posts.filter((p) => p.status !== "pending" && p.status !== "expired").reverse().slice(0, 40);
   const stars = (repo?: string) => d.projects.find((p) => p.repo === repo)?.stars;
-  const tokenUrl = x.dispatch ? `https://github.com/settings/personal-access-tokens/new?name=repofolio-approvals&description=${encodeURIComponent(`Approve repofolio posts on ${x.dispatch.repo}`)}` : "";
   return `<section id="posts" class="sec">${head}
 ${x.enabled ? "" : `<p class="pp-note">${esc(P.off)}</p>`}
-<div class="pp-top reveal"><div class="pp-conns" aria-label="${esc(P.connections)}">${connChips(x, P)}</div>
-${x.dispatch ? `<details class="pp-tok" id="pp-tok-box"><summary>🔑 ${esc(P.token)} <span class="pp-tok-state" id="pp-tok-state"></span></summary><p>${esc(P.tokenHelp)} <a href="${esc(tokenUrl)}" target="_blank" rel="noopener">github.com/settings/personal-access-tokens ↗</a></p><div class="pp-tok-row"><input type="password" id="pp-tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…"><button type="button" class="btn primary" id="pp-tok-save">${esc(P.tokenSave)}</button><button type="button" class="btn ghost" id="pp-tok-forget">${esc(P.tokenForget)}</button></div></details>` : ""}</div>
+<div class="pp-top reveal"><div class="pp-conns" aria-label="${esc(P.connections)}">${connChips(x, P)}</div></div>
 <h3 class="sub-h">${esc(P.pending)} <b class="pp-n">${pending.length}</b></h3>
 ${pending.length ? `<div class="pp-list">${pending.map((p) => postCard(p, x, s, lang)).join("")}</div>` : `<p class="pp-note">${esc(P.none)}</p>`}
 ${done.length ? `<h3 class="sub-h">${esc(P.history)}</h3><ol class="pp-hist">${done.map((p) => historyRow(p, s, lang, stars(p.event.repo))).join("")}</ol>` : ""}
-${x.dispatch ? `<p class="pp-runs"><a href="https://github.com/${esc(x.dispatch.repo)}/actions/workflows/${esc(x.dispatch.workflow)}" target="_blank" rel="noopener">${esc(P.viewRun)}</a></p>` : ""}
+${dispatch ? `<p class="pp-runs"><a href="https://github.com/${esc(dispatch.repo)}/actions/workflows/${esc(dispatch.workflow)}" target="_blank" rel="noopener">${esc(P.viewRun)}</a></p>` : ""}
 </section>`;
 }
 
@@ -131,4 +130,12 @@ ${x.enabled ? "" : `<p class="pp-note">${esc(R.off)}</p>`}
 <div class="rv-list">${cards}</div>
 ${without.length ? `<p class="pp-note">${esc(R.none)} ${without.map((p) => `<button type="button" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</button>`).join(" ")}</p>` : ""}
 </section>`;
+}
+
+/** GitHub token box for anything that triggers the workflow (approvals, "update now"). Stored in this browser only. */
+export function tokenBox(dispatch: Dispatch | undefined, s: SiteStrings): string {
+  if (!dispatch) return "";
+  const P = s.promo;
+  const url = `https://github.com/settings/personal-access-tokens/new?name=repofolio-admin&description=${encodeURIComponent(`repofolio admin actions on ${dispatch.repo}`)}`;
+  return `<details class="pp-tok reveal" id="pp-tok-box"><summary>🔑 ${esc(P.token)} <span class="pp-tok-state" id="pp-tok-state"></span></summary><p>${esc(P.tokenHelp)} <a href="${esc(url)}" target="_blank" rel="noopener">github.com/settings/personal-access-tokens ↗</a></p><div class="pp-tok-row"><input type="password" id="pp-tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…"><button type="button" class="btn primary" id="pp-tok-save">${esc(P.tokenSave)}</button><button type="button" class="btn ghost" id="pp-tok-forget">${esc(P.tokenForget)}</button></div></details>`;
 }

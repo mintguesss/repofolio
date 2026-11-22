@@ -58,6 +58,8 @@ async function run() {
 
   // Promotion + competitor analysis keep state on a branch of the hub repo.
   const extras: AdminExtras = {};
+  const wf = /\/\.github\/workflows\/([^@]+)@/.exec(process.env.GITHUB_WORKFLOW_REF ?? "")?.[1];
+  if (hub && wf) extras.dispatch = { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" };
   const requests = parseRequests(input("posts"), (m) => console.log(m));
   const wantCompetitors = config.competitors.enabled && config.admin.enabled;
   if (hub && (config.promote.enabled || requests.length || wantCompetitors)) {
@@ -75,13 +77,11 @@ async function run() {
     const env = process.env as Record<string, string | undefined>;
     if (config.promote.enabled || requests.length) {
       const res = await runPromote({ inv: full, config, state, requests, env, log: (m) => console.log(m) });
-      const wf = /\/\.github\/workflows\/([^@]+)@/.exec(process.env.GITHUB_WORKFLOW_REF ?? "")?.[1];
       extras.promote = {
         enabled: config.promote.enabled,
         platforms: config.promote.platforms,
         posts: state.posts,
         connections: res.connections,
-        dispatch: wf ? { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" } : undefined,
       };
     }
     if (wantCompetitors) {

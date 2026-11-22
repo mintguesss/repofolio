@@ -1,4 +1,5 @@
 import type { Config } from "../schema.js";
+import type { ReadmeIntro } from "../detect.js";
 import type { CompetitorReport } from "../state.js";
 import type { Inventory, Profile, RepoRecord } from "../types.js";
 import { topStack } from "./markdown.js";
@@ -45,6 +46,8 @@ export interface PublicProject {
   activity?: number[];
   links: { label: string; url: string }[];
   deployments: PublicDeployment[];
+  /** README intro: paragraphs, features, section outline. Public repos only on the public site. */
+  intro?: ReadmeIntro;
   /** Only in the private admin build (never in the public site / projects.json). */
   admin?: AdminInfo;
 }
@@ -62,6 +65,20 @@ export interface AdminInfo {
   competitors?: CompetitorReport;
   /** Public + showcased: the admin page can ask for a post about it. */
   postable?: boolean;
+  metrics: {
+    openIssues: number;
+    daysSincePush: number;
+    ageDays: number;
+    commits4w: number;
+    commits52w: number;
+    readmeLength: number;
+    hasMetaFile: boolean;
+    deploysUp: number;
+    deploysDown: number;
+    topics: number;
+  };
+  /** Posts about this project (attached in the admin build). */
+  posts?: { published: number; pending: number; last?: { title: string; at: string; url?: string } };
 }
 
 export function slug(s: string): string {
@@ -126,6 +143,7 @@ export function toPublic(r: RepoRecord): PublicProject {
     activity: r.activity,
     links,
     deployments,
+    intro: r.private ? undefined : r.readme?.intro,
   };
 }
 
@@ -146,6 +164,7 @@ export function toAdmin(r: RepoRecord): PublicProject {
     release: r.latestRelease?.tag,
     image: r.meta.image ?? r.cover ?? (r.private ? undefined : p.image),
     deployments,
+    intro: r.readme?.intro,
     admin: {
       shown: r.showcase,
       health: r.healthScore,
@@ -156,6 +175,18 @@ export function toAdmin(r: RepoRecord): PublicProject {
       archived: r.archived,
       fork: r.fork,
       postable: r.showcase && !r.private && !r.fork,
+      metrics: {
+        openIssues: r.openIssues,
+        daysSincePush: r.daysSincePush,
+        ageDays: Math.max(0, Math.floor((Date.now() - Date.parse(r.createdAt)) / 86400000)),
+        commits4w: (r.activity ?? []).slice(-4).reduce((a, b) => a + b, 0),
+        commits52w: (r.activity ?? []).reduce((a, b) => a + b, 0),
+        readmeLength: r.readme?.length ?? 0,
+        hasMetaFile: r.hasMetaFile,
+        deploysUp: r.deployments.filter((d) => d.url && d.check?.ok !== false).length,
+        deploysDown: r.deployments.filter((d) => d.url && d.check?.ok === false).length,
+        topics: r.topics.length,
+      },
     },
   };
 }

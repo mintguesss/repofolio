@@ -1,3 +1,4 @@
+import type { ReadmeIntro } from "./detect.js";
 import type { ProjectMeta, Provider, Status } from "./schema.js";
 
 export type Source = "meta" | "github-deployments" | "github-pages" | "homepage" | "config-file";
@@ -50,7 +51,7 @@ export interface RepoRecord {
   languages: Record<string, number>;
   stack: string[];
   latestRelease?: { tag: string; publishedAt: string; url: string };
-  readme?: { length: number; sha: string; excerpt: string; image?: string };
+  readme?: { length: number; sha: string; excerpt: string; image?: string; intro?: ReadmeIntro };
   hasMetaFile: boolean;
   meta: ProjectMeta;
   metaProblems: string[];

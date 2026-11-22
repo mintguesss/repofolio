@@ -14,7 +14,7 @@ import { Summarizer } from "./summarize.js";
 import type { Inventory } from "./types.js";
 import { VERSION } from "./version.js";
 
-const HELP = `repofolio v${VERSION} — know, showcase and promote every repo you own
+const HELP = `repofolio v${VERSION} — auto-promotion and project management for every repo you own
 
 Usage:
   repofolio scan      [--config file] [--out dir] [--no-url-check] [--llm] [--lang en|zh-TW]

@@ -7,7 +7,7 @@ import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
 import { homeStats, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
-import { postsSection, promoClientConfig, rivalsSection, type AdminExtras } from "./promo.js";
+import { postsSection, promoClientConfig, rivalsSection, tokenBox, type AdminExtras } from "./promo.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -94,8 +94,45 @@ ${sparkline(p.activity)}
 
 const healthColor = (h: number) => (h >= 80 ? "#22c55e" : h >= 60 ? "#eab308" : "#ef4444");
 
+/** Admin overview cards: status mix, health, recent commits, idle projects, promotion and competitor summaries. */
+function adminOverview(d: ShowcaseData, s: SiteStrings, extras?: AdminExtras): string {
+  const X = s.adminx;
+  const ps = d.projects.filter((p) => p.admin);
+  if (!ps.length) return "";
+  const card = (title: string, body: string, link?: string) => `<div class="ov-card reveal"><h4>${esc(title)}${link ? ` <a href="${link}">${esc(X.open)} →</a>` : ""}</h4>${body}</div>`;
+  const statuses = Object.entries(ps.reduce<Record<string, number>>((m, p) => ((m[p.status] = (m[p.status] ?? 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
+  const stack = `<div class="ov-stack">${statuses.map(([k, n]) => `<i style="flex:${n};background:${STATUS_COLORS[k] ?? "#888"}" title="${esc(s.statusLabels[k as keyof typeof s.statusLabels] ?? k)} ${n}"></i>`).join("")}</div><ul class="ov-legend">${statuses.map(([k, n]) => `<li><span style="background:${STATUS_COLORS[k] ?? "#888"}"></span>${esc(s.statusLabels[k as keyof typeof s.statusLabels] ?? k)}<b>${n}</b></li>`).join("")}</ul>`;
+  const buckets = [[X.good, ps.filter((p) => p.admin!.health >= 80).length, "#22c55e"], [X.ok, ps.filter((p) => p.admin!.health >= 60 && p.admin!.health < 80).length, "#eab308"], [X.bad, ps.filter((p) => p.admin!.health < 60).length, "#ef4444"]] as const;
+  const maxB = Math.max(1, ...buckets.map((b) => b[1]));
+  const health = `<ul class="ov-bars">${buckets.map(([l, n, c]) => `<li><span>${esc(l)}</span><i><b style="width:${(n / maxB) * 100}%;background:${c}"></b></i><em>${n}</em></li>`).join("")}</ul>`;
+  const weeks = d.activity.slice(-12);
+  const maxW = Math.max(1, ...weeks);
+  const commits = `<div class="ov-cols">${weeks.map((n) => `<i style="height:${Math.max(4, (n / maxW) * 100)}%" title="${n}"></i>`).join("")}</div><p class="ov-big"><b>${weeks.reduce((a, b) => a + b, 0)}</b> commits</p>`;
+  const idle = [...ps].filter((p) => !p.admin!.archived).sort((a, b) => b.admin!.metrics.daysSincePush - a.admin!.metrics.daysSincePush).slice(0, 5);
+  const idleList = `<ul class="ov-list">${idle.map((p) => `<li><button type="button" class="linklike" data-open="${esc(p.id)}">${esc(p.name)}</button><b>${p.admin!.metrics.daysSincePush} ${esc(X.days)}</b></li>`).join("")}</ul>`;
+  const cards = [card(X.statusMix, stack), card(X.healthMix, health), card(X.commits12, commits), card(X.idle, idleList)];
+  const pr = extras?.promote;
+  if (pr) {
+    const pending = pr.posts.filter((p) => p.status === "pending").length;
+    const published = pr.posts.filter((p) => p.status === "published" || p.status === "partial").length;
+    const conn = pr.connections.filter((c) => c.mode === "auto").length;
+    cards.push(card(X.promoSum, `<ul class="ov-nums"><li><b>${pending}</b>${esc(X.pending)}</li><li><b>${published}</b>${esc(X.published)}</li><li><b>${conn}/${pr.connections.length}</b>${esc(X.connected)}</li></ul>`, "#/posts"));
+  }
+  const rv = extras?.competitors;
+  if (rv) {
+    const reps = Object.values(rv.reports).filter((r) => r.items.length);
+    const leading = reps.filter((r) => r.compare.rank === 1).length;
+    const gapCount = new Map<string, number>();
+    for (const r of reps) for (const g of r.gaps) { const k = g.slice(0, 18); gapCount.set(k, (gapCount.get(k) ?? 0) + 1); }
+    const topGap = [...gapCount.entries()].sort((a, b) => b[1] - a[1])[0];
+    const gapText = topGap ? reps.flatMap((r) => r.gaps).find((g) => g.startsWith(topGap[0])) : undefined;
+    cards.push(card(X.rivalsSum, `<ul class="ov-nums"><li><b>${Object.keys(rv.reports).length}</b>${esc(X.analysed)}</li><li><b>${leading}</b>${esc(X.leading)}</li></ul>${gapText ? `<p class="ov-gap"><small>${esc(X.topGap)} ×${topGap![1]}</small>${esc(gapText)}</p>` : ""}`, "#/rivals"));
+  }
+  return `<h3 class="sub-h">${esc(X.overview)}</h3><div class="adm-ov">${cards.join("")}</div>`;
+}
+
 /** Admin-only page: totals and everything that needs fixing, worst first. */
-function adminSection(d: ShowcaseData, s: SiteStrings, idx: number): string {
+function adminSection(d: ShowcaseData, s: SiteStrings, idx: number, extras?: AdminExtras): string {
   const A = s.admin;
   const ps = d.projects.filter((p) => p.admin);
   const count = (f: (p: PublicProject) => boolean) => ps.filter(f).length;
@@ -113,7 +150,9 @@ function adminSection(d: ShowcaseData, s: SiteStrings, idx: number): string {
     .join("");
   const ok = ps.length - list.length;
   return `<section id="admin" class="sec">${sectionHead("admin", A.title, A.sub, idx)}
+${tokenBox(extras?.dispatch, s)}
 <div class="stat-grid kpi6">${kpi(A.repos, ps.length)}${kpi(A.private, count((p) => p.private))}${kpi(A.hidden, count((p) => !p.admin!.shown))}${kpi(A.errors, errors, errors > 0)}${kpi(A.warns, lv("warn"))}${kpi(A.down, down, down > 0)}</div>
+${adminOverview(d, s, extras)}
 <h3 class="sub-h">${esc(A.issues)}</h3><ol class="adm-list">${rows}</ol>${ok ? `<p class="adm-ok">✓ ${ok} · ${esc(A.allGood)}</p>` : ""}
 </section>`;
 }
@@ -334,6 +373,13 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
   const d = buildShowcase(inv, config, admin);
   const extras = admin ? opts.extras : undefined;
   if (extras?.competitors) for (const p of d.projects) if (p.admin && extras.competitors.reports[p.repo]) p.admin.competitors = extras.competitors.reports[p.repo];
+  if (extras?.promote) for (const p of d.projects) {
+    const mine = extras.promote.posts.filter((x) => x.event.repo === p.repo);
+    if (!p.admin || !mine.length) continue;
+    const done = mine.filter((x) => x.status === "published" || x.status === "partial");
+    const last = done.at(-1);
+    p.admin.posts = { published: done.length, pending: mine.filter((x) => x.status === "pending").length, last: last ? { title: last.event.title, at: last.decidedAt ?? last.createdAt, url: Object.values(last.results).find((r) => r?.url)?.url } : undefined };
+  }
   const icons = new IconSprite();
   const th = config.site.theme;
   const name = config.site.title || d.profile?.name || d.owner;
@@ -362,8 +408,8 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     .filter(([, html]) => !!html);
   if (admin) {
     const at = rendered.reduce((k, [sec], i) => (sec === "hero" || sec === "featured" ? i + 1 : k), 0);
-    const extraSecs: [string, string][] = [["admin", adminSection(d, s, 0)]];
-    if (extras?.promote) extraSecs.push(["posts", postsSection(d, extras.promote, s, sectionHead("posts", s.promo.title, s.promo.sub, 0), lang)]);
+    const extraSecs: [string, string][] = [["admin", adminSection(d, s, 0, extras)]];
+    if (extras?.promote) extraSecs.push(["posts", postsSection(d, extras.promote, s, sectionHead("posts", s.promo.title, s.promo.sub, 0), lang, extras.dispatch)]);
     if (extras?.competitors) extraSecs.push(["rivals", rivalsSection(d, extras.competitors, s, sectionHead("rivals", s.rivals.title, s.rivals.sub, 0))]);
     rendered.splice(at, 0, ...extraSecs);
   }
@@ -401,6 +447,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     defaults: { ...th, accent },
     customizer: config.site.customizer,
     promo: promoClientConfig(extras?.promote),
+    admin: admin ? { dispatch: extras?.dispatch, generatedAt: d.generatedAt } : undefined,
     multi,
     options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
     presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),
@@ -448,7 +495,7 @@ ${icons.sprite()}
 <div class="noise" aria-hidden="true"></div>
 <div class="cursor-glow" aria-hidden="true"></div>
 <div id="progress" aria-hidden="true"></div>
-${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{[localStorage,sessionStorage].forEach(function(s){Object.keys(s).forEach(function(k){if(k.indexOf('repofolio-admin')===0)s.removeItem(k)})})}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
+${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<span class="adm-upd">${esc(s.adminx.updated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 16).replace("T", " "))}</span></span>${extras?.dispatch ? `<button type="button" id="adm-refresh">⟳ ${esc(s.adminx.refresh)}</button>` : ""}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{[localStorage,sessionStorage].forEach(function(s){Object.keys(s).forEach(function(k){if(k.indexOf('repofolio-admin')===0)s.removeItem(k)})})}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
 <header class="nav">
 <a class="brand" href="${multi ? "#/" : "#hero"}">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
 <nav>${navItems}</nav>

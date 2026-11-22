@@ -1,5 +1,5 @@
 name: repofolio
-description: Inventory every repo you own — deployments, live-URL checks, stale projects, health — and build a portfolio site.
+description: "Auto-promotion and project management for your repos: approved posts, competitor analysis, health, portfolio."
 author: mintguesss
 branding:
   icon: layers

@@ -1,4 +1,4 @@
-# The author's own showcase (https://mintguesss.github.io/repofolio/), built nightly with repofolio
+# The author's own showcase (https://mintguesss.github.io/repofolio/), rebuilt every 3 hours with repofolio
 # and deployed to this repo's GitHub Pages. It doubles as the live demo. Forks skip it.
 #
 # Also runs promotion: drafts appear in the encrypted admin page's 📣 tab; approving one there
@@ -7,7 +7,7 @@ name: showcase
 
 on:
   schedule:
-    - cron: "17 2 * * *"
+    - cron: "17 */3 * * *"   # every 3 hours; "⟳ Update now" in the admin page runs it on demand
   workflow_dispatch:
     inputs:
       posts:
@@ -40,7 +40,7 @@ jobs:
       # This repo is public, so its logs are too: repofolio masks private repo names, the public
       # pages never include private repos, and the admin page + state branch are encrypted with the password.
       - id: repofolio
-        uses: mintguesss/repofolio@v0.8.1
+        uses: mintguesss/repofolio@v0.9.0
         with:
           token: ${{ secrets.REPOFOLIO_TOKEN || github.token }}
           config: .github/repofolio.config.yml

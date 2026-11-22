@@ -412,7 +412,15 @@ body:not([data-anim="off"]) .tl-item.L .tl-card,body:not([data-anim="off"]) .tl-
 .adm-tools span{color:var(--muted);font-size:.86rem}
 .adm-tools b{color:var(--fg);font-family:var(--mono);font-weight:600}
 .adm-tools .btn{padding:9px 18px}
-.fxs{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 2px}
+.fxs{display:none;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+li.fixable>span{cursor:pointer;border-radius:6px;transition:color .2s}
+li.fixable>span::after{content:"▾";display:inline-block;margin-left:6px;font-size:.7em;opacity:.45;transition:transform .2s,opacity .2s}
+li.fixable>span:hover{color:var(--fg)}
+li.fixable>span:hover::after{opacity:.9}
+li.fixable>span:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+li.fixable.open>span{color:var(--fg)}
+li.fixable.open>span::after{transform:rotate(180deg);opacity:.9}
+li.fixable.open .fxs{display:flex;animation:fadein .2s var(--ease)}
 .fx{padding:3px 10px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--fg);font-size:.74rem;line-height:1.6;cursor:pointer;text-decoration:none!important;transition:border-color .2s,color .2s}
 .fx:hover{border-color:var(--accent);color:var(--accent)}
 .fx:disabled{opacity:.5;cursor:wait}

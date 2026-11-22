@@ -1021,6 +1021,13 @@ export function clientMain(): void {
     });
     // Health issue decisions (ignore / snooze / mark done / pause / restore), saved to `projects:` in the config.
     $$(".adm-issues li[data-issue]").forEach((li) => li.insertAdjacentHTML("beforeend", fixButtons(byId[li.dataset.pid], li.dataset.issue)));
+    // Actions stay hidden until the issue is clicked.
+    const markFixable = (root) => $$("li[data-issue]", root).forEach((li) => { if ($(".fxs", li)) { li.classList.add("fixable"); const t = $(":scope > span", li); if (t) { t.setAttribute("role", "button"); t.tabIndex = 0; } } });
+    markFixable(document);
+    new MutationObserver(() => markFixable($("#m-body"))).observe($("#m-body"), { childList: true });
+    const toggleFix = (t) => { const li = t.closest("li.fixable"); if (!li) return; const open = !li.classList.contains("open"); $$("li.fixable.open", li.parentElement).forEach((x) => x.classList.remove("open")); li.classList.toggle("open", open); };
+    document.addEventListener("click", (e) => { const t = e.target.closest("li.fixable > span"); if (t) toggleFix(t); });
+    document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("li.fixable > span")) { e.preventDefault(); toggleFix(e.target); } });
     document.addEventListener("click", async (e) => {
       const b = e.target.closest("[data-fix]");
       if (!b) return;

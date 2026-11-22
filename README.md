@@ -36,7 +36,7 @@ No server and no third-party service: state lives on a branch of your repo, encr
 - **Live-URL check**: every deployment URL is pinged. Dead ones show up as errors
 - **Health check**: missing README, description, topics or LICENSE; deployed but no Website field; expiring domains; **secrets accidentally pasted into metadata**
 - **Stale detection**: no pushes for N days and not marked done or paused → flagged, and optionally an issue is opened
-- **Optional AI summaries**: one-line summaries of each README with Claude. Results are cached by README hash, so nightly runs only pay for READMEs that changed
+- **Optional Claude**: project intros in two languages, post drafts and competitor analysis, with a monthly budget and usage tracking. Results are cached, so scheduled runs only pay for what changed
 - **Privacy by design**: private repos and private fields (env, services, domains, cost) never reach the public site. If your hub repo is public, they're stripped from the catalog too
 - English and 繁體中文 output
 
@@ -57,7 +57,7 @@ Pages:
   - language share and a tech cloud (click to filter)
   - a status donut, hosting providers and projects started per year
   - a live status board for every public deployment
-- **Timeline**: projects on a centre axis, alternating sides, rolling downward on their own in an endless loop; the centred one lights up. Wheel, swipe, arrow keys or click to move; hover pauses
+- **Timeline**: newest first, grouped by year. As you scroll, a light beam runs down the centre axis; cards slide in from alternating sides and their nodes light up as the beam passes
 
 Also included: a **⌘K command palette**, keyboard shortcuts (`/` search, `T` theme, `B` background, `,` customize, `?` help) and a **live customizer (⚙)**. The customizer groups its options: style, colours and layout come first, and all tech effects sit in one "Effects" group. "Copy as config" gives you YAML to paste into `repofolio.config.yml`. The site respects `prefers-reduced-motion`, is keyboard accessible and has no horizontal scroll down to 375px.
 
@@ -121,7 +121,11 @@ publish:
 
 ### Private admin view
 
-The same site, for your eyes only: every repo including private ones, a health score on each card, an **Admin** page listing what to fix (worst first), and env-var locations / next steps / cost in each project's details. There's no link to it; it lives at a file name you pick (`admin.page`).
+The same site, for your eyes only: every repo including private ones and a health score on each card. There's no link to it; it lives at a file name you pick (`admin.page`). It adds:
+
+- **🔒 Admin**: an overview (status mix, health, recent commits, idle projects, promotion and competitor summaries) and what to fix, worst first. Click an issue to act on it: fix it on GitHub (licence picker, topics, README…), ignore it, or for idle projects keep going (remind in 30 days), mark done, pause or archive. **⟳ Update now** rebuilds without waiting for the schedule.
+- **Project details in tabs**: overview, about (from the README), numbers, competitors and posts.
+- **⚙ Settings**: Claude model, which features use it and the monthly budget (with this month's usage), promotion platforms and style, competitor options and language. Saving makes the workflow commit the change to your config.
 
 Two ways to keep it private:
 
@@ -132,10 +136,12 @@ Logs of a public repo are public, so the Action masks private repo names and nev
 
 ### Promotion and competitor analysis
 
-The admin page also gets two tabs:
+Two more admin tabs:
 
 - **📣 Posts**: new projects, releases, star milestones, sites going live and a weekly "what I shipped" digest become drafts for LinkedIn, Bluesky, Threads, X, DEV, Mastodon, Discord, Telegram, Hacker News, Reddit, Facebook and PTT, written by Claude (with an `ANTHROPIC_API_KEY`) or from templates. Edit them, tick the platforms, hit **Approve & publish**: the workflow posts them with your own tokens. Platforms without a token get a copy button and a prefilled share link. Links go to a per-project share page with the cover as its preview card.
-- **🎯 Competitors**: for each project, similar GitHub repos, how you compare (stars, activity, demo, licence) and what to do next.
+- **🎯 Competitors**: for each project, similar GitHub repos (spam filtered out), how you compare on stars, a feature comparison table, and next steps ranked by impact and effort.
+
+Each draft can be rewritten in another style: launch, build story, deep dive, recruiter-friendly or short update.
 
 Private repos never appear in a post. Setup and every platform's token: [docs/PROMOTE.md](docs/PROMOTE.md).
 

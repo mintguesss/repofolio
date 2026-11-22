@@ -135,42 +135,32 @@ function cover(p: PublicProject, cls: string, eager = false): string {
     : `<div class="${cls} noimg"><span aria-hidden="true">${letter}</span></div>`;
 }
 
-export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, lang: string, style: "drum" | "channel" = "drum"): string {
-  const list = [...d.projects].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
+export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, lang: string): string {
+  const list = [...d.projects].sort((a, b) => Date.parse(b.created) - Date.parse(a.created));
   if (!list.length) return "";
   const techOf = (p: PublicProject) => [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
-
-  // Newest first on a centre axis; the client rolls it downward in a loop (cards alternate sides).
-  const ordered = [...list].reverse();
-  const year = (iso: string) => String(new Date(iso).getFullYear());
-  const item = (p: PublicProject, i: number, clone: boolean) => {
-    const side = i % 2 ? "R" : "L";
-    return `<li class="tlr-item ${side}${clone ? " clone" : ""}" data-i="${i}" style="--c:${STATUS_COLORS[p.status] ?? "#888"}"${clone ? ' aria-hidden="true"' : ""}>
-<time class="tlr-date" datetime="${esc(p.created.slice(0, 10))}"><b>${esc(fmt(p.created, lang, { month: "short" }))}</b><span>${esc(fmt(p.created, lang, { day: "numeric" }).replace(/\D+$/, ""))}</span><small>${year(p.created)}</small></time>
-<span class="tlr-node" aria-hidden="true"></span>
-<a class="tlr-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}"${clone ? ' tabindex="-1"' : ""}>${cover(p, "tlr-img")}
-<div class="tlr-body"><time>${esc(fmt(p.created, lang, { year: "numeric", month: "short", day: "numeric" }))}</time><h3><span class="dot st-${p.status}"></span>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
-<div class="tlr-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div></div></a></li>`;
-  };
-  const n = ordered.length;
-  // Three copies (clone · real · clone) so the roll loops seamlessly in both directions.
-  const items = [0, 1, 2].map((k) => ordered.map((p, i) => item(p, i + k * n, k !== 1)).join("")).join("");
-
+  const year = (iso: string) => new Date(iso).getFullYear();
+  // Newest first, grouped by year; the page scroll drives a light beam down the centre axis.
+  let k = 0;
+  const groups = [...new Set(list.map((p) => year(p.created)))].map((y) => {
+    const ps = list.filter((p) => year(p.created) === y);
+    const items = ps
+      .map((p) => {
+        const side = k++ % 2 ? "R" : "L";
+        return `<li class="tl-item ${side}" style="--c:${STATUS_COLORS[p.status] ?? "#888"}">
+<time class="tl-date" datetime="${esc(p.created.slice(0, 10))}"><b>${esc(fmt(p.created, lang, { month: "short" }))}</b><span>${esc(fmt(p.created, lang, { day: "numeric" }).replace(/\D+$/, ""))}</span></time>
+<span class="tl-node" aria-hidden="true"><i></i></span>
+<a class="tl-card" href="#/p/${esc(p.id)}" data-open="${esc(p.id)}">${cover(p, "tl-img")}
+<div class="tl-body"><time>${esc(fmt(p.created, lang, { year: "numeric", month: "short", day: "numeric" }))}</time><h3><span class="dot st-${p.status}"></span>${esc(p.name)}</h3>${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
+<div class="tl-tags">${techOf(p).map((t) => `<span>${esc(t)}</span>`).join("")}</div></div></a></li>`;
+      })
+      .join("");
+    return `<li class="tl-year"><span><b>${y}</b><small>${ps.length}</small></span></li>${items}`;
+  });
   return `<section id="timeline" class="sec">${head}
-<div class="tlr ${style}" id="tlr" data-n="${n}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
-<div class="tlr-stage">
-<div class="tlr-axis" aria-hidden="true"><b></b><i></i><i></i><i></i><em></em></div>
-<div class="tlr-gate" aria-hidden="true"></div>
-<div class="tlr-lens" aria-hidden="true"><i></i></div>
-<ol class="tlr-track">${items}</ol>
-</div>
-<div class="tlr-bar">
-<button type="button" data-tlr="prev" aria-label="previous">▲</button>
-<button type="button" data-tlr="play" aria-label="play / pause" aria-pressed="true"><span class="i-pause">❚❚</span><span class="i-play">▶</span></button>
-<button type="button" data-tlr="next" aria-label="next">▼</button>
-<span class="tlr-count"><b>01</b> / ${String(n).padStart(2, "0")}</span>
-<span class="tlr-now"></span>
-</div>
+<div class="tl" id="tl">
+<div class="tl-axis" aria-hidden="true"><i class="tl-beam"></i><i class="tl-comet"></i></div>
+<ol class="tl-list">${groups.join("")}<li class="tl-end" aria-hidden="true"><span></span></li></ol>
 </div>
 </section>`;
 }

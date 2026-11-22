@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "./config.js";
+import { CONFIG_FILES, loadConfig } from "./config.js";
+import { saveSettings } from "./settings.js";
 import { GitHubClient } from "./github.js";
 import { openStaleIssues } from "./issues.js";
 import { publishSite } from "./publish.js";
@@ -29,16 +30,24 @@ function setOutput(name: string, value: string) {
 
 async function run() {
   const token = input("token") || process.env.GITHUB_TOKEN;
-  const { config } = loadConfig(input("config") || undefined);
+  const hub = process.env.GITHUB_REPOSITORY;
+  const requests = parseRequests(input("posts"), (m) => console.log(m));
+  // Settings saved in the admin page: patch the config file (committed back to the repo) before loading it.
+  const configPath = input("config") || CONFIG_FILES.find((f) => existsSync(f)) || ".github/repofolio.config.yml";
+  for (const req of requests) {
+    if (req.op !== "config" || !hub) continue;
+    const writer = new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` });
+    await saveSettings({ client: writer, repo: hub, branch: process.env.GITHUB_REF_NAME || "main", path: configPath, patch: req.set, log: (m) => console.log(m) })
+      .catch((e) => console.log(`::warning::${(e as Error).message.slice(0, 300)}`));
+  }
+  const { config } = loadConfig(existsSync(configPath) ? configPath : undefined);
   const outDir = input("out", config.output.dir);
   if (input("language") === "en" || input("language") === "zh-TW") config.language = input("language") as "en" | "zh-TW";
   if (bool("llm", config.llm.enabled)) config.llm.enabled = true;
 
   const client = new GitHubClient({ token, userAgent: `repofolio-action/${VERSION}` });
-  const hub = process.env.GITHUB_REPOSITORY;
   const password = process.env.REPOFOLIO_ADMIN_PASSWORD;
   const env = process.env as Record<string, string | undefined>;
-  const requests = parseRequests(input("posts"), (m) => console.log(m));
   const wantCompetitors = config.competitors.enabled && config.admin.enabled;
   const hasClaude = !!env.ANTHROPIC_API_KEY;
 

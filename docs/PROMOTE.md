@@ -133,7 +133,9 @@ llm:
   monthlyBudget: 5              # USD per month; templates until next month once reached; 0 = no cap
 ```
 
-Every call's tokens and cost are recorded on the state branch; the admin overview's Claude usage card shows this month's spend, the budget and usage per feature.
+These can also be changed in the admin page's ⚙ Settings: saving makes the workflow commit the change to the config file. Every call's tokens and cost are recorded on the state branch; ⚙ Settings shows this month's spend, the budget and usage per feature.
+
+**Where the key goes**: repo Settings → Secrets and variables → Actions → New repository secret, Name `ANTHROPIC_API_KEY`, paste the key as the Secret.
 
 **Estimated cost** (14 repos, Sonnet 5.5): about $1.5 a month, about $2 in the first month. Opus 5.5 roughly doubles it. Results are cached, so rebuilding every 3 hours doesn't multiply the cost.
 

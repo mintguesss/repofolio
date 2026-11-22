@@ -64,6 +64,26 @@ export function searchQueries(t: ReturnType<typeof searchTerms>): string[] {
 
 /** Kept as a candidate (Claude decides). */
 const MIN_RELEVANCE = 2;
+
+/** Accounts known for topic-stuffed repos that show up in every search. */
+const SPAM_OWNERS = new Set(["cirosantilli"]);
+
+/**
+ * Repos that are not real projects: known spam accounts, hate symbols, or every topic slot filled
+ * while the name and description have nothing to do with the search (topic stuffing).
+ */
+export function isSpam(c: { full_name?: string; fullName?: string; description: string | null; topics?: string[] }, words: string[] = []): boolean {
+  const name = (c.full_name ?? c.fullName ?? "").toLowerCase();
+  const owner = name.split("/")[0] ?? "";
+  if (SPAM_OWNERS.has(owner)) return true;
+  const desc = c.description ?? "";
+  if (/[卐卍]/.test(desc)) return true;
+  if ((c.topics?.length ?? 0) >= 18) {
+    const text = (name + " " + desc).toLowerCase();
+    if (!words.some((w) => text.includes(w))) return true;
+  }
+  return false;
+}
 /** Counted as a competitor without Claude: e.g. a shared specific topic plus a keyword. */
 const RULE_RELEVANCE = 3;
 
@@ -224,7 +244,15 @@ export async function analyzeCompetitors(repos: RepoRecord[], o: CompetitorOptio
   // Older reports (no feature table / steps): rebuild the rule-based parts from the stored competitors.
   for (const r of eligible) {
     const rep = o.state.competitors[r.fullName];
-    if (rep && rep.v !== 2 && rep.source !== "llm") Object.assign(rep, compareRules(r, rep.items, lang, now), { v: 2 });
+    if (!rep) continue;
+    // Drop spam that older runs let through, then rebuild the rule-based parts.
+    const words = searchTerms(r).words;
+    const clean = rep.items.filter((c) => !isSpam(c, words));
+    if (clean.length !== rep.items.length) {
+      rep.items = clean;
+      Object.assign(rep, compareRules(r, clean, lang, now), { v: 2 });
+      if (rep.features) for (const f of rep.features) f.others = f.others.filter((x) => clean.some((c) => c.fullName === x.repo));
+    } else if (rep.v !== 2 && rep.source !== "llm") Object.assign(rep, compareRules(r, rep.items, lang, now), { v: 2 });
   }
   const due = eligible
     .map((r) => ({ r, rep: o.state.competitors[r.fullName] }))
@@ -243,6 +271,7 @@ export async function analyzeCompetitors(repos: RepoRecord[], o: CompetitorOptio
       const found = await search(o.client, `${q} stars:>=3 archived:false`).catch((e) => { log(`  ! competitor search failed: ${(e as Error).message.slice(0, 120)}`); return [] as SearchItem[]; });
       for (const i of found) {
         if (i.fork || i.owner.login.toLowerCase() === r.owner.toLowerCase() || pool.has(i.full_name)) continue;
+        if (isSpam(i, terms.words)) continue;
         const rel = relevance(terms, i);
         if (rel >= MIN_RELEVANCE) pool.set(i.full_name, { item: i, rel });
       }

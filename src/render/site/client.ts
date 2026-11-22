@@ -453,213 +453,34 @@ export function clientMain(): void {
     el.style.setProperty("--my", e.clientY - r.top + "px");
   }));
 
-  /* ───────── timeline: centre axis that rolls downward on its own and loops ───────── */
-  const tlr = $("#tlr");
-  /* ───────── timeline (drum): cards on a 3D wheel around the centre axis, rolling on its own ───────── */
-  if (tlr && tlr.classList.contains("drum")) {
-    const stage = $(".tlr-stage", tlr), lens = $(".tlr-lens", tlr);
-    const real = $$(".tlr-item", tlr).filter((el) => !el.classList.contains("clone"));
-    const n = real.length;
-    const count = $(".tlr-count b", tlr), nowEl = $(".tlr-now", tlr), playBtn = $('[data-tlr="play"]', tlr);
-    const DUR = 3400, STEP = Math.min(24, 360 / Math.max(n, 1));
-    let pos = 0, target = 0, elapsed = 0, last = 0, raf = 0, hover = false, playing = true, hold = 0, wheelAt = 0, drag = null, shown = -1;
-    const isStatic = () => motion() === "off" || n < 2;
-    const visible = () => (!C.multi || currentPage === "timeline") && !document.hidden;
-    const mod = (x) => ((x % n) + n) % n;
-    const rowH = () => Math.max(96, Math.max(...real.map((el) => el.offsetHeight)) || 130);
-    let R = 300;
-    const measure = () => { R = Math.max(200, (rowH() + 18) / (STEP * Math.PI / 180)); tlr.style.setProperty("--R", R.toFixed(1) + "px"); };
-    function render() {
-      real.forEach((el, i) => {
-        let d = mod(i - pos);
-        if (d > n / 2) d -= n;
-        const a = d * STEP;
-        const vis = Math.abs(a) < 92;
-        el.style.transform = `translateY(-50%) rotateX(${(-a).toFixed(2)}deg) translateZ(${R.toFixed(1)}px)`;
-        el.style.opacity = vis ? Math.pow(Math.max(0, Math.cos((a * Math.PI) / 180)), 1.6).toFixed(3) : "0";
-        el.style.visibility = vis ? "" : "hidden";
-        el.style.zIndex = String(100 - Math.round(Math.abs(d) * 10));
-        el.classList.toggle("on", Math.abs(d) < 0.5);
-        el.classList.toggle("near", Math.abs(d) >= 0.5 && Math.abs(d) < 1.5);
+  /* ───────── timeline: the page scroll drives a light beam down the centre axis ───────── */
+  const tl = $("#tl");
+  if (tl) {
+    const items = $$(".tl-item, .tl-year", tl);
+    const reveal = new IntersectionObserver((ents) => {
+      ents.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); reveal.unobserve(e.target); } });
+    }, { rootMargin: "0px 0px -12% 0px" });
+    items.forEach((el) => reveal.observe(el));
+    let ticking = false;
+    function update() {
+      ticking = false;
+      const r = tl.getBoundingClientRect();
+      if (!r.height) return;
+      // The beam's tip follows a line 60% down the viewport.
+      const tip = Math.min(r.height, Math.max(0, innerHeight * 0.6 - r.top));
+      tl.style.setProperty("--tip", tip.toFixed(1) + "px");
+      tl.classList.toggle("done", tip >= r.height - 2);
+      items.forEach((el) => {
+        const lit = el.offsetTop + el.offsetHeight / 2 <= tip;
+        if (lit !== el.classList.contains("lit")) el.classList.toggle("lit", lit);
       });
-      const cur = mod(Math.round(pos));
-      if (cur !== shown) {
-        shown = cur;
-        count.textContent = String(cur + 1).padStart(2, "0");
-        const t = $(".tlr-date", real[cur]);
-        if (nowEl && t) nowEl.textContent = $("b", t).textContent + " " + $("small", t).textContent;
-      }
-      tlr.style.setProperty("--spin", String(pos));
     }
-    function loop(t) {
-      raf = 0;
-      if (isStatic() || !visible()) { last = 0; return; }
-      const dt = last ? Math.min(64, t - last) : 16;
-      last = t;
-      if (playing && !hover && !drag && t > hold) {
-        elapsed += dt;
-        if (elapsed >= DUR) { elapsed = 0; target += 1; }
-      }
-      lens.style.setProperty("--p", Math.min(1, elapsed / DUR).toFixed(3));
-      if (!drag) pos += (target - pos) * Math.min(1, dt / 160);
-      if (Math.abs(target - pos) < 0.0005) pos = target;
-      render();
-      raf = requestAnimationFrame(loop);
-    }
-    const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
-    const step = (dlt) => { hold = performance.now() + 4000; elapsed = 0; target = Math.round(target) + dlt; kick(); };
-    const setPlaying = (v) => { playing = v; playBtn.setAttribute("aria-pressed", String(v)); tlr.classList.toggle("paused", !v); if (v) kick(); };
-    $('[data-tlr="prev"]', tlr).addEventListener("click", () => step(-1));
-    $('[data-tlr="next"]', tlr).addEventListener("click", () => step(1));
-    playBtn.addEventListener("click", () => setPlaying(!playing));
-    stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
-    stage.addEventListener("pointerleave", () => { hover = false; });
-    stage.addEventListener("wheel", (e) => {
-      if (isStatic() || Math.abs(e.deltaY) < 4) return;
-      e.preventDefault();
-      const now = performance.now();
-      if (now - wheelAt < 380) return;
-      wheelAt = now;
-      step(e.deltaY > 0 ? 1 : -1);
-    }, { passive: false });
-    // Drag spins the wheel directly; letting go settles on the nearest card.
-    let moved = false;
-    stage.addEventListener("pointerdown", (e) => { if (isStatic()) return; drag = { y: e.clientY, pos }; moved = false; });
-    addEventListener("pointermove", (e) => {
-      if (!drag) return;
-      const dy = e.clientY - drag.y;
-      if (Math.abs(dy) > 6) moved = true;
-      pos = drag.pos - dy / (rowH() + 18);
-      kick();
-    });
-    addEventListener("pointerup", () => {
-      if (!drag) return;
-      drag = null;
-      target = Math.round(pos);
-      hold = performance.now() + 4000;
-      elapsed = 0;
-      kick();
-    });
-    // Click a card that isn't in front to bring it there; click the front card to open it.
-    stage.addEventListener("click", (e) => {
-      const card = e.target.closest(".tlr-card");
-      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
-      if (!card || isStatic()) return;
-      const li = card.parentElement;
-      if (li.classList.contains("on")) return;
-      e.preventDefault(); e.stopPropagation();
-      let d = mod(real.indexOf(li) - target);
-      if (d > n / 2) d -= n;
-      hold = performance.now() + 4000; elapsed = 0;
-      target = Math.round(target + d);
-      kick();
-    }, true);
-    tlr.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") { step(1); e.preventDefault(); }
-      else if (e.key === "ArrowUp") { step(-1); e.preventDefault(); }
-      else if (e.key === " " && e.target === tlr) { setPlaying(!playing); e.preventDefault(); }
-    });
-    const refresh = () => {
-      tlr.classList.toggle("static", isStatic());
-      real.forEach((el) => { if (isStatic()) { el.style.transform = el.style.opacity = el.style.visibility = el.style.zIndex = ""; } });
-      if (!isStatic()) { measure(); render(); kick(); }
-    };
-    addEventListener("rf:page", () => setTimeout(refresh, 30));
-    addEventListener("resize", () => { if (!isStatic()) { measure(); render(); } });
-    if (window.ResizeObserver) new ResizeObserver(() => { if (!isStatic()) { measure(); render(); } }).observe(stage);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!isStatic()) { measure(); render(); } });
-    document.addEventListener("visibilitychange", kick);
-    refresh();
-  }
-  if (tlr && !tlr.classList.contains("drum")) {
-    const stage = $(".tlr-stage", tlr), track = $(".tlr-track", tlr), lens = $(".tlr-lens", tlr);
-    const items = $$(".tlr-item", tlr);
-    const n = Number(tlr.dataset.n) || 0;
-    const count = $(".tlr-count b", tlr), nowEl = $(".tlr-now", tlr), playBtn = $('[data-tlr="play"]', tlr);
-    const DUR = 3600;
-    let cur = n, elapsed = 0, last = 0, raf = 0, hover = false, playing = true, hold = 0, wheelAt = 0;
-    const isStatic = () => motion() === "off" || n < 2;
-    const visible = () => (!C.multi || currentPage === "timeline") && !document.hidden;
-    function place(i, instant) {
-      const it = items[i];
-      if (!it || !stage.clientHeight) return;
-      if (instant) tlr.classList.add("snapping");
-      track.style.setProperty("--ty", stage.clientHeight / 2 - (it.offsetTop + it.offsetHeight / 2) + "px");
-      items.forEach((el, k) => { const d = Math.abs(k - i); el.classList.toggle("on", d === 0); el.classList.toggle("near", d === 1); });
-      const real = i % n;
-      count.textContent = String(real + 1).padStart(2, "0");
-      const t = $(".tlr-date", items[real]);
-      if (nowEl && t) nowEl.textContent = $("b", t).textContent + " " + $("small", t).textContent;
-      if (instant) { void track.offsetHeight; requestAnimationFrame(() => tlr.classList.remove("snapping")); }
-    }
-    // Items are clone · real · clone; after rolling into a clone, jump back to the same item in the middle copy.
-    let snapT = 0;
-    function go(i) {
-      elapsed = 0;
-      cur = Math.max(0, Math.min(3 * n - 1, i));
-      place(cur);
-      clearTimeout(snapT);
-      snapT = setTimeout(() => {
-        if (cur >= 2 * n) cur -= n; else if (cur < n) cur += n; else return;
-        place(cur, true);
-      }, 1000);
-    }
-    function loop(t) {
-      raf = 0;
-      if (!playing || isStatic() || !visible()) { last = 0; return; }
-      if (last && !hover && t > hold) elapsed += t - last;
-      last = t;
-      lens.style.setProperty("--p", Math.min(1, elapsed / DUR).toFixed(3));
-      if (elapsed >= DUR) go(cur + 1);
-      raf = requestAnimationFrame(loop);
-    }
-    const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
-    const step = (d) => { hold = performance.now() + 4000; go(cur + d); kick(); };
-    const setPlaying = (v) => { playing = v; playBtn.setAttribute("aria-pressed", String(v)); tlr.classList.toggle("paused", !v); if (v) kick(); };
-    $('[data-tlr="prev"]', tlr).addEventListener("click", () => step(-1));
-    $('[data-tlr="next"]', tlr).addEventListener("click", () => step(1));
-    playBtn.addEventListener("click", () => setPlaying(!playing));
-    stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
-    stage.addEventListener("pointerleave", () => { hover = false; });
-    stage.addEventListener("wheel", (e) => {
-      if (isStatic() || Math.abs(e.deltaY) < 4) return;
-      e.preventDefault();
-      const now = performance.now();
-      if (now - wheelAt < 550) return;
-      wheelAt = now;
-      step(e.deltaY > 0 ? 1 : -1);
-    }, { passive: false });
-    let y0 = null, dragged = false;
-    stage.addEventListener("pointerdown", (e) => { y0 = e.clientY; dragged = false; });
-    stage.addEventListener("pointerup", (e) => {
-      if (y0 != null && Math.abs(e.clientY - y0) > 40 && !isStatic()) { dragged = true; step(e.clientY < y0 ? 1 : -1); }
-      y0 = null;
-    });
-    // A click on a card that isn't centred brings it to the centre; a click on the centred card opens it.
-    stage.addEventListener("click", (e) => {
-      const card = e.target.closest(".tlr-card");
-      if (dragged) { e.preventDefault(); e.stopPropagation(); dragged = false; return; }
-      if (!card || isStatic()) return;
-      const li = card.parentElement;
-      if (li.classList.contains("on")) return;
-      e.preventDefault(); e.stopPropagation();
-      hold = performance.now() + 4000;
-      go(Number(li.dataset.i));
-      kick();
-    }, true);
-    tlr.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") { step(1); e.preventDefault(); }
-      else if (e.key === "ArrowUp") { step(-1); e.preventDefault(); }
-      else if (e.key === " " && e.target === tlr) { setPlaying(!playing); e.preventDefault(); }
-    });
-    const refresh = () => { tlr.classList.toggle("static", isStatic()); if (!isStatic()) { place(cur, true); kick(); } };
-    addEventListener("rf:page", () => setTimeout(refresh, 30));
-    addEventListener("resize", () => { if (!isStatic()) place(cur, true); });
-    // Web fonts and line wraps change card heights after load; keep the current card centred.
-    if (window.ResizeObserver) new ResizeObserver(() => { if (!isStatic()) place(cur, true); }).observe(track);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!isStatic()) place(cur, true); });
-    document.addEventListener("visibilitychange", kick);
-    refresh();
+    const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll);
+    addEventListener("rf:page", () => setTimeout(update, 40));
+    if (motion() === "off") items.forEach((el) => el.classList.add("in"));
+    update();
   }
 
   /* ───────── tilt + glow follow + magnetic ───────── */
@@ -1158,6 +979,25 @@ export function clientMain(): void {
       $("#pp-tok-forget").addEventListener("click", () => { store(TK, null); syncTok(); });
       syncTok();
     }
+    // Settings form: send only what changed; the workflow commits it to the config file.
+    const sf = $("#st-form");
+    if (sf) sf.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = $(".pp-msg", sf), btn = $("button[type=submit]", sf);
+      const set = {};
+      const put = (path, v) => { const ks = path.split("."); let o = set; ks.slice(0, -1).forEach((k) => (o = o[k] = o[k] || {})); o[ks[ks.length - 1]] = v; };
+      $$("input[type=checkbox][data-init]", sf).forEach((el) => { if (String(el.checked) !== el.dataset.init) put(el.name, el.checked); });
+      $$("input[type=number][data-init]", sf).forEach((el) => { if (el.value !== el.dataset.init && el.value !== "") put(el.name, Number(el.value)); });
+      $$("select[data-init]", sf).forEach((el) => { if (el.value !== el.dataset.init) put(el.name, el.name === "promote.events.weekly" && el.value === "off" ? false : el.value); });
+      const tags = $("input[name='promote.hashtags']", sf);
+      if (tags && tags.value !== tags.dataset.init) put("promote.hashtags", tags.value.split(/[,，\s]+/).map((t) => t.replace(/^#/, "")).filter(Boolean));
+      const plats = $$("input[name='promote.platforms']:checked", sf).map((el) => el.value);
+      if (plats.join(",") !== sf.dataset.platforms) put("promote.platforms", plats);
+      if (!Object.keys(set).length) { msg.textContent = S.settings.nothing; return; }
+      btn.disabled = true; msg.textContent = "…"; msg.classList.remove("bad");
+      try { await dispatch([{ op: "config", set }]); msg.textContent = "✓ " + S.settings.saved; }
+      catch (err) { btn.disabled = false; msg.textContent = err.message; msg.classList.add("bad"); }
+    });
     const rb = $("#adm-refresh");
     if (rb) rb.addEventListener("click", async () => {
       rb.disabled = true;

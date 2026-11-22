@@ -133,7 +133,9 @@ llm:
   monthlyBudget: 5              # 每月上限（美元），到了就改用模板到下個月；0 = 不設上限
 ```
 
-每次呼叫的 token 和費用都會記在資料分支，管理頁總覽的「Claude 用量」卡片顯示本月花費、上限進度和各功能的用量。
+這些設定也可以在管理頁的「⚙ 設定」直接改：按儲存後 workflow 會把改動寫回設定檔並 commit。每次呼叫的 token 和費用都會記在資料分支，「⚙ 設定」頁顯示本月花費、上限進度和各功能的用量。
+
+**金鑰放哪裡**：repo 的 Settings → Secrets and variables → Actions → New repository secret，Name 填 `ANTHROPIC_API_KEY`，Secret 貼上金鑰。
 
 **預估費用**（14 個 repo，Sonnet 5.5）：每月約 1.5 美元，第一個月約 2 美元。換成 Opus 5.5 約加倍。結果都有快取，每 3 小時更新一次不會讓費用倍增。
 

@@ -48,4 +48,3 @@ issues:
 #   model: claude-sonnet-5-5
 #   features: { summaries: false, intros: true, drafts: true, competitors: true }
 #   monthlyBudget: 5   # USD per month, 0 = no cap
-# site.timelineStyle: drum (3D wheel, default) | channel

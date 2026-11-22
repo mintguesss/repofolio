@@ -165,8 +165,6 @@ export const SiteSchema = z.object({
   sections: z.array(z.enum(SECTIONS)).default([...DEFAULT_SECTIONS]),
   /** Put every section on one long page instead of separate pages (home, projects, stack, …). */
   singlePage: z.boolean().default(false),
-  /** Timeline look: drum = cards on a 3D wheel around the centre axis; channel = a glowing channel the cards roll past. */
-  timelineStyle: z.enum(["drum", "channel"]).default("drum"),
   /** Let visitors open the ⚙ panel and play with the theme (their choice is saved in their browser). */
   customizer: z.boolean().default(true),
   /** Canonical URL of the published site (for og:url and the profile "All projects" link). */

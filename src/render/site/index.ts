@@ -8,7 +8,7 @@ import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
 import { homeStats, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
-import { postsSection, promoClientConfig, rivalsSection, tokenBox, type AdminExtras } from "./promo.js";
+import { postsSection, promoClientConfig, rivalsSection, settingsSection, tokenBox, type AdminExtras } from "./promo.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -129,21 +129,6 @@ function adminOverview(d: ShowcaseData, s: SiteStrings, extras?: AdminExtras): s
     const gapText = topGap ? reps.flatMap((r) => r.gaps).find((g) => g.startsWith(topGap[0])) : undefined;
     cards.push(card(X.rivalsSum, `<ul class="ov-nums"><li><b>${Object.keys(rv.reports).length}</b>${esc(X.analysed)}</li><li><b>${leading}</b>${esc(X.leading)}</li></ul>${gapText ? `<p class="ov-gap"><small>${esc(X.topGap)} ×${topGap![1]}</small>${esc(gapText)}</p>` : ""}`, "#/rivals"));
   }
-  const ai = extras?.ai;
-  if (ai) {
-    const AI = s.ai;
-    const m = ai.usage.find((u) => u.month === new Date().toISOString().slice(0, 7));
-    const usd = m?.usd ?? 0;
-    const pct = ai.budget ? Math.min(100, (usd / ai.budget) * 100) : 0;
-    const feats = (Object.keys(ai.features) as (keyof typeof AI.features)[]).map((f) => {
-      const u = m?.byFeature[f];
-      return `<li class="${ai.features[f] ? "" : "off"}"><span>${esc(AI.features[f])}</span><b>${ai.features[f] ? (u ? `$${u.usd.toFixed(2)} · ${u.calls}` : esc(AI.on)) : esc(AI.offLabel)}</b></li>`;
-    }).join("");
-    const body = ai.hasKey
-      ? `<p class="ov-big"><b>$${usd.toFixed(2)}</b>${ai.budget ? ` / $${ai.budget} ${esc(AI.budget)}` : ` · ${esc(AI.noCap)}`}</p>${ai.budget ? `<div class="ov-budget${pct >= 100 ? " full" : pct >= 80 ? " warn" : ""}"><i style="width:${pct}%"></i></div>` : ""}${m?.cappedAt ? `<p class="ov-gap">${esc(AI.capped)}</p>` : ""}<p class="ov-meta">${m?.calls ?? 0} ${esc(AI.calls)} · ${(((m?.input ?? 0) + (m?.output ?? 0)) / 1000).toFixed(1)}k tokens · ${esc(AI.model)} <code>${esc(ai.model)}</code></p><ul class="ov-feats">${feats}</ul>`
-      : `<p class="ov-meta">${esc(AI.off)}</p><ul class="ov-feats">${feats}</ul>`;
-    cards.push(card(AI.title, body));
-  }
   return `<h3 class="sub-h">${esc(X.overview)}</h3><div class="adm-ov">${cards.join("")}</div>`;
 }
 
@@ -258,11 +243,18 @@ function activityChart(d: ShowcaseData, s: SiteStrings, lang: string): string {
       return `<rect x="${i * 12 + 1}" y="${h - 18 - bh}" width="9" height="${bh}" rx="2" style="--i:${i}" data-tip="${esc(label)}"${n === 0 ? ' class="zero"' : ""}/>`;
     })
     .join("");
-  const months: string[] = [];
-  for (let i = 0; i < 52; i += 4.33) {
-    const dt = new Date(end.getTime() - (51 - Math.round(i)) * 7 * 86_400_000);
-    months.push(`<text x="${Math.round(i) * 12}" y="${h - 3}">${esc(dt.toLocaleDateString(loc, { month: "short" }))}</text>`);
+  // One label where each month starts (the year on the first one and on January), never the same month twice.
+  const starts: { i: number; dt: Date }[] = [];
+  for (let i = 0; i < 52; i++) {
+    const dt = new Date(end.getTime() - (51 - i) * 7 * 86_400_000);
+    if (!starts.length || starts[starts.length - 1]!.dt.getMonth() !== dt.getMonth()) starts.push({ i, dt });
   }
+  // A month that only shows for a week or two at the left edge would crowd the next label: drop it.
+  const kept = starts.filter((st, k) => k === starts.length - 1 || starts[k + 1]!.i - st.i >= 3);
+  const months = kept.map(({ i, dt }, k) => {
+    const text = k === 0 || (dt.getMonth() === 0 && k > 1) ? dt.toLocaleDateString(loc, { year: "2-digit", month: "short" }) : dt.toLocaleDateString(loc, { month: "short" });
+    return `<text x="${i * 12}" y="${h - 3}">${esc(text)}</text>`;
+  });
   return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(s.activitySub)}">${bars}${months.join("")}</svg><div class="tip" id="chart-tip" hidden></div>`;
 }
 
@@ -424,7 +416,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
         case "status":
           return statusSection(d, s, icons, ++idx);
         case "timeline":
-          return timelineSection(d, s, sectionHead("timeline", s.timeline, s.timelineSub, ++idx), lang, config.site.timelineStyle);
+          return timelineSection(d, s, sectionHead("timeline", s.timeline, s.timelineSub, ++idx), lang);
       }
     })()])
     .filter(([, html]) => !!html);
@@ -434,6 +426,8 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     if (extras?.promote) extraSecs.push(["posts", postsSection(d, extras.promote, s, sectionHead("posts", s.promo.title, s.promo.sub, 0), lang, extras.dispatch)]);
     if (extras?.competitors) extraSecs.push(["rivals", rivalsSection(d, extras.competitors, s, sectionHead("rivals", s.rivals.title, s.rivals.sub, 0))]);
     rendered.splice(at, 0, ...extraSecs);
+    // Settings go last in the nav.
+    rendered.push(["settings", settingsSection(config, extras ?? {}, s, sectionHead("settings", s.settings.title, s.settings.sub, 0))]);
   }
   // Group sections into pages (home = hero + featured, every other section is its own page).
   const pageOrder: string[] = [];
@@ -451,7 +445,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
   const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
   const navItems = navTargets
     .map((x) => {
-      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : x === "posts" ? `📣 ${s.promo.nav}` : x === "rivals" ? `🎯 ${s.rivals.nav}` : s.nav[x as keyof SiteStrings["nav"]];
+      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : x === "posts" ? `📣 ${s.promo.nav}` : x === "rivals" ? `🎯 ${s.rivals.nav}` : x === "settings" ? `⚙ ${s.settings.nav}` : s.nav[x as keyof SiteStrings["nav"]];
       return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
     .join("");

@@ -1,5 +1,6 @@
-import type { AiFeature, UsageMonth } from "../../ai.js";
-import { POST_STYLES, type Platform } from "../../schema.js";
+import { AI_FEATURES, PRICES, type AiFeature, type UsageMonth } from "../../ai.js";
+import { MODEL_CHOICES } from "../../settings.js";
+import { PLATFORMS, POST_STYLES, type Config, type Platform } from "../../schema.js";
 import type { CompetitorReport, Post } from "../../state.js";
 import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platforms.js";
 import { esc, type ShowcaseData } from "../public.js";
@@ -153,4 +154,61 @@ export function tokenBox(dispatch: Dispatch | undefined, s: SiteStrings): string
   const P = s.promo;
   const url = `https://github.com/settings/personal-access-tokens/new?name=repofolio-admin&description=${encodeURIComponent(`repofolio admin actions on ${dispatch.repo}`)}`;
   return `<details class="pp-tok reveal" id="pp-tok-box"><summary>🔑 ${esc(P.token)} <span class="pp-tok-state" id="pp-tok-state"></span></summary><p>${esc(P.tokenHelp)} <a href="${esc(url)}" target="_blank" rel="noopener">github.com/settings/personal-access-tokens ↗</a></p><div class="pp-tok-row"><input type="password" id="pp-tok" autocomplete="off" spellcheck="false" placeholder="github_pat_…"><button type="button" class="btn primary" id="pp-tok-save">${esc(P.tokenSave)}</button><button type="button" class="btn ghost" id="pp-tok-forget">${esc(P.tokenForget)}</button></div></details>`;
+}
+
+/** Admin settings page: Claude key status and usage, plus a form whose changes are committed to the config file. */
+export function settingsSection(config: Config, extras: AdminExtras, s: SiteStrings, head: string): string {
+  const T = s.settings, AI = s.ai;
+  const ai = extras.ai;
+  const repo = extras.dispatch?.repo;
+  const secretsUrl = repo ? `https://github.com/${repo}/settings/secrets/actions` : "";
+  const month = new Date().toISOString().slice(0, 7);
+  const m = ai?.usage.find((u) => u.month === month);
+  const usd = m?.usd ?? 0;
+  const budget = config.llm.monthlyBudget;
+  const pct = budget ? Math.min(100, (usd / budget) * 100) : 0;
+  const feats = AI_FEATURES.map((f) => `<li class="${config.llm.features[f] || (f === "summaries" && config.llm.enabled) ? "" : "off"}"><span>${esc(AI.features[f])}</span><b>${m?.byFeature[f] ? `$${m.byFeature[f]!.usd.toFixed(2)} · ${m.byFeature[f]!.calls}` : "—"}</b></li>`).join("");
+  const history = (ai?.usage ?? []).slice(-6).reverse().map((u) => `<li><span>${esc(u.month)}</span><b>$${u.usd.toFixed(2)}</b><small>${u.calls} ${esc(AI.calls)}</small></li>`).join("");
+  const keyCard = `<div class="st-card reveal"><h4>${esc(T.claude)}</h4>
+${ai?.hasKey ? `<p class="st-ok">✓ ${esc(T.keySet)}</p>` : `<p class="st-warn">${esc(T.keyMissing)}</p>`}
+${secretsUrl ? `<ol class="st-steps"><li>${esc(T.step1)} <a href="${esc(secretsUrl)}/new" target="_blank" rel="noopener">${esc(T.openSecrets)} ↗</a></li><li>${esc(T.step2)} <code>ANTHROPIC_API_KEY</code></li><li>${esc(T.step3)}</li></ol>` : ""}
+<div class="st-usage"><p class="ov-big"><b>$${usd.toFixed(2)}</b>${budget ? ` / $${budget} ${esc(AI.budget)}` : ` · ${esc(AI.noCap)}`}</p>${budget ? `<div class="ov-budget${pct >= 100 ? " full" : pct >= 80 ? " warn" : ""}"><i style="width:${pct}%"></i></div>` : ""}${m?.cappedAt ? `<p class="ov-gap">${esc(AI.capped)}</p>` : ""}<p class="ov-meta">${esc(AI.month)} · ${m?.calls ?? 0} ${esc(AI.calls)} · ${(((m?.input ?? 0) + (m?.output ?? 0)) / 1000).toFixed(1)}k tokens</p><ul class="ov-feats">${feats}</ul>${history ? `<h5>${esc(T.history)}</h5><ul class="st-hist">${history}</ul>` : ""}</div>
+</div>`;
+
+  const on = (name: string, checked: boolean, label: string) => `<label class="st-toggle"><input type="checkbox" name="${name}"${checked ? " checked" : ""} data-init="${checked}"><i></i><span>${esc(label)}</span></label>`;
+  const num = (name: string, value: number, label: string, attrs: string) => `<label class="st-field"><span>${esc(label)}</span><input type="number" name="${name}" value="${value}" data-init="${value}" ${attrs}></label>`;
+  const select = (name: string, value: string, label: string, opts: [string, string][]) => `<label class="st-field"><span>${esc(label)}</span><select name="${name}" data-init="${esc(value)}">${opts.map(([v, l]) => `<option value="${esc(v)}"${v === value ? " selected" : ""}>${esc(l)}</option>`).join("")}</select></label>`;
+  const models: [string, string][] = [...new Set([config.llm.model, ...MODEL_CHOICES])].map((id) => [id, `${id}${PRICES[id] ? `  ($${PRICES[id]![0]} / $${PRICES[id]![1]})` : ""}`]);
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+  const weekly = config.promote.events.weekly;
+  const plats = PLATFORMS.map((p) => `<label class="st-chip"><input type="checkbox" name="promote.platforms" value="${p}"${config.promote.platforms.includes(p) ? " checked" : ""}><span>${esc(PLATFORM_INFO[p].label)}</span></label>`).join("");
+  const form = `<form class="st-form reveal" id="st-form" data-platforms="${esc(config.promote.platforms.join(","))}">
+<fieldset><legend>${esc(T.claude)}</legend><p class="st-hint">${esc(T.claudeHint)}</p>
+${select("llm.model", config.llm.model, T.model, models)}
+<div class="st-toggles">${AI_FEATURES.map((f) => on(`llm.features.${f}`, config.llm.features[f] || (f === "summaries" && config.llm.enabled), AI.features[f])).join("")}</div>
+${num("llm.monthlyBudget", budget, T.budget, 'min="0" max="1000" step="1"')}</fieldset>
+<fieldset><legend>${esc(s.promo.title)}</legend>
+${on("promote.enabled", config.promote.enabled, T.promoteOn)}
+<div class="st-field"><span>${esc(T.platforms)}</span><div class="st-chips">${plats}</div></div>
+${select("promote.style", config.promote.style, s.styles.label, POST_STYLES.map((st) => [st, s.styles.names[st]]))}
+${select("promote.events.weekly", weekly === false ? "off" : weekly, T.weekly, [["off", T.off], ...days.map((d) => [d, T.days[d]] as [string, string])])}
+<label class="st-field"><span>${esc(T.hashtags)}</span><input type="text" name="promote.hashtags" value="${esc(config.promote.hashtags.join(", "))}" data-init="${esc(config.promote.hashtags.join(", "))}" placeholder="buildinpublic, opensource"></label></fieldset>
+<fieldset><legend>${esc(s.rivals.title)}</legend>
+${on("competitors.enabled", config.competitors.enabled, T.rivalsOn)}
+${num("competitors.refreshDays", config.competitors.refreshDays, T.refresh, 'min="1" max="90"')}
+${num("competitors.count", config.competitors.count, T.count, 'min="1" max="10"')}</fieldset>
+<fieldset><legend>${esc(T.site)}</legend>
+${select("language", config.language, T.language, [["zh-TW", "繁體中文"], ["en", "English"]])}</fieldset>
+<footer class="st-foot"><button type="submit" class="btn primary">${esc(T.save)}</button><span class="pp-msg" role="status"></span><small>${esc(T.saveHint)}</small></footer>
+</form>`;
+  const conn = Object.fromEntries((extras.promote?.connections ?? []).map((c) => [c.platform, c]));
+  const keys = PLATFORMS.filter((p) => PLATFORM_INFO[p].env.length).map((p) => {
+    const c = conn[p];
+    const state = c?.mode === "auto" ? `<b class="ok">✓ ${esc(c.account ?? T.connected)}</b>` : c?.mode === "error" ? `<b class="bad" title="${esc(c.error ?? "")}">✕ ${esc(T.error)}</b>` : `<b>—</b>`;
+    return `<li><span>${esc(PLATFORM_INFO[p].label)}</span><code>${PLATFORM_INFO[p].env.join(" + ")}</code>${state}</li>`;
+  }).join("");
+  const keysCard = `<div class="st-card reveal"><h4>${esc(T.platformKeys)}</h4><p class="st-hint">${esc(T.platformHint)}</p><ul class="st-keys">${keys}</ul>${secretsUrl ? `<a class="btn ghost sm" href="${esc(secretsUrl)}" target="_blank" rel="noopener">${esc(T.openSecrets)} ↗</a>` : ""}</div>`;
+  return `<section id="settings" class="sec">${head}
+<div class="st-layout"><div class="st-side">${keyCard}${keysCard}</div>${form}</div>
+</section>`;
 }

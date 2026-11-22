@@ -325,3 +325,32 @@ describe("Claude usage meter", () => {
     expect(new AiMeter(c, [], {}).allowed("drafts")).toBe(false);
   });
 });
+
+describe("competitor spam filter", () => {
+  it("drops known spam accounts, hate symbols and topic-stuffed repos", async () => {
+    const { isSpam } = await import("../src/competitors.js");
+    expect(isSpam({ full_name: "cirosantilli/china-dictatorship", description: "x", topics: [] })).toBe(true);
+    expect(isSpam({ full_name: "a/b", description: "卐 something", topics: [] })).toBe(true);
+    const stuffed = { full_name: "x/mirror", description: "unrelated propaganda", topics: Array.from({ length: 20 }, (_, i) => "t" + i) };
+    expect(isSpam(stuffed, ["flashcards"])).toBe(true);
+    expect(isSpam({ ...stuffed, description: "flashcards for markdown" }, ["flashcards"])).toBe(false);
+    expect(isSpam({ full_name: "o/anki", description: "spaced repetition", topics: ["anki"] }, ["flashcards"])).toBe(false);
+  });
+});
+
+describe("settings from the admin page", () => {
+  it("patches the config YAML in place, keeps comments, rejects unknown keys", async () => {
+    const { applyPatch, ConfigPatchSchema } = await import("../src/settings.js");
+    const yaml = "# my config\nowners: [me]\nllm:\n  model: claude-sonnet-5-5   # cheap\n";
+    const out = applyPatch(yaml, { llm: { monthlyBudget: 3, features: { drafts: false } }, promote: { platforms: ["linkedin", "x"] } });
+    expect(out).toContain("# my config");
+    expect(out).toContain("# cheap");
+    const c = ConfigSchema.parse((await import("yaml")).parse(out));
+    expect(c.llm.monthlyBudget).toBe(3);
+    expect(c.llm.features.drafts).toBe(false);
+    expect(c.promote.platforms).toEqual(["linkedin", "x"]);
+    expect(ConfigPatchSchema.safeParse({ owners: ["evil"] }).success).toBe(false);
+    expect(ConfigPatchSchema.safeParse({ llm: { model: "gpt-4" } }).success).toBe(false);
+    expect(parseRequests('[{"op":"config","set":{"competitors":{"count":3}}}]')).toEqual([{ op: "config", set: { competitors: { count: 3 } } }]);
+  });
+});

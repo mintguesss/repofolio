@@ -235,3 +235,15 @@ describe("admin page and share pages", () => {
     expect(readFileSync(join(dir, "site", "index.html"), "utf8")).not.toContain("GAP_TEXT");
   });
 });
+
+describe("action manifest", () => {
+  it("action.yml and the workflows are valid YAML (GitHub refuses the action otherwise)", async () => {
+    const { parse } = await import("yaml");
+    for (const f of ["action.yml", ".github/workflows/showcase.yml", "templates/site-workflow.yml", "templates/hub-workflow.yml"]) {
+      const doc = parse(readFileSync(f, "utf8"));
+      expect(typeof doc, f).toBe("object");
+    }
+    const action = parse(readFileSync("action.yml", "utf8"));
+    expect(Object.keys(action.inputs)).toEqual(expect.arrayContaining(["posts", "state-token"]));
+  });
+});

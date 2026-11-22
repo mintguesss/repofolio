@@ -39,7 +39,7 @@ inputs:
     description: Decisions from the admin page's Posts tab (JSON, sent through workflow_dispatch). Pass the workflow's `posts` input through unchanged.
     required: false
   state-token:
-    description: Token that can write the state branch (promote.* / competitors.*) of this repo. Needs `permissions: contents: write`.
+    description: "Token that can write the state branch (promote, competitors) of this repo. The workflow needs contents write permission."
     required: false
     default: ${{ github.token }}
 outputs:

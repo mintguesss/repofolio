@@ -209,6 +209,7 @@ ${select("language", config.language, T.language, [["zh-TW", "繁體中文"], ["
   }).join("");
   const keysCard = `<div class="st-card reveal"><h4>${esc(T.platformKeys)}</h4><p class="st-hint">${esc(T.platformHint)}</p><ul class="st-keys">${keys}</ul>${secretsUrl ? `<a class="btn ghost sm" href="${esc(secretsUrl)}" target="_blank" rel="noopener">${esc(T.openSecrets)} ↗</a>` : ""}</div>`;
   return `<section id="settings" class="sec">${head}
+${extras.dispatch ? `<div class="adm-tools reveal"><span>${esc(s.settings.sub)}</span><button type="button" class="btn ghost" data-refresh>⟳ ${esc(s.fix.now)}</button></div>` : ""}
 <div class="st-layout"><div class="st-side">${keyCard}${keysCard}</div>${form}</div>
 </section>`;
 }

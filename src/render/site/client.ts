@@ -631,6 +631,25 @@ export function clientMain(): void {
     }
     return `<span class="ti mono">${esc(String(label).replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2))}</span>`;
   };
+  /* Fix actions for a health issue: a link to the right GitHub page, plus decisions saved to the config. */
+  const FIX_URL = {
+    "no-topics": (r) => `https://github.com/${r}`,
+    "no-description": (r) => `https://github.com/${r}`,
+    "no-homepage": (r) => `https://github.com/${r}`,
+    "no-license": (r, b) => `https://github.com/${r}/community/license/new?branch=${b}&template=mit`,
+    "no-readme": (r, b) => `https://github.com/${r}/new/${b}?filename=README.md`,
+    "readme-short": (r, b) => `https://github.com/${r}/edit/${b}/README.md`,
+    "meta-invalid": (r, b) => `https://github.com/${r}/edit/${b}/.project.yml`,
+  };
+  function fixButtons(p, id) {
+    const a = p.admin;
+    if (!a || !C.admin || !C.admin.dispatch) return "";
+    const F = S.fix;
+    const btn = (act, label, extra) => `<button type="button" class="fx" data-fix="${act}" data-pid="${esc(p.id)}" data-issue="${esc(id)}"${extra || ""}>${esc(label)}</button>`;
+    if (id === "stale") return `<span class="fxs">${btn("snooze", F.keepGoing)}${btn("done", F.done)}${btn("paused", F.pause)}<a class="fx" href="https://github.com/${esc(p.repo)}/settings#danger-zone" target="_blank" rel="noopener">${esc(F.archive)}</a></span>`;
+    const url = FIX_URL[id] ? FIX_URL[id](p.repo, a.branch || "main") : "";
+    return `<span class="fxs">${url ? `<a class="fx" href="${esc(url)}" target="_blank" rel="noopener">${esc(F.fix)}</a>` : ""}${btn("ignore", F.ignore)}</span>`;
+  }
   const modal = $("#modal");
   let pushed = false, lastFocus = null;
   function openProject(id, push, tab) {
@@ -695,7 +714,8 @@ export function clientMain(): void {
           cell(X.meta, esc(m.hasMetaFile ? X.yes : X.no)),
         ].join("")}</div>` : ""}
         <h4>${esc(A.issues)}</h4>
-        ${a.issues.length ? `<ul class="m-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul>` : `<p class="m-ok">✓ ${esc(A.allGood)}</p>`}
+        ${a.issues.length ? `<ul class="m-issues">${a.issues.map((i) => `<li class="lv-${i.level}" data-issue="${esc(i.id)}" data-pid="${esc(p.id)}"><span>${esc(i.message)}</span>${fixButtons(p, i.id)}</li>`).join("")}</ul>` : `<p class="m-ok">✓ ${esc(A.allGood)}</p>`}
+        ${a.ignored && a.ignored.length ? `<p class="m-env m-ignored"><b>${esc(S.fix.ignored)}</b> ${a.ignored.map((id) => `<button type="button" class="pp-chip" data-fix="restore" data-pid="${esc(p.id)}" data-issue="${esc(id)}">${esc(S.fix.names[id] || id)} ↺</button>`).join(" ")}</p>` : ""}
         ${a.env ? `<p class="m-env"><b>${esc(A.env)}</b> ${a.env.vars.map((v) => `<code>${esc(v)}</code>`).join(" ")}${a.env.location ? ` · ${esc(A.envAt)} <b>${esc(a.env.location)}</b>` : ""}</p>` : ""}
         ${a.next.length ? `<h4>${esc(A.next)}</h4><ul class="m-next">${li(a.next)}</ul>` : ""}`;
     })() : "";
@@ -998,12 +1018,32 @@ export function clientMain(): void {
       try { await dispatch([{ op: "config", set }]); msg.textContent = "✓ " + S.settings.saved; }
       catch (err) { btn.disabled = false; msg.textContent = err.message; msg.classList.add("bad"); }
     });
-    const rb = $("#adm-refresh");
-    if (rb) rb.addEventListener("click", async () => {
-      rb.disabled = true;
-      try { await dispatch([]); rb.textContent = "✓ " + S.adminx.refreshSent; }
-      catch (e) { rb.disabled = false; toast(e.message); }
+    // Health issue decisions (ignore / snooze / mark done / pause / restore), saved to `projects:` in the config.
+    $$(".adm-issues li[data-issue]").forEach((li) => li.insertAdjacentHTML("beforeend", fixButtons(byId[li.dataset.pid], li.dataset.issue)));
+    document.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-fix]");
+      if (!b) return;
+      const p = byId[b.dataset.pid];
+      if (!p || !p.admin) return;
+      const id = b.dataset.issue, act = b.dataset.fix, key = p.admin.cfgKey;
+      const proj = {};
+      if (act === "ignore") proj.ignore = [...new Set([...(p.admin.ignored || []), id])];
+      else if (act === "restore") proj.ignore = (p.admin.ignored || []).filter((x) => x !== id);
+      else if (act === "snooze") proj.snooze = { [id]: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10) };
+      else proj.status = act;
+      b.disabled = true;
+      try {
+        await dispatch([{ op: "config", set: { projects: { [key]: proj } } }]);
+        if (proj.ignore) p.admin.ignored = proj.ignore;
+        const holder = b.closest(".fxs") || b;
+        holder.outerHTML = `<em class="fx-sent">✓ ${esc(S.fix.sent)}</em>`;
+      } catch (err) { b.disabled = false; toast(err.message); }
     });
+    $$("#adm-refresh, [data-refresh]").forEach((rb) => rb.addEventListener("click", async () => {
+      rb.disabled = true;
+      try { await dispatch([]); $$("#adm-refresh, [data-refresh]").forEach((x) => { x.disabled = true; x.textContent = "✓ " + S.adminx.refreshSent; }); }
+      catch (e) { rb.disabled = false; toast(e.message); }
+    }));
   }
   if (PR) {
     // Character count the way each platform counts (X: links = 23, CJK = 2).

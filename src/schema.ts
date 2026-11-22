@@ -306,6 +306,15 @@ export const ConfigSchema = z.object({
     includePrivate: z.boolean().default(true),
     llm: z.union([z.boolean(), z.literal("auto")]).default("auto"),
   }).prefault({}),
+  /**
+   * Per-project decisions made in the admin page (or by hand), keyed by repo name or owner/name:
+   * a status that wins over .project.yml, health checks to ignore, and checks snoozed until a date.
+   */
+  projects: z.record(z.string(), z.object({
+    status: z.enum(STATUSES).optional(),
+    ignore: z.array(z.string()).default([]),
+    snooze: z.record(z.string(), z.string()).default({}),
+  })).default({}),
   /** Where repofolio keeps state between runs (seen events, drafts, competitor cache): a branch of the hub repo. */
   state: z.object({
     branch: z.string().default("repofolio-data"),

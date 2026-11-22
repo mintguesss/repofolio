@@ -378,3 +378,12 @@ describe("health decisions", () => {
     expect(ConfigPatchSchema.safeParse({ projects: { app: { evil: 1 } } }).success).toBe(false);
   });
 });
+
+describe("settings YAML style", () => {
+  it("writes short lists in flow style without padding", async () => {
+    const { applyPatch } = await import("../src/settings.js");
+    const out = applyPatch("owners: [me]\npromote:\n  platforms: [linkedin]\n", { promote: { platforms: ["linkedin", "x"] } });
+    expect(out).toContain("owners: [me]");
+    expect(out).toContain("platforms: [linkedin, x]");
+  });
+});

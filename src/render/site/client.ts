@@ -1012,7 +1012,8 @@ export function clientMain(): void {
       const tags = $("input[name='promote.hashtags']", sf);
       if (tags && tags.value !== tags.dataset.init) put("promote.hashtags", tags.value.split(/[,，\s]+/).map((t) => t.replace(/^#/, "")).filter(Boolean));
       const plats = $$("input[name='promote.platforms']:checked", sf).map((el) => el.value);
-      if (plats.join(",") !== sf.dataset.platforms) put("promote.platforms", plats);
+      // Same set in a different order is not a change.
+      if ([...plats].sort().join(",") !== sf.dataset.platforms.split(",").filter(Boolean).sort().join(",")) put("promote.platforms", plats);
       if (!Object.keys(set).length) { msg.textContent = S.settings.nothing; return; }
       btn.disabled = true; msg.textContent = "…"; msg.classList.remove("bad");
       try { await dispatch([{ op: "config", set }]); msg.textContent = "✓ " + S.settings.saved; }

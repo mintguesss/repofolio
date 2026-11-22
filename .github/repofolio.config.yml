@@ -1,6 +1,6 @@
 # repofolio config for the live showcase at https://mintguesss.github.io/repofolio/ (also the demo of this tool)
 # Full reference: https://github.com/mintguesss/repofolio/blob/main/examples/repofolio.config.yml
-owners: [ mintguesss ]
+owners: [mintguesss]
 language: zh-TW
 staleDays: 90
 includePrivate: true # private repos only appear in the encrypted admin page
@@ -34,16 +34,8 @@ admin:
 # Promotion: drafts for new projects / releases / milestones / weekly digest, reviewed in the admin page's 📣 tab.
 promote:
   enabled: true
-  platforms:
-    - linkedin
-    - bluesky
-    - threads
-    - x
-    - devto
-    - hn
-    - reddit
-    - ptt
-  hashtags: [ buildinpublic ]
+  platforms: [linkedin, threads, bluesky, x, devto, ptt, hn, reddit]
+  hashtags: [buildinpublic]
 # Competitor analysis per project (admin page only).
 competitors:
   enabled: true

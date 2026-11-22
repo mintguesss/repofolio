@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { parseDocument } from "yaml";
+import { isSeq, parseDocument } from "yaml";
 import { z } from "zod";
 import type { GitHubClient } from "./github.js";
 import { ConfigSchema, PLATFORMS, POST_STYLES, STATUSES } from "./schema.js";
@@ -48,8 +48,13 @@ export function flatten(patch: unknown, prefix: string[] = []): [string[], unkno
 /** Apply a patch to config YAML text, keeping comments and layout. Throws if the result isn't a valid config. */
 export function applyPatch(yamlText: string, patch: ConfigPatch): string {
   const doc = parseDocument(yamlText);
-  for (const [path, value] of flatten(patch)) doc.setIn(path, value);
-  const out = doc.toString();
+  for (const [path, value] of flatten(patch)) {
+    // Keep short lists on one line ([a, b]) like the rest of the file.
+    const node = doc.createNode(value);
+    if (isSeq(node) && (value as unknown[]).every((v) => typeof v !== "object")) node.flow = true;
+    doc.setIn(path, node);
+  }
+  const out = doc.toString({ flowCollectionPadding: false });
   const check = ConfigSchema.safeParse(parseDocument(out).toJS() ?? {});
   if (!check.success) throw new Error(`settings: the change makes the config invalid (${check.error.issues[0]?.path.join(".")}: ${check.error.issues[0]?.message})`);
   return out;

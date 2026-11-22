@@ -354,3 +354,27 @@ describe("settings from the admin page", () => {
     expect(parseRequests('[{"op":"config","set":{"competitors":{"count":3}}}]')).toEqual([{ op: "config", set: { competitors: { count: 3 } } }]);
   });
 });
+
+describe("health decisions", () => {
+  it("skips project-only checks for the profile README repo", async () => {
+    const { checkHealth } = await import("../src/health.js");
+    const ids = checkHealth(rec("me", { topics: [], license: null, stale: true, daysSincePush: 93 })).map((i) => i.id);
+    expect(ids).not.toContain("no-topics");
+    expect(ids).not.toContain("no-license");
+    expect(ids).not.toContain("stale");
+    expect(checkHealth(rec("app", { topics: [], license: null })).map((i) => i.id)).toEqual(expect.arrayContaining(["no-topics", "no-license"]));
+  });
+
+  it("applies ignored and snoozed checks from projects: in the config", async () => {
+    const { finalize } = await import("../src/scan.js");
+    const c = ConfigSchema.parse({ urlCheck: { enabled: false }, projects: { app: { ignore: ["no-license"], snooze: { "no-topics": "2999-01-01" } } } });
+    const r = rec("app", { topics: [], license: null });
+    await finalize([r], c);
+    const ids = r.health.map((i) => i.id);
+    expect(ids).not.toContain("no-license");
+    expect(ids).not.toContain("no-topics");
+    const { ConfigPatchSchema } = await import("../src/settings.js");
+    expect(ConfigPatchSchema.safeParse({ projects: { app: { status: "done", ignore: ["stale"] } } }).success).toBe(true);
+    expect(ConfigPatchSchema.safeParse({ projects: { app: { evil: 1 } } }).success).toBe(false);
+  });
+});

@@ -12,17 +12,19 @@ export function checkHealth(r: HealthInput, lang: Lang = "en"): HealthIssue[] {
   const add = (id: string, level: HealthIssue["level"], en: string, tw: string) =>
     issues.push({ id, level, message: zh ? tw : en });
   const live = r.status !== "archived";
+  // The profile README repo (me/me) is not a project: topics, licence, staleness and deploy checks don't apply.
+  const profile = r.name.toLowerCase() === r.owner.toLowerCase();
 
   if (!r.readme) add("no-readme", "error", "No README", "沒有 README");
   else if (r.readme.length < 300)
     add("readme-short", "warn", `README is very short (${r.readme.length} chars)`, `README 太短（${r.readme.length} 字元），別人看不懂這是什麼`);
 
-  if (!r.description) add("no-description", "warn", "Repo has no description (About field)", "GitHub repo 沒有 description（About 欄位）");
-  if (r.topics.length === 0 && !r.private) add("no-topics", "warn", "No topics, so it's hard to find in GitHub search", "沒有 topics，GitHub 搜尋不到");
-  if (!r.license && !r.private) add("no-license", "warn", "Public repo without a LICENSE", "公開 repo 沒有 LICENSE，別人無法合法使用");
+  if (!r.description && !profile) add("no-description", "warn", "Repo has no description (About field)", "GitHub repo 沒有 description（About 欄位）");
+  if (r.topics.length === 0 && !r.private && !profile) add("no-topics", "warn", "No topics, so it's hard to find in GitHub search", "沒有 topics，GitHub 搜尋不到");
+  if (!r.license && !r.private && !profile) add("no-license", "warn", "Public repo without a LICENSE", "公開 repo 沒有 LICENSE，別人無法合法使用");
 
   const urls = r.deployments.filter((d) => d.url);
-  if (urls.length > 0 && !r.homepage && !r.private) {
+  if (urls.length > 0 && !r.homepage && !r.private && !profile) {
     add("no-homepage", "info", `Found deployment ${urls[0]!.url} but the repo's Website field is empty`, `偵測到部署網址 ${urls[0]!.url}，但 repo 的 Website 欄位是空的`);
   }
   const hinted = r.deployments.filter((d) => !d.url && d.provider && !["docker", "npm", "pypi"].includes(d.provider));
@@ -36,8 +38,8 @@ export function checkHealth(r: HealthInput, lang: Lang = "en"): HealthIssue[] {
     }
   }
 
-  if (r.stale) add("stale", "warn", `No pushes for ${r.daysSincePush} days: keep going, mark done, or archive?`, `${r.daysSincePush} 天沒有更新，要繼續、標記完成，還是封存？`);
-  if (!r.hasMetaFile) add("no-meta", "info", "No .project.yml (run `repofolio init`)", "沒有 .project.yml（用 `repofolio init` 產生）");
+  if (r.stale && !profile) add("stale", "warn", `No pushes for ${r.daysSincePush} days: keep going, mark done, or archive?`, `${r.daysSincePush} 天沒有更新，要繼續、標記完成，還是封存？`);
+  if (!r.hasMetaFile && !profile) add("no-meta", "info", "No .project.yml (run `repofolio init`)", "沒有 .project.yml（用 `repofolio init` 產生）");
   for (const p of r.metaProblems) add("meta-invalid", "warn", `.project.yml problem: ${p}`, `.project.yml 格式問題：${p}`);
 
   for (const v of r.meta.env?.vars ?? []) {

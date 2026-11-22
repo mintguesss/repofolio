@@ -146,11 +146,12 @@ function adminSection(d: ShowcaseData, s: SiteStrings, idx: number, extras?: Adm
   const rows = list
     .map((p) => {
       const a = p.admin!;
-      return `<li class="adm-row reveal"><button type="button" class="adm-name" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.shown ? "" : `<span class="pill">${esc(A.hidden)}</span>`}<span class="hp" style="--hc:${healthColor(a.health)}"><b>${a.health}</b></span></button><ul class="adm-issues">${a.issues.map((i) => `<li class="lv-${i.level}">${esc(i.message)}</li>`).join("")}</ul></li>`;
+      return `<li class="adm-row reveal"><button type="button" class="adm-name" data-open="${esc(p.id)}"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒 ${esc(A.private)}</span>` : ""}${a.shown ? "" : `<span class="pill">${esc(A.hidden)}</span>`}<span class="hp" style="--hc:${healthColor(a.health)}"><b>${a.health}</b></span></button><ul class="adm-issues">${a.issues.map((i) => `<li class="lv-${i.level}" data-issue="${esc(i.id)}" data-pid="${esc(p.id)}"><span>${esc(i.message)}</span></li>`).join("")}</ul></li>`;
     })
     .join("");
   const ok = ps.length - list.length;
   return `<section id="admin" class="sec">${sectionHead("admin", A.title, A.sub, idx)}
+${extras?.dispatch ? `<div class="adm-tools reveal"><span>${esc(s.adminx.updated)} <b data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 16).replace("T", " "))}</b></span><button type="button" class="btn primary" data-refresh>⟳ ${esc(s.fix.now)}</button></div>` : ""}
 ${tokenBox(extras?.dispatch, s)}
 <div class="stat-grid kpi6">${kpi(A.repos, ps.length)}${kpi(A.private, count((p) => p.private))}${kpi(A.hidden, count((p) => !p.admin!.shown))}${kpi(A.errors, errors, errors > 0)}${kpi(A.warns, lv("warn"))}${kpi(A.down, down, down > 0)}</div>
 ${adminOverview(d, s, extras)}
@@ -380,6 +381,11 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
   const s = siteStrings(lang);
   const d = buildShowcase(inv, config, admin);
   const extras = admin ? opts.extras : undefined;
+  if (admin) for (const p of d.projects) {
+    if (!p.admin) continue;
+    if (!config.projects[p.admin.cfgKey] && config.projects[p.repo]) p.admin.cfgKey = p.repo;
+    p.admin.ignored = config.projects[p.admin.cfgKey]?.ignore ?? [];
+  }
   if (extras?.competitors) for (const p of d.projects) if (p.admin && extras.competitors.reports[p.repo]) p.admin.competitors = extras.competitors.reports[p.repo];
   if (extras?.promote) for (const p of d.projects) {
     const mine = extras.promote.posts.filter((x) => x.event.repo === p.repo);

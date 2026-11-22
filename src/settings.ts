@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseDocument } from "yaml";
 import { z } from "zod";
 import type { GitHubClient } from "./github.js";
-import { ConfigSchema, PLATFORMS, POST_STYLES } from "./schema.js";
+import { ConfigSchema, PLATFORMS, POST_STYLES, STATUSES } from "./schema.js";
 
 /** Models offered in the admin settings page. Any model id still works when written into the config by hand. */
 export const MODEL_CHOICES = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"] as const;
@@ -23,6 +23,14 @@ export const ConfigPatchSchema = z.object({
     hashtags: z.array(z.string().regex(/^[\p{L}\p{N}_]{1,40}$/u)).max(10).optional(),
     events: z.object({ weekly: z.union([z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]), z.literal(false)]).optional() }).optional(),
   }).optional(),
+  projects: z.record(
+    z.string().regex(/^[\w.-]+(\/[\w.-]+)?$/),
+    z.object({
+      status: z.enum(STATUSES).optional(),
+      ignore: z.array(z.string().regex(/^[a-z-]+$/)).max(30).optional(),
+      snooze: z.record(z.string().regex(/^[a-z-]+$/), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+    }).strict(),
+  ).optional(),
   competitors: z.object({
     enabled: bool,
     refreshDays: z.number().int().min(1).max(90).optional(),

@@ -59,7 +59,11 @@ export interface PublicProject {
 export interface AdminInfo {
   shown: boolean;
   health: number;
-  issues: { level: "error" | "warn" | "info"; message: string }[];
+  issues: { id: string; level: "error" | "warn" | "info"; message: string }[];
+  /** Key under `projects:` in the config for this repo, and the checks ignored there. */
+  cfgKey: string;
+  ignored: string[];
+  branch: string;
   env?: { location?: string; vars: string[] };
   next: string[];
   cost?: string;
@@ -183,7 +187,10 @@ export function toAdmin(r: RepoRecord): PublicProject {
     admin: {
       shown: r.showcase,
       health: r.healthScore,
-      issues: r.health.filter((i) => i.level !== "info").map((i) => ({ level: i.level, message: i.message })),
+      issues: r.health.filter((i) => i.level !== "info").map((i) => ({ id: i.id, level: i.level, message: i.message })),
+      cfgKey: r.name,
+      ignored: [],
+      branch: r.defaultBranch,
       env: r.meta.env ? { location: r.meta.env.location, vars: r.meta.env.vars } : undefined,
       next: r.meta.next,
       cost: r.meta.cost?.monthly != null ? `${r.meta.cost.monthly} ${r.meta.cost.currency}/mo` : r.meta.cost?.notes,

@@ -408,6 +408,17 @@ body[data-mode="simple"] .tl-beam::after,body[data-mode="simple"] .tl-comet{disp
 body:not([data-anim="off"]) .tl-item.L .tl-card,body:not([data-anim="off"]) .tl-item.R .tl-card{transform:translateX(24px)}
 .tl-end{justify-content:flex-start;padding-left:16px}
 }
+.adm-tools{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 20px;margin:0 0 22px;padding:14px 18px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:var(--radius);background:color-mix(in srgb,var(--accent) 6%,var(--card))}
+.adm-tools span{color:var(--muted);font-size:.86rem}
+.adm-tools b{color:var(--fg);font-family:var(--mono);font-weight:600}
+.adm-tools .btn{padding:9px 18px}
+.fxs{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 2px}
+.fx{padding:3px 10px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--fg);font-size:.74rem;line-height:1.6;cursor:pointer;text-decoration:none!important;transition:border-color .2s,color .2s}
+.fx:hover{border-color:var(--accent);color:var(--accent)}
+.fx:disabled{opacity:.5;cursor:wait}
+.fx-sent{display:block;margin-top:6px;font-size:.76rem;color:#22c55e;font-style:normal}
+.adm-issues li,.m-issues li{display:block}
+.m-ignored{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 /* ── admin: settings ── */
 .st-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:24px;align-items:start}
 @media (max-width:900px){.st-layout{grid-template-columns:minmax(0,1fr)}}

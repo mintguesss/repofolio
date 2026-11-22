@@ -208,9 +208,11 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
   }
 
   const daysSincePush = Math.max(0, Math.floor((now.getTime() - Date.parse(gh.pushed_at)) / 86_400_000));
-  const statusInferred = !meta.status;
-  const status = meta.status ?? inferStatus({ archived: gh.archived, daysSincePush, staleDays: config.staleDays });
-  const stale = !gh.archived && daysSincePush > config.staleDays && !["done", "archived", "paused", "idea"].includes(meta.status ?? "");
+  const override = config.projects[gh.name] ?? config.projects[full];
+  const chosen = override?.status ?? meta.status;
+  const statusInferred = !chosen;
+  const status = chosen ?? inferStatus({ archived: gh.archived, daysSincePush, staleDays: config.staleDays });
+  const stale = !gh.archived && daysSincePush > config.staleDays && !["done", "archived", "paused", "idea"].includes(chosen ?? "");
   // The profile README repo (me/me) and backups aren't projects to show off.
   const isProfileRepo = gh.name.toLowerCase() === gh.owner.login.toLowerCase();
   const showcase = meta.showcase ?? (!gh.fork && !isProfileRepo && !/[-_](backup|old|bak)$/i.test(gh.name) && (!gh.private || config.site.includePrivate));
@@ -261,8 +263,10 @@ export async function finalize(records: RepoRecord[], config: Config): Promise<v
     const results = new Map(await pool(urls, 8, async (u) => [u, await checkUrl(u, config.urlCheck.timeoutMs)] as const));
     for (const r of records) for (const d of r.deployments) if (d.url) d.check = results.get(d.url);
   }
+  const today = new Date().toISOString().slice(0, 10);
   for (const r of records) {
-    r.health = checkHealth(r, config.language);
+    const o = config.projects[r.name] ?? config.projects[r.fullName];
+    r.health = checkHealth(r, config.language).filter((i) => !o || (!o.ignore.includes(i.id) && !(o.snooze[i.id] && o.snooze[i.id]! >= today)));
     r.healthScore = healthScore(r.health);
   }
 }

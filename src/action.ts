@@ -6,6 +6,7 @@ import { openStaleIssues } from "./issues.js";
 import { publishSite } from "./publish.js";
 import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { redact, writeOutputs, summaryLine } from "./run.js";
+import { AI_FEATURES, AiMeter, type AiFeature } from "./ai.js";
 import { analyzeCompetitors } from "./competitors.js";
 import { attachBriefs, writeIntros } from "./intro.js";
 import { parseRequests, runPromote } from "./promote/index.js";
@@ -34,8 +35,30 @@ async function run() {
   if (bool("llm", config.llm.enabled)) config.llm.enabled = true;
 
   const client = new GitHubClient({ token, userAgent: `repofolio-action/${VERSION}` });
-  const summarizer = config.llm.enabled
-    ? new Summarizer({ model: config.llm.model, lang: config.language, cachePath: join(outDir, ".cache", "summaries.json") })
+  const hub = process.env.GITHUB_REPOSITORY;
+  const password = process.env.REPOFOLIO_ADMIN_PASSWORD;
+  const env = process.env as Record<string, string | undefined>;
+  const requests = parseRequests(input("posts"), (m) => console.log(m));
+  const wantCompetitors = config.competitors.enabled && config.admin.enabled;
+  const hasClaude = !!env.ANTHROPIC_API_KEY;
+
+  // State (post queue, competitor cache, intros, Claude usage) lives on a branch of the hub repo.
+  // Loaded before the scan so README summaries count towards the monthly Claude budget too.
+  const useState = !!hub && (config.promote.enabled || requests.length > 0 || wantCompetitors || hasClaude);
+  const store = useState
+    ? new GitHubStateStore(new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` }), hub!, config.state.branch, password)
+    : undefined;
+  let state: State = emptyState();
+  if (store) {
+    try {
+      state = await store.load();
+    } catch (e) {
+      console.log(`::warning::state: can't read the ${config.state.branch} branch (${(e as Error).message.slice(0, 160)}); starting fresh`);
+    }
+  }
+  const meter = new AiMeter(config, state.usage, env, (m) => console.log(m));
+  const summarizer = meter.configured("summaries") && hasClaude
+    ? new Summarizer({ model: meter.model("summaries"), lang: config.language, cachePath: join(outDir, ".cache", "summaries.json"), meter })
     : undefined;
 
   // Logs of a public repo are public: mask every private repo name before anything can print it.
@@ -47,8 +70,6 @@ async function run() {
   summarizer?.save();
 
   // Safety: if the hub repo itself is public, never write private details into it.
-  const hub = process.env.GITHUB_REPOSITORY;
-  const password = process.env.REPOFOLIO_ADMIN_PASSWORD;
   const hubRepo = hub ? await client.get<{ private: boolean }>(`/repos/${hub}`).catch(() => null) : null;
   if (hubRepo && !hubRepo.private && inv.repos.some((r) => r.private)) {
     // Public repo: plaintext outputs never get private repos; only the encrypted admin page sees them.
@@ -57,32 +78,18 @@ async function run() {
   }
   const encrypted = !!password && config.admin.mode !== "repo";
 
-  // Promotion + competitor analysis keep state on a branch of the hub repo.
   const extras: AdminExtras = {};
   const wf = /\/\.github\/workflows\/([^@]+)@/.exec(process.env.GITHUB_WORKFLOW_REF ?? "")?.[1];
   if (hub && wf) extras.dispatch = { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" };
-  const requests = parseRequests(input("posts"), (m) => console.log(m));
-  const wantCompetitors = config.competitors.enabled && config.admin.enabled;
-  const hasClaude = !!process.env.ANTHROPIC_API_KEY;
-  if (hub && (config.promote.enabled || requests.length || wantCompetitors || hasClaude)) {
+  if (store) {
     // Private repos may only enter the state when nobody else can read it: encrypted, or a private hub.
     const allowPrivate = !!password || hubRepo?.private === true;
-    const stateClient = new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` });
-    const store = new GitHubStateStore(stateClient, hub, config.state.branch, password);
-    let state: State;
-    try {
-      state = await store.load();
-    } catch (e) {
-      console.log(`::warning::state: can't read the ${config.state.branch} branch (${(e as Error).message.slice(0, 160)}); starting fresh`);
-      state = emptyState();
-    }
-    const env = process.env as Record<string, string | undefined>;
     // Short bilingual intros (Claude), before drafting so posts can use the feature list.
-    if (hasClaude) await writeIntros(full.repos, { state, model: config.llm.model, allowPrivate, log: (m) => console.log(m) }).catch((e) => console.log(`::warning::intros: ${(e as Error).message.slice(0, 200)}`));
+    if (meter.allowed("intros")) await writeIntros(full.repos, { state, meter, allowPrivate, log: (m) => console.log(m) }).catch((e) => console.log(`::warning::intros: ${(e as Error).message.slice(0, 200)}`));
     attachBriefs(full.repos, state, config.language);
     attachBriefs(inv.repos, state, config.language);
     if (config.promote.enabled || requests.length) {
-      const res = await runPromote({ inv: full, config, state, requests, env, log: (m) => console.log(m) });
+      const res = await runPromote({ inv: full, config, state, requests, env, meter, log: (m) => console.log(m) });
       extras.promote = {
         enabled: config.promote.enabled,
         platforms: config.promote.platforms,
@@ -91,8 +98,7 @@ async function run() {
       };
     }
     if (wantCompetitors) {
-      const useLlm = config.competitors.llm === true || (config.competitors.llm === "auto" && !!process.env.ANTHROPIC_API_KEY);
-      await analyzeCompetitors(full.repos, { config, client, state, allowPrivate, llm: useLlm && !!process.env.ANTHROPIC_API_KEY, log: (m) => console.log(m) })
+      await analyzeCompetitors(full.repos, { config, client, state, allowPrivate, llm: config.competitors.llm !== false && meter.configured("competitors") && hasClaude, meter, log: (m) => console.log(m) })
         .catch((e) => console.log(`::warning::competitors: ${(e as Error).message.slice(0, 200)}`));
       extras.competitors = { enabled: true, reports: state.competitors };
     }
@@ -102,12 +108,15 @@ async function run() {
       for (const k of Object.keys(state.competitors)) if (!pub.has(k)) delete state.competitors[k];
       for (const k of Object.keys(state.intros)) if (!pub.has(k)) delete state.intros[k];
     }
+    const m = meter.month();
+    if (m.calls) console.log(`claude: ${m.calls} call(s) this month, $${m.usd.toFixed(3)}${meter.budget ? ` of $${meter.budget}` : ""}`);
     try {
       await store.save(state);
     } catch (e) {
       console.log(`::warning::state: can't write the ${config.state.branch} branch; give the workflow "permissions: contents: write" (${(e as Error).message.slice(0, 160)})`);
     }
   }
+  extras.ai = { hasKey: hasClaude, model: config.llm.model, budget: meter.budget, features: Object.fromEntries(AI_FEATURES.map((f) => [f, meter.configured(f)])) as Record<AiFeature, boolean>, usage: state.usage };
 
   const out = writeOutputs(inv, config, outDir, { adminInv: encrypted ? full : inv, extras, log: (m) => console.log(m) });
   const line = summaryLine(inv);

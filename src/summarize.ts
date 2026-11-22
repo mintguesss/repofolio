@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import type { AiMeter } from "./ai.js";
 import type { Lang } from "./i18n.js";
 
 const SummarySchema = z.object({
@@ -22,8 +23,8 @@ export class Summarizer {
   private cache: Cache;
   calls = 0;
 
-  constructor(private readonly opts: { model: string; lang: Lang; cachePath: string }) {
-    this.client = new Anthropic();
+  constructor(private readonly opts: { model: string; lang: Lang; cachePath: string; meter?: AiMeter }) {
+    this.client = opts.meter ? opts.meter.client() : new Anthropic();
     this.cache = existsSync(opts.cachePath) ? (JSON.parse(readFileSync(opts.cachePath, "utf8")) as Cache) : {};
   }
 
@@ -34,8 +35,10 @@ export class Summarizer {
     const language = this.opts.lang === "zh-TW" ? "Traditional Chinese (Taiwan, 繁體中文)" : "English";
     this.calls++;
     try {
+      if (this.opts.meter && !this.opts.meter.allowed("summaries")) return null;
+      const model = this.opts.meter?.model("summaries") ?? this.opts.model;
       const response = await this.client.messages.parse({
-        model: this.opts.model,
+        model,
         max_tokens: 2000,
         output_config: { effort: "low", format: zodOutputFormat(SummarySchema) },
         system:
@@ -50,6 +53,7 @@ export class Summarizer {
           },
         ],
       });
+      this.opts.meter?.record("summaries", model, response.usage);
       if (response.stop_reason === "refusal" || !response.parsed_output) return null;
       const summary = response.parsed_output;
       this.cache[fullName] = { sha, lang: this.opts.lang, summary };

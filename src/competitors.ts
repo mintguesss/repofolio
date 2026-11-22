@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import type { AiMeter } from "./ai.js";
 import type { GitHubClient } from "./github.js";
 import type { Lang } from "./i18n.js";
 import type { Config } from "./schema.js";
@@ -197,6 +198,8 @@ export interface CompetitorOptions {
   /** May private repos be analysed (only when the state and admin page are private / encrypted). */
   allowPrivate: boolean;
   llm: boolean;
+  /** Claude access, model and budget. Required when llm is true. */
+  meter?: AiMeter;
   log?: (m: string) => void;
   now?: Date;
   /** Pause between search requests (search API: 30/min). */
@@ -228,7 +231,8 @@ export async function analyzeCompetitors(repos: RepoRecord[], o: CompetitorOptio
     .filter(({ r, rep }) => !rep || rep.sig !== reportSig(r) || daysSince(rep.at, now) >= cfg.refreshDays || (o.llm && rep.v !== 2))
     .sort((a, b) => (a.rep ? Date.parse(a.rep.at) : 0) - (b.rep ? Date.parse(b.rep.at) : 0))
     .slice(0, cfg.perRun);
-  const ai = o.llm ? new Anthropic() : undefined;
+  const ai = o.llm && o.meter ? o.meter.client() : undefined;
+  const aiModel = o.meter?.model("competitors") ?? o.config.llm.model;
   let n = 0;
   for (const { r } of due) {
     const terms = searchTerms(r);
@@ -252,12 +256,12 @@ export async function analyzeCompetitors(repos: RepoRecord[], o: CompetitorOptio
     const used = tries.join(" | ");
     let report: CompetitorReport = { repo: r.fullName, at: now.toISOString(), sig: reportSig(r), query: used, items, ...compareRules(r, items, lang, now), source: items.length ? "rules" : "none", v: 2 };
     const shortlist = ranked.slice(0, 12).map((x) => toCompetitor(x.item));
-    if (ai && shortlist.length) {
+    if (ai && shortlist.length && o.meter!.allowed("competitors")) {
       try {
         const readmes = await Promise.all(shortlist.slice(0, 5).map((c) => o.client.getText(`/repos/${c.fullName}/readme`).then((t) => (t ?? "").slice(0, 2500)).catch(() => "")));
         const language = lang === "zh-TW" ? "Traditional Chinese (Taiwan, 繁體中文); keep project and tech names in English" : "English";
         const res = await ai.messages.parse({
-          model: o.config.llm.model,
+          model: aiModel,
           max_tokens: 4000,
           output_config: { effort: "low", format: zodOutputFormat(AnalysisSchema) },
           system:
@@ -278,6 +282,7 @@ ${JSON.stringify(shortlist.map((c, i) => ({ ...c, readme: readmes[i] || undefine
 </candidates>`,
           }],
         });
+        o.meter!.record("competitors", aiModel, res.usage);
         const out = res.parsed_output;
         if (out && res.stop_reason !== "refusal") {
           const chosen = new Set(out.competitors);

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import type { AiMeter } from "../ai.js";
 import type { Lang } from "../i18n.js";
 import { PLATFORMS, type Platform, type PostStyle } from "../schema.js";
 import type { DraftText, PostEvent } from "../state.js";
@@ -164,19 +165,21 @@ const DraftSchema = z.object({
 export class Copywriter {
   private client?: Anthropic;
   calls = 0;
-  constructor(private readonly opts: { lang: Lang; model: string; llm: boolean; hashtags: string[]; log?: (m: string) => void }) {
-    if (opts.llm) this.client = new Anthropic();
+  constructor(private readonly opts: { lang: Lang; meter?: AiMeter; llm: boolean; hashtags: string[]; log?: (m: string) => void }) {
+    if (opts.llm && opts.meter) this.client = opts.meter.client();
   }
 
   async write(ev: PostEvent, platforms: Platform[], styleIn: PostStyle = "auto"): Promise<{ drafts: Partial<Record<Platform, DraftText>>; source: "llm" | "template"; style: Exclude<PostStyle, "auto"> }> {
     const style = styleIn === "auto" ? autoStyle(ev.kind) : styleIn;
     const tpl = Object.fromEntries(platforms.map((p) => [p, templateDraft(ev, p, this.opts.lang, this.opts.hashtags, style)])) as Partial<Record<Platform, DraftText>>;
-    if (!this.client) return { drafts: tpl, source: "template", style };
+    const meter = this.opts.meter;
+    if (!this.client || !meter || !meter.allowed("drafts")) return { drafts: tpl, source: "template", style };
+    const model = meter.model("drafts");
     const language = this.opts.lang === "zh-TW" ? "Traditional Chinese (Taiwan, 繁體中文); keep tech names in English" : "English";
     this.calls++;
     try {
       const res = await this.client.messages.parse({
-        model: this.opts.model,
+        model,
         max_tokens: 8000,
         output_config: { effort: "low", format: zodOutputFormat(DraftSchema) },
         system:
@@ -191,6 +194,7 @@ export class Copywriter {
           (this.opts.hashtags.length ? `\nAlways include these hashtags where hashtags fit: ${this.opts.hashtags.map((h) => "#" + h).join(" ")}` : ""),
         messages: [{ role: "user", content: `Event: ${ev.kind}\nTitle: ${ev.title}\n<facts>\n${JSON.stringify(ev.facts, null, 1).slice(0, 12000)}\n</facts>\n\nWrite one post for each of: ${platforms.join(", ")}.` }],
       });
+      meter.record("drafts", model, res.usage);
       if (res.stop_reason === "refusal" || !res.parsed_output) return { drafts: tpl, source: "template", style };
       const out: Partial<Record<Platform, DraftText>> = { ...tpl };
       for (const d of res.parsed_output.posts) {

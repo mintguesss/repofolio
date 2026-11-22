@@ -301,3 +301,27 @@ describe("competitor feature table and steps", () => {
     expect(r.steps!.map((x) => x.title).join(" ")).toContain("#anki");
   });
 });
+
+describe("Claude usage meter", () => {
+  it("prices calls, honours per-feature switches, model overrides and the monthly budget", async () => {
+    const { AiMeter, costOf } = await import("../src/ai.js");
+    expect(costOf("claude-sonnet-5-5", { input_tokens: 1_000_000, output_tokens: 100_000 })).toBeCloseTo(3);
+    const c = ConfigSchema.parse({ llm: { monthlyBudget: 1, features: { competitors: false }, models: { drafts: "claude-opus-5-5" } } });
+    expect(c.llm.model).toBe("claude-sonnet-5-5");
+    const usage: import("../src/ai.js").UsageMonth[] = [];
+    const logs: string[] = [];
+    const m = new AiMeter(c, usage, { ANTHROPIC_API_KEY: "k" }, (x) => logs.push(x), () => NOW);
+    expect(m.allowed("drafts")).toBe(true);
+    expect(m.allowed("competitors")).toBe(false);
+    expect(m.allowed("summaries")).toBe(false);
+    expect(m.model("drafts")).toBe("claude-opus-5-5");
+    expect(m.model("intros")).toBe("claude-sonnet-5-5");
+    m.record("drafts", "claude-opus-5-5", { input_tokens: 100_000, output_tokens: 40_000 });
+    expect(usage[0]).toMatchObject({ month: "2026-11", calls: 1 });
+    expect(usage[0]!.usd).toBeCloseTo(1.2);
+    expect(m.allowed("intros")).toBe(false);
+    expect(usage[0]!.cappedAt).toBeDefined();
+    expect(logs.join(" ")).toMatch(/budget reached/);
+    expect(new AiMeter(c, [], {}).allowed("drafts")).toBe(false);
+  });
+});

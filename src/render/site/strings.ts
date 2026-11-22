@@ -113,6 +113,7 @@ const en = {
   styles: { label: "Style", redraft: "Rewriting in this style. The new draft appears after the run (about 2 minutes).", names: { auto: "Auto", launch: "Launch", story: "Build story", deepdive: "Deep dive", recruiter: "Recruiter-friendly", short: "Short update" }, hints: { auto: "Picked per event", launch: "What you shipped, the problem, features, try it", story: "Why you built it, what was hard, what's next", deepdive: "One technical part, start to finish", recruiter: "The project as evidence of your skills, open to talk", short: "1–3 lines and the link" } },
   tabs: { overview: "Overview", intro: "About", data: "Numbers", rivals: "Competitors", posts: "Posts", original: "original text", noPosts: "No posts about this project yet." },
   rv2: { matrix: "Feature comparison", steps: "What to do next", list: "Competitors", mine: "You", rank: "Star rank", effort: "Effort", impact: "Impact", sizes: { S: "small", M: "medium", L: "large" }, levels: { high: "high", medium: "medium", low: "low" }, yes: "Has it", partial: "Partly", no: "Doesn't have it", top: "Top competitor", next: "Next step", open: "Details" },
+  ai: { title: "Claude usage", month: "This month", budget: "budget", noCap: "no cap", calls: "calls", tokens: "tokens in / out", model: "Model", off: "Optional: add an ANTHROPIC_API_KEY secret to turn these on. Without it, templates and rules are used.", capped: "Budget reached: using templates until next month", features: { summaries: "README summaries", intros: "Project intros", drafts: "Post drafts", competitors: "Competitor analysis" }, on: "on", offLabel: "off" },
   private: "private",
 };
 
@@ -231,6 +232,7 @@ const zh: SiteStrings = {
   styles: { label: "風格", redraft: "正在用這個風格重寫，跑完後（約 2 分鐘）新草稿會出現在這裡。", names: { auto: "自動", launch: "成果發表", story: "開發故事", deepdive: "技術拆解", recruiter: "求職導向", short: "簡短更新" }, hints: { auto: "依事件自動選", launch: "做了什麼、解決什麼問題、功能、歡迎試用", story: "為什麼做、卡在哪、下一步", deepdive: "挑一個技術細節從頭講到尾", recruiter: "把專案當成能力證明，表示願意聊聊", short: "一到三行加連結" } },
   tabs: { overview: "總覽", intro: "介紹", data: "數據", rivals: "競品", posts: "貼文", original: "原文", noPosts: "還沒有關於這個專案的貼文。" },
   rv2: { matrix: "功能比較", steps: "下一步", list: "競品列表", mine: "你", rank: "星星排名", effort: "工作量", impact: "效益", sizes: { S: "小", M: "中", L: "大" }, levels: { high: "高", medium: "中", low: "低" }, yes: "有", partial: "部分", no: "沒有", top: "最強競品", next: "下一步", open: "詳細" },
+  ai: { title: "Claude 用量", month: "本月", budget: "上限", noCap: "不設上限", calls: "次呼叫", tokens: "token 讀入 / 產出", model: "模型", off: "選用功能：在 repo secrets 加上 ANTHROPIC_API_KEY 才會啟用；沒有的話一律用模板和規則。", capped: "已達本月上限：下個月前改用模板", features: { summaries: "README 摘要", intros: "專案簡介", drafts: "發文草稿", competitors: "競品分析" }, on: "開", offLabel: "關" },
   private: "私有",
 };
 

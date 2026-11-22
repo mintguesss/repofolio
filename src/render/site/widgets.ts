@@ -135,7 +135,7 @@ function cover(p: PublicProject, cls: string, eager = false): string {
     : `<div class="${cls} noimg"><span aria-hidden="true">${letter}</span></div>`;
 }
 
-export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, lang: string): string {
+export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, lang: string, style: "drum" | "channel" = "drum"): string {
   const list = [...d.projects].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
   if (!list.length) return "";
   const techOf = (p: PublicProject) => [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])].slice(0, 3);
@@ -157,7 +157,7 @@ export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, l
   const items = [0, 1, 2].map((k) => ordered.map((p, i) => item(p, i + k * n, k !== 1)).join("")).join("");
 
   return `<section id="timeline" class="sec">${head}
-<div class="tlr" id="tlr" data-n="${n}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
+<div class="tlr ${style}" id="tlr" data-n="${n}" tabindex="0" aria-roledescription="carousel" aria-label="${esc(s.timeline)}">
 <div class="tlr-stage">
 <div class="tlr-axis" aria-hidden="true"><b></b><i></i><i></i><i></i><em></em></div>
 <div class="tlr-gate" aria-hidden="true"></div>

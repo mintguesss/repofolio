@@ -165,6 +165,8 @@ export const SiteSchema = z.object({
   sections: z.array(z.enum(SECTIONS)).default([...DEFAULT_SECTIONS]),
   /** Put every section on one long page instead of separate pages (home, projects, stack, …). */
   singlePage: z.boolean().default(false),
+  /** Timeline look: drum = cards on a 3D wheel around the centre axis; channel = a glowing channel the cards roll past. */
+  timelineStyle: z.enum(["drum", "channel"]).default("drum"),
   /** Let visitors open the ⚙ panel and play with the theme (their choice is saved in their browser). */
   customizer: z.boolean().default(true),
   /** Canonical URL of the published site (for og:url and the profile "All projects" link). */
@@ -198,11 +200,36 @@ export const ConfigSchema = z.object({
   }).default({ enabled: true, timeoutMs: 10000 }),
   /** Language for reports, health messages and LLM summaries. */
   language: z.enum(["en", "zh-TW"]).default("en"),
+  /**
+   * Claude (optional). Nothing is ever sent unless the ANTHROPIC_API_KEY secret is set; without it every
+   * feature falls back to templates and rules. Usage and cost are recorded per month on the state branch.
+   */
   llm: z.object({
-    /** Summarise READMEs with Claude. Needs ANTHROPIC_API_KEY. Cached by README sha. */
+    /** Model for every feature. Sonnet 5.5 ≈ $2 / $10 per million tokens in / out. */
+    model: z.string().default("claude-sonnet-5-5"),
+    /** Per-feature model override, e.g. { competitors: claude-opus-5-5 }. */
+    models: z.object({
+      summaries: z.string().optional(),
+      intros: z.string().optional(),
+      drafts: z.string().optional(),
+      competitors: z.string().optional(),
+    }).prefault({}),
+    /** Which features may use Claude. */
+    features: z.object({
+      /** One-line README summaries for the catalog (off by default: the GitHub description usually does). */
+      summaries: z.boolean().default(false),
+      /** Short bilingual project intros from each README. */
+      intros: z.boolean().default(true),
+      /** Post drafts in your chosen style. */
+      drafts: z.boolean().default(true),
+      /** Picking real competitors, the feature table and next steps. */
+      competitors: z.boolean().default(true),
+    }).prefault({}),
+    /** Stop calling Claude once this month's spend reaches this many USD (0 = no cap). */
+    monthlyBudget: z.number().min(0).default(5),
+    /** Older configs: same as features.summaries. */
     enabled: z.boolean().default(false),
-    model: z.string().default("claude-opus-5-5"),
-  }).default({ enabled: false, model: "claude-opus-5-5" }),
+  }).prefault({}),
   /** Fetch 52-week commit activity per repo (one extra request each). */
   activity: z.boolean().default(true),
   /** Cover image per repo (name or owner/name → image URL). Wins over README screenshots; private repos never get one. */

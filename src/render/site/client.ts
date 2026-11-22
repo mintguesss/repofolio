@@ -455,7 +455,123 @@ export function clientMain(): void {
 
   /* ───────── timeline: centre axis that rolls downward on its own and loops ───────── */
   const tlr = $("#tlr");
-  if (tlr) {
+  /* ───────── timeline (drum): cards on a 3D wheel around the centre axis, rolling on its own ───────── */
+  if (tlr && tlr.classList.contains("drum")) {
+    const stage = $(".tlr-stage", tlr), lens = $(".tlr-lens", tlr);
+    const real = $$(".tlr-item", tlr).filter((el) => !el.classList.contains("clone"));
+    const n = real.length;
+    const count = $(".tlr-count b", tlr), nowEl = $(".tlr-now", tlr), playBtn = $('[data-tlr="play"]', tlr);
+    const DUR = 3400, STEP = Math.min(24, 360 / Math.max(n, 1));
+    let pos = 0, target = 0, elapsed = 0, last = 0, raf = 0, hover = false, playing = true, hold = 0, wheelAt = 0, drag = null, shown = -1;
+    const isStatic = () => motion() === "off" || n < 2;
+    const visible = () => (!C.multi || currentPage === "timeline") && !document.hidden;
+    const mod = (x) => ((x % n) + n) % n;
+    const rowH = () => Math.max(96, Math.max(...real.map((el) => el.offsetHeight)) || 130);
+    let R = 300;
+    const measure = () => { R = Math.max(200, (rowH() + 18) / (STEP * Math.PI / 180)); tlr.style.setProperty("--R", R.toFixed(1) + "px"); };
+    function render() {
+      real.forEach((el, i) => {
+        let d = mod(i - pos);
+        if (d > n / 2) d -= n;
+        const a = d * STEP;
+        const vis = Math.abs(a) < 92;
+        el.style.transform = `translateY(-50%) rotateX(${(-a).toFixed(2)}deg) translateZ(${R.toFixed(1)}px)`;
+        el.style.opacity = vis ? Math.pow(Math.max(0, Math.cos((a * Math.PI) / 180)), 1.6).toFixed(3) : "0";
+        el.style.visibility = vis ? "" : "hidden";
+        el.style.zIndex = String(100 - Math.round(Math.abs(d) * 10));
+        el.classList.toggle("on", Math.abs(d) < 0.5);
+        el.classList.toggle("near", Math.abs(d) >= 0.5 && Math.abs(d) < 1.5);
+      });
+      const cur = mod(Math.round(pos));
+      if (cur !== shown) {
+        shown = cur;
+        count.textContent = String(cur + 1).padStart(2, "0");
+        const t = $(".tlr-date", real[cur]);
+        if (nowEl && t) nowEl.textContent = $("b", t).textContent + " " + $("small", t).textContent;
+      }
+      tlr.style.setProperty("--spin", String(pos));
+    }
+    function loop(t) {
+      raf = 0;
+      if (isStatic() || !visible()) { last = 0; return; }
+      const dt = last ? Math.min(64, t - last) : 16;
+      last = t;
+      if (playing && !hover && !drag && t > hold) {
+        elapsed += dt;
+        if (elapsed >= DUR) { elapsed = 0; target += 1; }
+      }
+      lens.style.setProperty("--p", Math.min(1, elapsed / DUR).toFixed(3));
+      if (!drag) pos += (target - pos) * Math.min(1, dt / 160);
+      if (Math.abs(target - pos) < 0.0005) pos = target;
+      render();
+      raf = requestAnimationFrame(loop);
+    }
+    const kick = () => { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } };
+    const step = (dlt) => { hold = performance.now() + 4000; elapsed = 0; target = Math.round(target) + dlt; kick(); };
+    const setPlaying = (v) => { playing = v; playBtn.setAttribute("aria-pressed", String(v)); tlr.classList.toggle("paused", !v); if (v) kick(); };
+    $('[data-tlr="prev"]', tlr).addEventListener("click", () => step(-1));
+    $('[data-tlr="next"]', tlr).addEventListener("click", () => step(1));
+    playBtn.addEventListener("click", () => setPlaying(!playing));
+    stage.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") hover = true; });
+    stage.addEventListener("pointerleave", () => { hover = false; });
+    stage.addEventListener("wheel", (e) => {
+      if (isStatic() || Math.abs(e.deltaY) < 4) return;
+      e.preventDefault();
+      const now = performance.now();
+      if (now - wheelAt < 380) return;
+      wheelAt = now;
+      step(e.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
+    // Drag spins the wheel directly; letting go settles on the nearest card.
+    let moved = false;
+    stage.addEventListener("pointerdown", (e) => { if (isStatic()) return; drag = { y: e.clientY, pos }; moved = false; });
+    addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dy = e.clientY - drag.y;
+      if (Math.abs(dy) > 6) moved = true;
+      pos = drag.pos - dy / (rowH() + 18);
+      kick();
+    });
+    addEventListener("pointerup", () => {
+      if (!drag) return;
+      drag = null;
+      target = Math.round(pos);
+      hold = performance.now() + 4000;
+      elapsed = 0;
+      kick();
+    });
+    // Click a card that isn't in front to bring it there; click the front card to open it.
+    stage.addEventListener("click", (e) => {
+      const card = e.target.closest(".tlr-card");
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
+      if (!card || isStatic()) return;
+      const li = card.parentElement;
+      if (li.classList.contains("on")) return;
+      e.preventDefault(); e.stopPropagation();
+      let d = mod(real.indexOf(li) - target);
+      if (d > n / 2) d -= n;
+      hold = performance.now() + 4000; elapsed = 0;
+      target = Math.round(target + d);
+      kick();
+    }, true);
+    tlr.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") { step(1); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { step(-1); e.preventDefault(); }
+      else if (e.key === " " && e.target === tlr) { setPlaying(!playing); e.preventDefault(); }
+    });
+    const refresh = () => {
+      tlr.classList.toggle("static", isStatic());
+      real.forEach((el) => { if (isStatic()) { el.style.transform = el.style.opacity = el.style.visibility = el.style.zIndex = ""; } });
+      if (!isStatic()) { measure(); render(); kick(); }
+    };
+    addEventListener("rf:page", () => setTimeout(refresh, 30));
+    addEventListener("resize", () => { if (!isStatic()) { measure(); render(); } });
+    if (window.ResizeObserver) new ResizeObserver(() => { if (!isStatic()) { measure(); render(); } }).observe(stage);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!isStatic()) { measure(); render(); } });
+    document.addEventListener("visibilitychange", kick);
+    refresh();
+  }
+  if (tlr && !tlr.classList.contains("drum")) {
     const stage = $(".tlr-stage", tlr), track = $(".tlr-track", tlr), lens = $(".tlr-lens", tlr);
     const items = $$(".tlr-item", tlr);
     const n = Number(tlr.dataset.n) || 0;

@@ -1,7 +1,9 @@
+import type { AiFeature, UsageMonth } from "../../ai.js";
 import { POST_STYLES, type Platform } from "../../schema.js";
 import type { CompetitorReport, Post } from "../../state.js";
 import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platforms.js";
 import { esc, type ShowcaseData } from "../public.js";
+import { STATUS_COLORS } from "./widgets.js";
 import type { SiteStrings } from "./strings.js";
 
 export interface Dispatch { repo: string; workflow: string; ref: string }
@@ -14,6 +16,8 @@ export interface AdminExtras {
     posts: Post[];
     connections: Connection[];
   };
+  /** Claude settings and monthly usage, for the admin overview. */
+  ai?: { hasKey: boolean; model: string; budget: number; features: Record<AiFeature, boolean>; usage: UsageMonth[] };
   /** The workflow the admin page can trigger (approvals, "update now"). */
   dispatch?: Dispatch;
   competitors?: { enabled: boolean; reports: Record<string, CompetitorReport> };
@@ -97,12 +101,13 @@ ${dispatch ? `<p class="pp-runs"><a href="https://github.com/${esc(dispatch.repo
 </section>`;
 }
 
-/** Star bar on a log scale so ★3 vs ★30k still reads. */
-function starMeter(rep: CompetitorReport): string {
+/** Where my stars sit between the competitors' median and top, on a log scale so ★3 vs ★30k still reads. */
+function starTrack(rep: CompetitorReport, R: SiteStrings["rivals"]): string {
   const c = rep.compare;
   const max = Math.log10(Math.max(c.topStars, c.myStars, 1) + 1) || 1;
-  const w = (n: number) => Math.max(3, Math.round((Math.log10(n + 1) / max) * 100));
-  return `<div class="rv-meter" aria-hidden="true"><i class="top" style="width:${w(c.topStars)}%"></i><i class="med" style="width:${w(c.medianStars)}%"></i><i class="me" style="width:${w(c.myStars)}%"></i></div>`;
+  const at = (n: number) => Math.min(100, Math.max(0, (Math.log10(n + 1) / max) * 100));
+  return `<div class="rc-track" aria-hidden="true"><div class="rc-line"><i class="fill" style="width:${at(c.myStars)}%"></i><i class="tick med" style="left:${at(c.medianStars)}%"></i><i class="tick top" style="left:${at(c.topStars)}%"></i><i class="me" style="left:${at(c.myStars)}%"></i></div></div>
+<div class="rc-nums"><span class="me"><small>${esc(R.yours)}</small>★${c.myStars}</span><span><small>${esc(R.median)}</small>★${c.medianStars}</span><span><small>${esc(R.top)}</small>★${c.topStars}</span></div>`;
 }
 
 export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s: SiteStrings, head: string): string {
@@ -112,20 +117,23 @@ export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s:
   const without = d.projects.filter((p) => !x.reports[p.repo] && p.admin && !p.admin.fork && !p.admin.archived);
   const score = (r: CompetitorReport) => (r.steps ?? []).filter((st) => st.impact === "high").length * 10 + r.gaps.length;
   withRep.sort((a, b) => Number(!!x.reports[b.repo]!.items.length) - Number(!!x.reports[a.repo]!.items.length) || score(x.reports[b.repo]!) - score(x.reports[a.repo]!));
-  const rows = withRep
-    .map((p) => {
+  const owner = (full: string) => full.split("/")[0]!;
+  const cards = withRep
+    .map((p, i) => {
       const rep = x.reports[p.repo]!;
       const c = rep.compare;
-      const top = [...rep.items].sort((a, b) => b.stars - a.stars)[0];
-      const step = rep.steps?.[0];
-      const fallback = rep.gaps[0] ?? rep.ideas[0] ?? "";
-      return `<li class="rv-row reveal">
-<button type="button" class="rv-proj" data-open="${esc(p.id)}" data-tab="rivals"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒</span>` : ""}</button>
-<div class="rv-stars">${rep.items.length ? `<span><b>★${c.myStars}</b> · ${esc(R2.rank)} ${c.rank}/${rep.items.length + 1}</span>${starMeter(rep)}` : `<span class="rv-none">${esc(R.empty)}</span>`}</div>
-<div class="rv-top">${top ? `<small>${esc(R2.top)}</small><a href="${esc(top.url)}" target="_blank" rel="noopener">${esc(top.fullName)}</a><span>★${top.stars}</span>` : ""}</div>
-<div class="rv-next">${step ? `<small>${esc(R2.next)}</small><b>${esc(step.title)}</b><span class="chip imp-${step.impact}">${esc(R2.impact)} ${esc(R2.levels[step.impact])}</span><span class="chip">${esc(R2.effort)} ${esc(R2.sizes[step.effort])}</span>` : fallback ? `<small>${esc(R2.next)}</small><span>${esc(fallback)}</span>` : ""}</div>
-<button type="button" class="rv-go" data-open="${esc(p.id)}" data-tab="rivals">${esc(R2.open)} →</button>
-</li>`;
+      const k = rep.items.length;
+      const top3 = [...rep.items].sort((a, b) => b.stars - a.stars).slice(0, 3);
+      const steps = (rep.steps ?? []).slice(0, 2);
+      const fallback = !steps.length ? rep.gaps[0] ?? rep.ideas[0] ?? "" : "";
+      const medal = k && c.rank === 1 ? " gold" : k && c.rank === 2 ? " silver" : k && c.rank === 3 ? " bronze" : "";
+      return `<article class="rc reveal" style="--c:${STATUS_COLORS[p.status] ?? "#888"};--d:${(i % 3) * 70}ms">
+<header class="rc-head"><button type="button" class="rc-name" data-open="${esc(p.id)}" data-tab="rivals"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒</span>` : ""}</button>${k ? `<span class="rc-rank${medal}" title="${esc(R2.rank)}"><b>#${c.rank}</b><small>/${k + 1}</small></span>` : ""}</header>
+${k ? starTrack(rep, R) : `<p class="rc-empty">${esc(R.empty)}</p>`}
+${top3.length ? `<div class="rc-block"><small>${esc(R2.list)}</small><ul class="rc-comps">${top3.map((t) => `<li><img src="https://github.com/${esc(owner(t.fullName))}.png?size=48" alt="" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'"><a href="${esc(t.url)}" target="_blank" rel="noopener" title="${esc(t.description ?? "")}">${esc(t.fullName)}</a><span>★${t.stars >= 1000 ? (t.stars / 1000).toFixed(1) + "k" : t.stars}</span></li>`).join("")}</ul></div>` : ""}
+${steps.length ? `<div class="rc-block"><small>${esc(R2.steps)}</small><ol class="rc-steps">${steps.map((st) => `<li><b>${esc(st.title)}</b><span class="chip imp-${st.impact}">${esc(R2.impact)} ${esc(R2.levels[st.impact])}</span><span class="chip">${esc(R2.effort)} ${esc(R2.sizes[st.effort])}</span></li>`).join("")}</ol></div>` : fallback ? `<p class="rc-note">${esc(fallback)}</p>` : ""}
+<footer class="rc-foot"><span>${k ? `${k} · ` : ""}${esc(rep.source === "llm" ? R.llm : R.rules)}</span><button type="button" data-open="${esc(p.id)}" data-tab="rivals">${esc(R2.open)} →</button></footer>
+</article>`;
     })
     .join("");
   const analysed = withRep.filter((p) => x.reports[p.repo]!.items.length).length;
@@ -134,7 +142,7 @@ export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s:
   return `<section id="rivals" class="sec">${head}
 ${x.enabled ? "" : `<p class="pp-note">${esc(R.off)}</p>`}
 <div class="rv-sum reveal"><div><b>${analysed}</b><span>${esc(s.adminx.analysed)}</span></div><div><b>${leading}</b><span>${esc(s.adminx.leading)}</span></div><div><b>${high}</b><span>${esc(R2.steps)} · ${esc(R2.impact)} ${esc(R2.levels.high)}</span></div></div>
-<ol class="rv-table">${rows}</ol>
+<div class="rc-grid">${cards}</div>
 ${without.length ? `<p class="pp-note rv-pending">${esc(R.none)} ${without.map((p) => `<button type="button" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</button>`).join(" ")}</p>` : ""}
 </section>`;
 }

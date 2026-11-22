@@ -117,6 +117,26 @@ token 60 天後到期，自助 App 沒有 refresh token。到期後管理頁的 
 3. 在 App 的 Threads API 設定裡用 User Token Generator 產生 token，權限要有 `threads_basic` 和 `threads_content_publish`，再換成長效 token（60 天）。
 4. 存成 secret `THREADS_TOKEN`。發到自己的帳號不用送審。
 
+## Claude 設定（選用）
+
+沒有設 `ANTHROPIC_API_KEY` 就完全不會呼叫 Claude，一律用模板和規則。設了之後可以逐項控制：
+
+```yaml
+llm:
+  model: claude-sonnet-5-5      # 預設；每百萬 token 讀入 $2、產出 $10
+  models: { competitors: claude-opus-5-5 }   # 選填：個別功能換模型
+  features:
+    summaries: false            # README 一句話摘要
+    intros: true                # 專案中英簡介
+    drafts: true                # 發文草稿
+    competitors: true           # 競品挑選、功能比較、下一步
+  monthlyBudget: 5              # 每月上限（美元），到了就改用模板到下個月；0 = 不設上限
+```
+
+每次呼叫的 token 和費用都會記在資料分支，管理頁總覽的「Claude 用量」卡片顯示本月花費、上限進度和各功能的用量。
+
+**預估費用**（14 個 repo，Sonnet 5.5）：每月約 1.5 美元，第一個月約 2 美元。換成 Opus 5.5 約加倍。結果都有快取，每 3 小時更新一次不會讓費用倍增。
+
 ## 用 Claude 寫草稿和分析
 
 設定 secret `ANTHROPIC_API_KEY` 之後：

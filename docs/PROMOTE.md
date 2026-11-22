@@ -117,6 +117,26 @@ Tokens expire after 60 days and self-serve apps get no refresh token. When it ex
 3. Generate a token with the User Token Generator (`threads_basic`, `threads_content_publish`) and exchange it for a long-lived (60-day) token.
 4. Save it as the secret `THREADS_TOKEN`. Posting to your own account needs no app review.
 
+## Claude settings (optional)
+
+Without an `ANTHROPIC_API_KEY` secret nothing is sent to Claude; templates and rules are used. With it, each part is configurable:
+
+```yaml
+llm:
+  model: claude-sonnet-5-5      # default; $2 / $10 per million tokens in / out
+  models: { competitors: claude-opus-5-5 }   # optional per-feature model
+  features:
+    summaries: false            # one-line README summaries
+    intros: true                # bilingual project intros
+    drafts: true                # post drafts
+    competitors: true           # picking competitors, feature table, next steps
+  monthlyBudget: 5              # USD per month; templates until next month once reached; 0 = no cap
+```
+
+Every call's tokens and cost are recorded on the state branch; the admin overview's Claude usage card shows this month's spend, the budget and usage per feature.
+
+**Estimated cost** (14 repos, Sonnet 5.5): about $1.5 a month, about $2 in the first month. Opus 5.5 roughly doubles it. Results are cached, so rebuilding every 3 hours doesn't multiply the cost.
+
 ## Claude for drafts and analysis
 
 With an `ANTHROPIC_API_KEY` secret:

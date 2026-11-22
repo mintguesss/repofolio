@@ -4,8 +4,6 @@ owners: [mintguesss]
 language: zh-TW
 staleDays: 90
 includePrivate: true    # private repos only appear in the encrypted admin page
-llm:
-  enabled: false
 site:
   url: https://mintguesss.github.io/repofolio/
   links:
@@ -41,3 +39,8 @@ promote:
 # Competitor analysis per project (admin page only).
 competitors:
   enabled: true
+# Claude (optional): only used when the ANTHROPIC_API_KEY secret is set. Usage shows in the admin overview.
+llm:
+  model: claude-sonnet-5-5   # ≈ $2 / $10 per million tokens in / out
+  features: { summaries: false, intros: true, drafts: true, competitors: true }
+  monthlyBudget: 5           # USD; stops calling Claude for the rest of the month when reached (0 = no cap)

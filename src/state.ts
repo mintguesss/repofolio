@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { GitHubClient } from "./github.js";
+import type { UsageMonth } from "./ai.js";
 import type { Platform, PostStyle } from "./schema.js";
 
 /**
@@ -131,6 +132,8 @@ export interface State {
   competitors: Record<string, CompetitorReport>;
   /** Short bilingual intros written by Claude, keyed by owner/name, refreshed when the README changes. */
   intros: Record<string, Intro>;
+  /** Claude usage and cost per month (last 12). */
+  usage: UsageMonth[];
 }
 
 export interface Brief { about: string; features: string[] }
@@ -138,7 +141,7 @@ export interface Intro { sha: string; en: Brief; zh: Brief }
 
 export function emptyState(now = new Date()): State {
   const t = now.toISOString();
-  return { v: 1, createdAt: t, updatedAt: t, seen: {}, done: [], posts: [], competitors: {}, intros: {} };
+  return { v: 1, createdAt: t, updatedAt: t, seen: {}, done: [], posts: [], competitors: {}, intros: {}, usage: [] };
 }
 
 /** True until the first run has recorded the repos it saw. */
@@ -167,7 +170,7 @@ export function decryptState(file: string, password: string): string {
 function parse(json: string): State {
   const s = JSON.parse(json) as Partial<State>;
   const base = emptyState();
-  return { ...base, ...s, seen: s.seen ?? {}, done: s.done ?? [], posts: s.posts ?? [], competitors: s.competitors ?? {}, intros: s.intros ?? {} } as State;
+  return { ...base, ...s, seen: s.seen ?? {}, done: s.done ?? [], posts: s.posts ?? [], competitors: s.competitors ?? {}, intros: s.intros ?? {}, usage: s.usage ?? [] } as State;
 }
 
 export interface StateStore {

@@ -43,3 +43,9 @@ issues:
 # Competitor analysis per project, admin page only (on by default).
 # competitors:
 #   enabled: true
+# Claude (optional, needs the ANTHROPIC_API_KEY secret). Usage and cost show in the admin page.
+# llm:
+#   model: claude-sonnet-5-5
+#   features: { summaries: false, intros: true, drafts: true, competitors: true }
+#   monthlyBudget: 5   # USD per month, 0 = no cap
+# site.timelineStyle: drum (3D wheel, default) | channel

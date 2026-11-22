@@ -8,7 +8,7 @@ repofolio runs as a GitHub Action in one repo and does three jobs:
 - **Manage**: every repo in one place, private ones included: where it's deployed and whether it's up, health issues to fix, what's been idle, env-var locations, costs, and a competitor analysis per project with what to do next.
 - **Showcase**: the public part becomes an animated portfolio site, a profile README card and `projects.json`, which is also where every post links to.
 
-No server and no third-party service: state lives on a branch of your repo, encrypted when it holds private data.
+No server and no third-party service: state lives on a branch of your repo, encrypted when it holds private data. Claude is optional: with an `ANTHROPIC_API_KEY` it writes the intros, drafts and competitor analysis (about $1.5 a month on Sonnet 5.5, with a monthly budget cap); without it, templates and rules do the job.
 
 [繁體中文說明](README.zh-TW.md)
 

@@ -76,8 +76,10 @@ staleDays: 90
 language: en            # en | zh-TW
 urlCheck:
   enabled: true
-llm:
-  enabled: false        # summarise READMEs with Claude (needs ANTHROPIC_API_KEY secret)
+llm:                    # optional: only used when the ANTHROPIC_API_KEY secret is set
+  model: claude-sonnet-5-5
+  features: { summaries: false, intros: true, drafts: true, competitors: true }
+  monthlyBudget: 5      # USD per month, 0 = no cap
 site:
   title: ""             # defaults to your GitHub name
   tagline: ""           # defaults to your GitHub bio

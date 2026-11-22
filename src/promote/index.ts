@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PLATFORMS, POST_STYLES, type Config, type Platform } from "../schema.js";
 import type { Post, PostResult, State } from "../state.js";
 import type { Inventory } from "../types.js";
+import type { AiMeter } from "../ai.js";
 import { Copywriter } from "./draft.js";
 import { detectEvents, postable, spotlightEvent } from "./events.js";
 import { checkConnections, hasCreds, publishTo, PLATFORM_INFO, postLength, type Connection, type Env } from "./platforms.js";
@@ -57,6 +58,8 @@ export async function runPromote(opts: {
   log?: (m: string) => void;
   now?: Date;
   fetch?: typeof fetch;
+  /** Claude access + budget; without it drafts use templates. */
+  meter?: AiMeter;
 }): Promise<PromoteSummary> {
   const { inv, config, state, env } = opts;
   const log = opts.log ?? (() => {});
@@ -68,8 +71,7 @@ export async function runPromote(opts: {
   const auto = new Set(summary.connections.filter((c) => c.mode === "auto").map((c) => c.platform));
   const stars = (repo?: string) => inv.repos.find((r) => r.fullName === repo)?.stars;
   const extra: { ev: ReturnType<typeof spotlightEvent>; style?: (typeof POST_STYLES)[number] }[] = [];
-  const useLlm = (cfg.llm === true || cfg.llm === "auto") && !!env.ANTHROPIC_API_KEY;
-  const writer = new Copywriter({ lang: cfg.language ?? config.language, model: config.llm.model, llm: useLlm, hashtags: cfg.hashtags, log });
+  const writer = new Copywriter({ lang: cfg.language ?? config.language, meter: opts.meter, llm: cfg.llm !== false && !!opts.meter?.configured("drafts") && !!opts.meter?.hasKey, hashtags: cfg.hashtags, log });
 
   // 1. Decisions made in the admin page.
   for (const req of opts.requests) {

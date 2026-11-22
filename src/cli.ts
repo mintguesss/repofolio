@@ -11,6 +11,7 @@ import { renderProfileSection, spliceProfile } from "./render/card.js";
 import { writeOutputs, summaryLine } from "./run.js";
 import { scan } from "./scan.js";
 import { Summarizer } from "./summarize.js";
+import { AiMeter } from "./ai.js";
 import type { Inventory } from "./types.js";
 import { VERSION } from "./version.js";
 
@@ -54,6 +55,7 @@ async function main(argv: string[]): Promise<number> {
       const { config, path } = loadConfig(values.config);
       if (values["no-url-check"]) config.urlCheck.enabled = false;
       if (values.llm) config.llm.enabled = true;
+      config.llm.features.summaries ||= config.llm.enabled;
       if (values.lang === "en" || values.lang === "zh-TW") config.language = values.lang;
       const outDir = values.out ?? config.output.dir;
       console.error(`repofolio v${VERSION}${path ? ` · config ${path}` : " · default config"}`);
@@ -61,7 +63,7 @@ async function main(argv: string[]): Promise<number> {
       let summarizer: Summarizer | undefined;
       if (config.llm.enabled) {
         if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) console.error("! llm.enabled but no ANTHROPIC_API_KEY; trying default credentials");
-        summarizer = new Summarizer({ model: config.llm.model, lang: config.language, cachePath: join(".repofolio", "summaries.json") });
+        summarizer = new Summarizer({ model: config.llm.model, lang: config.language, cachePath: join(".repofolio", "summaries.json"), meter: new AiMeter(config, [], process.env, (m) => console.error(m)) });
       }
       const inv = await scan({ config, client, summarizer, log: (m) => console.error(m) });
       summarizer?.save();

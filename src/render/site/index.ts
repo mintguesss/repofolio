@@ -129,6 +129,21 @@ function adminOverview(d: ShowcaseData, s: SiteStrings, extras?: AdminExtras): s
     const gapText = topGap ? reps.flatMap((r) => r.gaps).find((g) => g.startsWith(topGap[0])) : undefined;
     cards.push(card(X.rivalsSum, `<ul class="ov-nums"><li><b>${Object.keys(rv.reports).length}</b>${esc(X.analysed)}</li><li><b>${leading}</b>${esc(X.leading)}</li></ul>${gapText ? `<p class="ov-gap"><small>${esc(X.topGap)} ×${topGap![1]}</small>${esc(gapText)}</p>` : ""}`, "#/rivals"));
   }
+  const ai = extras?.ai;
+  if (ai) {
+    const AI = s.ai;
+    const m = ai.usage.find((u) => u.month === new Date().toISOString().slice(0, 7));
+    const usd = m?.usd ?? 0;
+    const pct = ai.budget ? Math.min(100, (usd / ai.budget) * 100) : 0;
+    const feats = (Object.keys(ai.features) as (keyof typeof AI.features)[]).map((f) => {
+      const u = m?.byFeature[f];
+      return `<li class="${ai.features[f] ? "" : "off"}"><span>${esc(AI.features[f])}</span><b>${ai.features[f] ? (u ? `$${u.usd.toFixed(2)} · ${u.calls}` : esc(AI.on)) : esc(AI.offLabel)}</b></li>`;
+    }).join("");
+    const body = ai.hasKey
+      ? `<p class="ov-big"><b>$${usd.toFixed(2)}</b>${ai.budget ? ` / $${ai.budget} ${esc(AI.budget)}` : ` · ${esc(AI.noCap)}`}</p>${ai.budget ? `<div class="ov-budget${pct >= 100 ? " full" : pct >= 80 ? " warn" : ""}"><i style="width:${pct}%"></i></div>` : ""}${m?.cappedAt ? `<p class="ov-gap">${esc(AI.capped)}</p>` : ""}<p class="ov-meta">${m?.calls ?? 0} ${esc(AI.calls)} · ${(((m?.input ?? 0) + (m?.output ?? 0)) / 1000).toFixed(1)}k tokens · ${esc(AI.model)} <code>${esc(ai.model)}</code></p><ul class="ov-feats">${feats}</ul>`
+      : `<p class="ov-meta">${esc(AI.off)}</p><ul class="ov-feats">${feats}</ul>`;
+    cards.push(card(AI.title, body));
+  }
   return `<h3 class="sub-h">${esc(X.overview)}</h3><div class="adm-ov">${cards.join("")}</div>`;
 }
 
@@ -409,7 +424,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
         case "status":
           return statusSection(d, s, icons, ++idx);
         case "timeline":
-          return timelineSection(d, s, sectionHead("timeline", s.timeline, s.timelineSub, ++idx), lang);
+          return timelineSection(d, s, sectionHead("timeline", s.timeline, s.timelineSub, ++idx), lang, config.site.timelineStyle);
       }
     })()])
     .filter(([, html]) => !!html);

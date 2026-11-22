@@ -1001,6 +1001,8 @@ export function clientMain(): void {
     }
     // Settings form: send only what changed; the workflow commits it to the config file.
     const sf = $("#st-form");
+    // Any edit marks the form as unsaved, so a toggle that was never saved doesn't look applied.
+    if (sf) sf.addEventListener("input", () => { sf.classList.add("dirty"); const m = $(".pp-msg", sf); m.classList.remove("bad"); m.textContent = S.settings.unsaved; });
     if (sf) sf.addEventListener("submit", async (e) => {
       e.preventDefault();
       const msg = $(".pp-msg", sf), btn = $("button[type=submit]", sf);
@@ -1016,7 +1018,15 @@ export function clientMain(): void {
       if ([...plats].sort().join(",") !== sf.dataset.platforms.split(",").filter(Boolean).sort().join(",")) put("promote.platforms", plats);
       if (!Object.keys(set).length) { msg.textContent = S.settings.nothing; return; }
       btn.disabled = true; msg.textContent = "…"; msg.classList.remove("bad");
-      try { await dispatch([{ op: "config", set }]); msg.textContent = "✓ " + S.settings.saved; }
+      try {
+        await dispatch([{ op: "config", set }]);
+        msg.textContent = "✓ " + S.settings.saved;
+        // What was just sent is now the baseline, so the next save only sends newer changes.
+        $$("[data-init]", sf).forEach((el) => { el.dataset.init = el.type === "checkbox" ? String(el.checked) : el.value; });
+        sf.dataset.platforms = plats.join(",");
+        sf.classList.remove("dirty");
+        btn.disabled = false;
+      }
       catch (err) { btn.disabled = false; msg.textContent = err.message; msg.classList.add("bad"); }
     });
     // Health issue decisions (ignore / snooze / mark done / pause / restore), saved to `projects:` in the config.

@@ -471,6 +471,8 @@ li.fixable.open .fxs{display:flex;animation:fadein .2s var(--ease)}
 .st-chip input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 .st-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
 .st-foot small{flex-basis:100%;color:var(--muted);font-size:.76rem}
+.st-form.dirty .st-foot .pp-msg{color:#eab308}
+.st-form.dirty .st-foot .btn{box-shadow:0 0 0 3px color-mix(in srgb,#eab308 45%,transparent)}
 /* ── admin overview ── */
 .adm-ov{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:20px}
 .ov-card{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);min-width:0}

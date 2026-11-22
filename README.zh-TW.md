@@ -12,8 +12,9 @@ repofolio 是一個 GitHub Action，放在一個 repo 裡就能做三件事：
 
 [English](README.md)
 
-<p align="center"><img src="docs/screenshots/hero-simple.jpg" alt="簡潔模式（預設）" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="科技模式 cyber 主題" width="49%"></p>
-<p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="專案列表" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="即時自訂面板" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-simple.png" alt="簡潔模式" width="49%"> <img src="docs/screenshots/hero-tech.png" alt="科技模式" width="49%"></p>
+<p align="center"><img src="docs/screenshots/timeline.png" alt="捲動時間軸" width="49%"> <img src="docs/screenshots/admin.png" alt="私人管理頁" width="49%"></p>
+<p align="center"><img src="docs/screenshots/posts.png" alt="發文草稿與風格" width="49%"> <img src="docs/screenshots/rivals.png" alt="競品分析" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="個人頁動態卡片"></p>
 
 ## 產出
@@ -98,6 +99,8 @@ publish:
 
 - **🔒 管理**：總覽（狀態分布、健康度、近期提交、最久沒更新、推廣和競品摘要）和待處理清單（最糟的在前面）。點一下問題就能處理：到 GitHub 修正（授權選擇頁、topics、README…）、忽略；太久沒更新的可以選繼續做（30 天後再提醒）、標記完成、暫停或封存。**⟳ 立即更新** 不用等排程就重建。
 - **專案視窗分頁**：總覽、介紹（來自 README）、數據、競品、貼文。
+<p align="center"><img src="docs/screenshots/settings.png" alt="設定頁" width="70%"></p>
+
 - **⚙ 設定**：Claude 模型、哪些功能要用、每月上限（含本月用量）、發文平台和風格、競品選項、語言。按儲存後 workflow 會把改動 commit 到設定檔。
 
 兩種保護方式：

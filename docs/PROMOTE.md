@@ -42,7 +42,7 @@ Based on how job seekers and build-in-public developers usually write, each draf
 | Recruiter-friendly | The project as evidence: built solo, skills shown, a concrete result, open to talk | Portfolio intro, job hunting |
 | Short update | 1–3 lines and the link | Releases, weekly digest |
 
-The default `style: auto` picks per event (intro and spotlight: recruiter-friendly; new project and live: launch; milestones: story; releases and weekly: short). Set `promote.style` to fix one.
+The default is **recruiter-friendly** (`style: recruiter`). `style: auto` picks per event instead (intro and spotlight: recruiter-friendly; new project and live: launch; milestones: story; releases and weekly: short). Change it in ⚙ Settings.
 
 Platform length and tone apply on top (LinkedIn long, X and Bluesky short, DEV an article, PTT its own format). Templates only include content in the post language; Claude rewrites in the style, translates into the post language and never invents facts.
 

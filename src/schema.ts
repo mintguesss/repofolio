@@ -281,8 +281,8 @@ export const ConfigSchema = z.object({
     mentionPrivate: z.boolean().default(false),
     /** Write drafts with Claude (needs ANTHROPIC_API_KEY). auto = when the key is set. Falls back to templates. */
     llm: z.union([z.boolean(), z.literal("auto")]).default("auto"),
-    /** Default writing style: launch, story, deepdive, recruiter, short, or auto (per event). Changeable per draft in the admin page. */
-    style: z.enum(POST_STYLES).default("auto"),
+    /** Default writing style: recruiter (job-hunting, the default), launch, story, deepdive, short, or auto (per event). Changeable per draft in the admin page. */
+    style: z.enum(POST_STYLES).default("recruiter"),
     /** Extra hashtags for every post (without #). */
     hashtags: z.array(z.string()).default([]),
     /** Pending drafts older than this are dropped. */

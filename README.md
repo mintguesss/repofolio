@@ -12,8 +12,9 @@ No server and no third-party service: state lives on a branch of your repo, encr
 
 [繁體中文說明](README.zh-TW.md)
 
-<p align="center"><img src="docs/screenshots/hero-simple.jpg" alt="repofolio showcase: simple mode (default)" width="49%"> <img src="docs/screenshots/hero-cyber.jpg" alt="tech mode, cyber preset" width="49%"></p>
-<p align="center"><img src="docs/screenshots/projects-aurora.jpg" alt="project grid, aurora background" width="49%"> <img src="docs/screenshots/customizer-matrix.jpg" alt="live customizer, matrix theme" width="49%"></p>
+<p align="center"><img src="docs/screenshots/hero-simple.png" alt="simple mode" width="49%"> <img src="docs/screenshots/hero-tech.png" alt="tech mode" width="49%"></p>
+<p align="center"><img src="docs/screenshots/timeline.png" alt="scroll-driven timeline" width="49%"> <img src="docs/screenshots/admin.png" alt="private admin page" width="49%"></p>
+<p align="center"><img src="docs/screenshots/posts.png" alt="post drafts with styles" width="49%"> <img src="docs/screenshots/rivals.png" alt="competitor analysis" width="49%"></p>
 <p align="center"><img src="docs/screenshots/card-example.svg" alt="animated profile card"></p>
 
 ## What you get
@@ -124,6 +125,8 @@ The same site, for your eyes only: every repo including private ones and a healt
 
 - **🔒 Admin**: an overview (status mix, health, recent commits, idle projects, promotion and competitor summaries) and what to fix, worst first. Click an issue to act on it: fix it on GitHub (licence picker, topics, README…), ignore it, or for idle projects keep going (remind in 30 days), mark done, pause or archive. **⟳ Update now** rebuilds without waiting for the schedule.
 - **Project details in tabs**: overview, about (from the README), numbers, competitors and posts.
+<p align="center"><img src="docs/screenshots/settings.png" alt="settings page" width="70%"></p>
+
 - **⚙ Settings**: Claude model, which features use it and the monthly budget (with this month's usage), promotion platforms and style, competitor options and language. Saving makes the workflow commit the change to your config.
 
 Two ways to keep it private:

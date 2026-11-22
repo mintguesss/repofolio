@@ -433,7 +433,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     if (extras?.competitors) extraSecs.push(["rivals", rivalsSection(d, extras.competitors, s, sectionHead("rivals", s.rivals.title, s.rivals.sub, 0))]);
     rendered.splice(at, 0, ...extraSecs);
     // Settings go last in the nav.
-    rendered.push(["settings", settingsSection(config, extras ?? {}, s, sectionHead("settings", s.settings.title, s.settings.sub, 0))]);
+    rendered.push(["settings", settingsSection(config, extras ?? {}, s, sectionHead("settings", s.settings.title, s.settings.sub, 0), d.generatedAt)]);
   }
   // Group sections into pages (home = hero + featured, every other section is its own page).
   const pageOrder: string[] = [];

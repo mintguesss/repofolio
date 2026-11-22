@@ -1,6 +1,6 @@
 {
   "name": "repofolio",
-  "version": "0.13.5",
+  "version": "0.14.0",
   "description": "Auto-promotion and project management for your GitHub repos: post drafts you approve for 12 platforms, competitor analysis, inventory, deployments and health, plus an auto-built portfolio.",
   "type": "module",
   "bin": {

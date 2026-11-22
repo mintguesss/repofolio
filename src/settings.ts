@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { isSeq, parseDocument } from "yaml";
+import { isScalar, isSeq, parseDocument } from "yaml";
 import { z } from "zod";
 import type { GitHubClient } from "./github.js";
 import { ConfigSchema, PLATFORMS, POST_STYLES, STATUSES } from "./schema.js";
@@ -49,6 +49,12 @@ export function flatten(patch: unknown, prefix: string[] = []): [string[], unkno
 export function applyPatch(yamlText: string, patch: ConfigPatch): string {
   const doc = parseDocument(yamlText);
   for (const [path, value] of flatten(patch)) {
+    // Changing a scalar in place keeps the comment on its line.
+    const existing = doc.getIn(path, true);
+    if (isScalar(existing) && (value === null || typeof value !== "object")) {
+      existing.value = value;
+      continue;
+    }
     // Keep short lists on one line ([a, b]) like the rest of the file.
     const node = doc.createNode(value);
     if (isSeq(node) && (value as unknown[]).every((v) => typeof v !== "object")) node.flow = true;

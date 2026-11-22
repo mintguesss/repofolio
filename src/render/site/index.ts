@@ -1,6 +1,6 @@
 import type { Config, Platform } from "../../schema.js";
 import { PLATFORM_INFO } from "../../promote/platforms.js";
-import { ANIMATIONS, BACKGROUNDS, CARD_STYLES, FONTS, GLOWS, LAYOUTS, MODES, SCHEMES, THEME_PRESETS } from "../../schema.js";
+import { ANIMATIONS, BACKGROUNDS, FONTS, GLOWS, LAYOUTS, MODES, SCHEMES, THEME_PRESETS } from "../../schema.js";
 import type { Inventory } from "../../types.js";
 import { buildShowcase, esc, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
 import { clientMain } from "./client.js";
@@ -341,13 +341,13 @@ function statusSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: 
 
 function themeAttrs(config: Config): string {
   const e = effectiveTheme(config.site.theme);
-  return `data-mode="${e.mode}" data-scheme="${e.scheme}" data-preset="${e.preset}" data-bg="${e.background}" data-card="${e.cardStyle}" data-layout="${e.layout}" data-font="${e.font}" data-anim="${e.animation}" data-fx="${e.glow}" data-covers="${e.covers}" data-glow="${e.cursorGlow}" data-tilt="${e.tilt}"`;
+  return `data-mode="${e.mode}" data-scheme="${e.scheme}" data-preset="${e.preset}" data-bg="${e.background}" data-card="${e.mode === "simple" ? "simple" : "glass"}" data-layout="${e.layout}" data-font="${e.font}" data-anim="${e.animation}" data-fx="${e.glow}" data-covers="${e.covers}" data-glow="${e.cursorGlow}" data-tilt="${e.tilt}"`;
 }
 
 /** Simple mode switches every effect off; tech mode uses the settings as-is. Mirrored in client.ts. */
 export function effectiveTheme(th: Config["site"]["theme"]) {
   if (th.mode !== "simple") return th;
-  return { ...th, background: "none" as const, cardStyle: "simple", animation: th.animation === "off" ? ("off" as const) : ("subtle" as const), glow: "none" as const, cursorGlow: false, tilt: false, covers: true };
+  return { ...th, background: "none" as const, animation: th.animation === "off" ? ("off" as const) : ("subtle" as const), glow: "none" as const, cursorGlow: false, tilt: false, covers: true };
 }
 
 /** CSS variables for a custom background colour; text colours flip to stay readable. Mirrored in client.ts. */
@@ -471,7 +471,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     promo: promoClientConfig(extras?.promote),
     admin: admin ? { dispatch: extras?.dispatch, generatedAt: d.generatedAt } : undefined,
     multi,
-    options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, cardStyle: CARD_STYLES, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
+    options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
     presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),
     simpleAccent: SIMPLE_ACCENT,
     presetAccents: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.accent])),

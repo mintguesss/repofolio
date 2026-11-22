@@ -74,7 +74,7 @@ repofolio 是一個 GitHub Action，放在一個 repo 裡就能做三件事：
 | 字型 `font` | sans、mono、display、system |
 | 封面圖 `images` | 預設自動抓 README 截圖、repo 裡的截圖，再來是 GitHub 預覽圖；也可以在設定檔用 `images: { repo名稱: 圖片網址 }` 指定 |
 | 其他 | 強調色 `accent`、背景顏色 `bgColor`（文字顏色會自動調整）、圓角、區塊順序與顯示、身分文字、頭像 |
-| 科技模式的特效 | 主題 `preset`（10 種）、背景特效 `background`（7 種）、卡片樣式 `cardStyle`（5 種）、動畫 `animation`、光暈強度 `glow`、封面圖片、游標光暈、3D 傾斜、終端機 |
+| 科技模式的特效 | 主題 `preset`（10 種）、背景特效 `background`（7 種）、動畫 `animation`、光暈強度 `glow`、封面圖片、游標光暈、3D 傾斜、終端機 |
 
 完整寫法請看[英文 README 的 Customization](README.md#customization)。只想調整外觀時，執行 `repofolio render`，會直接用 `out/inventory.json` 重新產生，不用重新掃描。
 

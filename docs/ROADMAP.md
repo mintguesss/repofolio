@@ -21,7 +21,7 @@
 ## v0.2: showcase and profile (growth loop)
 
 - [x] Animated showcase: hero with typing roles, counters and a terminal; featured, projects, stack, activity, live status and timeline sections
-- [x] 10 theme presets, 7 canvas backgrounds, 5 card styles, 4 layouts, fonts, motion levels, radius, accent
+- [x] 10 theme presets, 7 canvas backgrounds, 4 layouts, fonts, motion levels, radius, accent
 - [x] Live ⚙ customizer for visitors + "Copy as config"
 - [x] ⌘K command palette, keyboard shortcuts, project detail modal with deep links
 - [x] README screenshot → card cover (falls back to GitHub social preview); `image:` in `.project.yml`

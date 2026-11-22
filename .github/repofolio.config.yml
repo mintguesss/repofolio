@@ -7,7 +7,7 @@ includePrivate: true # private repos only appear in the encrypted admin page
 site:
   url: https://mintguesss.github.io/repofolio/
   links:
-    - {label: 個人網站, url: https://mintguesss.github.io/personal_web/}
+    - { label: 個人網站, url: https://mintguesss.github.io/personal_web/ }
   hero:
     roles: [] # typing animation, e.g. [全端工程師, AI 應用開發]
   customizer: true
@@ -41,6 +41,6 @@ competitors:
   enabled: true
 # Claude (optional): only used when the ANTHROPIC_API_KEY secret is set. Usage shows in the admin overview.
 llm:
-  model: claude-haiku-5-5
+  model: claude-haiku-5-5   # Haiku 5.5 ≈ $0.10 / $0.50 per million tokens in / out
   features: {summaries: false, intros: false, drafts: false, competitors: false}
   monthlyBudget: 1 # USD; stops calling Claude for the rest of the month when reached (0 = no cap)

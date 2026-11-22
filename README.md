@@ -91,7 +91,6 @@ site:
     # ── tech mode only ──
     preset: cyber          # cyber | midnight | matrix | synthwave | ocean | ember | aurora | mono | paper | daylight
     background: particles  # particles | grid | matrix | aurora | stars | circuit | none
-    cardStyle: glass       # glass | solid | neon | outline | terminal
     animation: full        # full | subtle | off
     glow: soft             # none | soft | strong
     covers: true           # README screenshot / social preview as card cover
@@ -226,7 +225,7 @@ repofolio profile   <README.md> [--site-url url]
 | Profile README output | ✅ animated card + block | ✅ | — | — | — |
 | Portfolio site | ✅ generated | — | ✅ generated | ✅ hand-edited | — |
 | Stays in sync automatically | ✅ nightly | ✅ | ✅ / partly | — | ✅ |
-| Themes / live customizer | 10 presets × 7 backgrounds × 5 card styles × 2 layouts, live ⚙ panel | themes | a few themes | edit the code | — |
+| Themes / live customizer | 10 presets × 7 backgrounds × 2 layouts, live ⚙ panel | themes | a few themes | edit the code | — |
 | README screenshots as covers | ✅ | — | — | manual | — |
 | Private inventory of all repos | ✅ | — | — | — | ✅ (for companies) |
 | Deployment URLs + uptime | ✅ | — | — | — | plugin |

@@ -104,7 +104,6 @@ export type ProjectMeta = z.infer<typeof ProjectMetaSchema>;
 
 export const THEME_PRESETS = ["cyber", "midnight", "matrix", "synthwave", "ocean", "ember", "aurora", "mono", "paper", "daylight"] as const;
 export const BACKGROUNDS = ["particles", "grid", "matrix", "aurora", "stars", "circuit", "none"] as const;
-export const CARD_STYLES = ["glass", "solid", "neon", "outline", "terminal"] as const;
 export const LAYOUTS = ["grid", "list"] as const;
 export const FONTS = ["sans", "mono", "display", "system"] as const;
 export const ANIMATIONS = ["full", "subtle", "off"] as const;
@@ -127,7 +126,6 @@ export const ThemeSchema = z.object({
   /** Override the page background colour, e.g. "#101418". Text colour adapts automatically. */
   bgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   background: z.enum(BACKGROUNDS).default("particles"),
-  cardStyle: z.enum(CARD_STYLES).default("glass"),
   /** grid = cards, list = compact rows. Older values (bento, compact) fall back to grid. */
   layout: z.enum(LAYOUTS).catch("grid").default("grid"),
   font: z.enum(FONTS).default("sans"),

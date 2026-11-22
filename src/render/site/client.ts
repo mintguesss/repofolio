@@ -33,7 +33,7 @@ export function clientMain(): void {
   const simple = () => st.mode === "simple";
   // Simple mode switches every effect off (mirrors effectiveTheme() in index.ts).
   const eff = () => (simple()
-    ? Object.assign({}, st, { background: "none", cardStyle: "simple", animation: st.animation === "off" ? "off" : "subtle", glow: "none", cursorGlow: false, tilt: false, covers: true })
+    ? Object.assign({}, st, { background: "none", animation: st.animation === "off" ? "off" : "subtle", glow: "none", cursorGlow: false, tilt: false, covers: true })
     : st);
   const motion = () => (reduceMotion ? "off" : eff().animation);
 
@@ -43,7 +43,7 @@ export function clientMain(): void {
     body.dataset.scheme = st.scheme;
     body.dataset.preset = e.preset;
     body.dataset.bg = e.background;
-    body.dataset.card = e.cardStyle;
+    body.dataset.card = simple() ? "simple" : "glass";
     body.dataset.layout = e.layout;
     body.dataset.font = e.font;
     body.dataset.anim = motion();
@@ -834,7 +834,6 @@ export function clientMain(): void {
       <details class="cz-fx tech-only" open><summary>${esc(S.effects)}</summary>
         <div class="cz-group"><span>${esc(S.theme)}</span><div class="cz-presets">${O.preset.map((p) => `<button type="button" data-k="preset" data-v="${p}" title="${p}" style="background:linear-gradient(135deg,${PRESET_SWATCH[p][0]} 45%,${PRESET_SWATCH[p][1]} 46%,${PRESET_SWATCH[p][2]})"><span>${p}</span></button>`).join("")}</div></div>
         ${opt("background", O.background)}
-        ${opt("cardStyle", O.cardStyle)}
         ${opt("animation", O.animation)}
         ${opt("glow", O.glow)}
         <div class="cz-group">${tog("covers")}${tog("cursorGlow")}${tog("tilt")}</div>
@@ -854,7 +853,7 @@ export function clientMain(): void {
     $("#cz-radius", panel).addEventListener("input", (e) => set({ radius: Number(e.target.value) }));
     $("#cz-reset", panel).addEventListener("click", () => { st = Object.assign({}, C.defaults); save(); applyTheme(); toast(S.reset); });
     $("#cz-copy", panel).addEventListener("click", () => {
-      const keys = (simple() ? ["mode", "scheme", "accent", "bgColor", "layout", "font", "radius"] : ["mode", "preset", "accent", "bgColor", "background", "cardStyle", "layout", "font", "animation", "glow", "radius", "covers", "cursorGlow", "tilt"]).filter((k) => st[k] !== undefined && st[k] !== "");
+      const keys = (simple() ? ["mode", "scheme", "accent", "bgColor", "layout", "font", "radius"] : ["mode", "preset", "accent", "bgColor", "background", "layout", "font", "animation", "glow", "radius", "covers", "cursorGlow", "tilt"]).filter((k) => st[k] !== undefined && st[k] !== "");
       const yaml = ["site:", "  theme:", ...keys.map((k) => `    ${k}: ${typeof st[k] === "string" && st[k].startsWith("#") ? `"${st[k]}"` : st[k]}`)].join("\n");
       copy(yaml);
     });
@@ -886,7 +885,6 @@ export function clientMain(): void {
     C.options.preset.forEach((p) => A.push({ label: `${S.theme}: ${p}`, kw: "theme preset color", run: () => set({ mode: "tech", preset: p }) }));
     C.options.background.forEach((b) => A.push({ label: `${S.background}: ${b}`, kw: "background bg effect", run: () => set({ mode: "tech", background: b }) }));
     C.options.layout.forEach((l) => A.push({ label: `${S.layout}: ${l}`, kw: "layout view", run: () => set({ layout: l }) }));
-    C.options.cardStyle.forEach((c) => A.push({ label: `${S.cardStyle}: ${c}`, kw: "card style", run: () => set({ mode: "tech", cardStyle: c }) }));
     A.push({ label: S.toggleMotion, kw: "motion animation", run: () => set({ animation: st.animation === "off" ? "full" : "off" }) });
     if (panel) A.push({ label: S.customize, kw: "customize settings theme", run: openCustomizer });
     A.push({ label: S.copyLink, kw: "copy link share url", run: () => copy(location.href.split("#")[0]) });

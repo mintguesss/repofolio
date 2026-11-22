@@ -387,3 +387,14 @@ describe("settings YAML style", () => {
     expect(out).toContain("platforms: [linkedin, x]");
   });
 });
+
+describe("settings keep line comments", () => {
+  it("changes a scalar without dropping its comment", async () => {
+    const { applyPatch } = await import("../src/settings.js");
+    const out = applyPatch("llm:\n  model: claude-sonnet-5-5   # cheap\n  monthlyBudget: 5 # usd\n", { llm: { model: "claude-haiku-5-5", monthlyBudget: 1 } });
+    expect(out).toContain("model: claude-haiku-5-5");
+    expect(out).toContain("# cheap");
+    expect(out).toContain("monthlyBudget: 1");
+    expect(out).toContain("# usd");
+  });
+});

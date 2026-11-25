@@ -8,6 +8,7 @@ import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
 import { homeStats, liveSection, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
+import { groupBar, groupTitle, projectGroups } from "./groups.js";
 import { postsSection, promoClientConfig, rivalsSection, settingsSection, siteSection, tokenBox, type AdminExtras } from "./promo.js";
 import { personalKit } from "../../personal-kit.js";
 
@@ -226,22 +227,21 @@ ${grid(d, s, icons)}
 </section>`;
 }
 
-/** The projects grid. Admin: public and not-public groups, plus the featured picker. Public: featured, then categories. */
-const GROUP_ICON: Record<string, string> = {"featured":"<path d=\"M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z\"/>","ai":"<rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"2\"/><path d=\"M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4\"/>","web":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","dev":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M7 9l3 3-3 3M13 15h4\"/>","other":"<rect x=\"4\" y=\"4\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13\" y=\"4\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"4\" y=\"13\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13\" y=\"13\" width=\"7\" height=\"7\" rx=\"1.5\"/>","team":"<circle cx=\"9\" cy=\"8\" r=\"3.5\"/><path d=\"M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6\"/>"};
+/** The projects grid: featured (always open), then categories that start folded. Admin adds a folded not-public group and the featured picker. */
 const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="eye-on" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle class="eye-on" cx="12" cy="12" r="3"/><path class="eye-off" d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 
 function grid(d: ShowcaseData, s: SiteStrings, icons: IconSprite): string {
   const admin = d.projects.some((p) => p.admin);
-  const sep = (g: string, title: string, sub = "", fold = true) => `<div class="grid-sep" data-sep="${g}"${fold ? ` role="button" tabindex="0" aria-expanded="true" title="${esc(s.cats.fold)}"` : ""}>${GROUP_ICON[g] ? `<div class="gs-ic" aria-hidden="true"><svg viewBox="0 0 24 24">${GROUP_ICON[g]}</svg></div>` : ""}<div class="gs-t"><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</div>${fold ? '<div class="gs-peek" aria-hidden="true"></div>' : ""}<em></em>${fold ? '<i class="fold" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></i>' : ""}</div>`;
+  const bars = (groups: string[]) => groups.map((g) => groupBar(s, g, ...groupTitle(s, g), g !== "featured")).join("");
+  const groupOf = projectGroups(d.projects);
+  const groups = ["featured", ...CATEGORIES, "hidden"].filter((g) => d.projects.some((p) => groupOf(p) === g));
   if (admin) {
     const picked = d.projects.filter((p) => p.featured).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
     return `<div class="fp reveal" id="feat-pick" data-init="${esc(JSON.stringify(picked.map((p) => p.admin!.cfgKey)))}"><div class="fp-h"><b>★ ${esc(s.fp.title)}</b><span>${esc(s.fp.sub)}</span><em class="fp-n"></em></div><ol class="fp-list"></ol><p class="fp-empty">${esc(s.fp.empty)}</p><div class="fp-acts"><button type="button" class="btn primary" id="fp-save" disabled>${esc(s.fp.save)}</button><span class="pp-msg"></span></div></div>
 <div class="vis-bar" id="vis-bar" hidden><span class="vb-t"></span><button type="button" class="btn ghost sm" id="vb-undo">${esc(s.vis.undo)}</button><button type="button" class="btn primary sm" id="vb-save">${esc(s.vis.save)}</button><span class="pp-msg"></span></div>
-<div class="grid" id="grid" data-groups="shown,hidden">${sep("shown", s.adminx.groupShown, s.adminx.groupShownSub, false)}${sep("hidden", s.adminx.groupHidden, s.adminx.groupHiddenSub, false)}${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>`;
+<div class="grid" id="grid" data-groups="${groups.join(",")}" data-cats data-admin data-open-key="repofolio-admin-open">${bars(groups)}${d.projects.map((p) => (groupOf(p) === "featured" ? card(p, s, icons, { big: true, group: "featured" }) : card(p, s, icons, { compact: true, group: groupOf(p) }))).join("\n")}</div>`;
   }
-  const feat = new Set(pickFeatured(d.projects).map((p) => p.id));
-  const groups = ["featured", ...CATEGORIES].filter((g) => d.projects.some((p) => (feat.has(p.id) ? "featured" : p.category) === g));
-  return `<div class="grid" id="grid" data-groups="${groups.join(",")}" data-cats>${groups.map((g) => sep(g, s.cats[g as keyof typeof s.cats], s.catSub[g as keyof typeof s.catSub], g !== "featured")).join("")}${d.projects.map((p) => (feat.has(p.id) ? card(p, s, icons, { big: true, group: "featured" }) : card(p, s, icons, { compact: true, group: p.category }))).join("\n")}</div>`;
+  return `<div class="grid" id="grid" data-groups="${groups.join(",")}" data-cats>${bars(groups)}${d.projects.map((p) => (groupOf(p) === "featured" ? card(p, s, icons, { big: true, group: "featured" }) : card(p, s, icons, { compact: true, group: p.category }))).join("\n")}</div>`;
 }
 
 const LAYOUT_ICON: Record<string, string> = {

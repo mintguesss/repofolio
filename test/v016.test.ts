@@ -131,6 +131,17 @@ describe("projects page", () => {
     expect(admin).toContain('id="vis-bar"');
   });
 
+  it("the admin projects and competitors pages use the same folding groups, not-public last", () => {
+    const c = ConfigSchema.parse({ owners: ["me"] });
+    const ps = [rec("a", { stars: 5 }), rec("b", { stars: 0, stack: ["PyTorch"], showcase: false }), rec("z", { stars: 0, stack: ["PyTorch"] })];
+    const rep = { items: [], compare: { rank: 1, myStars: 1, medianStars: 0, topStars: 0 }, gaps: [], ideas: [], strengths: [], source: "rules", query: "", generatedAt: NOW.toISOString() };
+    const admin = renderSite(inv(ps), c, { admin: true, extras: { competitors: { enabled: true, reports: { "me/a": rep, "me/b": rep } } } as never });
+    expect(admin).toMatch(/id="grid" data-groups="featured,hidden" data-cats data-admin data-open-key="repofolio-admin-open"/);
+    expect(admin).toMatch(/grid-sep" data-sep="hidden" role="button"/);
+    expect(admin).toMatch(/id="rv-grid" data-groups="featured,hidden" data-cats/);
+    expect(admin).toMatch(/class="rc reveal" data-group="hidden"/);
+  });
+
   it("the admin page may save the featured list", () => {
     const out = applyPatch("owners: [me]\n", { site: { featured: ["a", "me/b"] } });
     expect(out).toContain("featured: [a, me/b]");

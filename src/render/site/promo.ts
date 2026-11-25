@@ -3,7 +3,8 @@ import { MODEL_CHOICES } from "../../settings.js";
 import { PLATFORMS, POST_STYLES, type Config, type Platform } from "../../schema.js";
 import type { CompetitorReport, Post } from "../../state.js";
 import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platforms.js";
-import { esc, type ShowcaseData } from "../public.js";
+import { CATEGORIES, esc, type PublicProject, type ShowcaseData } from "../public.js";
+import { groupBar, groupTitle, projectGroups } from "./groups.js";
 import { STATUS_COLORS } from "./widgets.js";
 import type { SiteStrings } from "./strings.js";
 import type { SiteExtras } from "../../personal.js";
@@ -122,8 +123,8 @@ export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s:
   const score = (r: CompetitorReport) => (r.steps ?? []).filter((st) => st.impact === "high").length * 10 + r.gaps.length;
   withRep.sort((a, b) => Number(!!x.reports[b.repo]!.items.length) - Number(!!x.reports[a.repo]!.items.length) || score(x.reports[b.repo]!) - score(x.reports[a.repo]!));
   const owner = (full: string) => full.split("/")[0]!;
-  const cards = withRep
-    .map((p, i) => {
+  const groupOf = projectGroups(d.projects);
+  const rcCard = (p: PublicProject, i: number) => {
       const rep = x.reports[p.repo]!;
       const c = rep.compare;
       const k = rep.items.length;
@@ -131,22 +132,24 @@ export function rivalsSection(d: ShowcaseData, x: AdminExtras["competitors"], s:
       const steps = (rep.steps ?? []).slice(0, 2);
       const fallback = !steps.length ? rep.gaps[0] ?? rep.ideas[0] ?? "" : "";
       const medal = k && c.rank === 1 ? " gold" : k && c.rank === 2 ? " silver" : k && c.rank === 3 ? " bronze" : "";
-      return `<article class="rc reveal" style="--c:${STATUS_COLORS[p.status] ?? "#888"};--d:${(i % 3) * 70}ms">
+      return `<article class="rc reveal" data-group="${groupOf(p)}" style="--c:${STATUS_COLORS[p.status] ?? "#888"};--d:${(i % 3) * 70}ms">
 <header class="rc-head"><button type="button" class="rc-name" data-open="${esc(p.id)}" data-tab="rivals"><span class="dot st-${p.status}"></span><b>${esc(p.name)}</b>${p.private ? `<span class="pill">🔒</span>` : ""}</button>${k ? `<span class="rc-rank${medal}" title="${esc(R2.rank)}"><b>#${c.rank}</b><small>/${k + 1}</small></span>` : ""}</header>
 ${k ? starTrack(rep, R) : `<p class="rc-empty">${esc(R.empty)}</p>`}
 ${top3.length ? `<div class="rc-block"><small>${esc(R2.list)}</small><ul class="rc-comps">${top3.map((t) => `<li><img src="https://github.com/${esc(owner(t.fullName))}.png?size=48" alt="" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'"><a href="${esc(t.url)}" target="_blank" rel="noopener" title="${esc(t.description ?? "")}">${esc(t.fullName)}</a><span>★${t.stars >= 1000 ? (t.stars / 1000).toFixed(1) + "k" : t.stars}</span></li>`).join("")}</ul></div>` : ""}
 ${steps.length ? `<div class="rc-block"><small>${esc(R2.steps)}</small><ol class="rc-steps">${steps.map((st) => `<li><b>${esc(st.title)}</b><span class="chip imp-${st.impact}">${esc(R2.impact)} ${esc(R2.levels[st.impact])}</span><span class="chip">${esc(R2.effort)} ${esc(R2.sizes[st.effort])}</span></li>`).join("")}</ol></div>` : fallback ? `<p class="rc-note">${esc(fallback)}</p>` : ""}
 <footer class="rc-foot"><span>${k ? `${k} · ` : ""}${esc(rep.source === "llm" ? R.llm : R.rules)}</span><button type="button" data-open="${esc(p.id)}" data-tab="rivals">${esc(R2.open)} →</button></footer>
 </article>`;
-    })
-    .join("");
+    };
+  // Same groups as the projects grid: featured stays open, the rest start folded.
+  const groups = ["featured", ...CATEGORIES, "hidden"].filter((g) => withRep.some((p) => groupOf(p) === g));
+  const cards = groups.map((g) => groupBar(s, g, ...groupTitle(s, g), g !== "featured") + withRep.filter((p) => groupOf(p) === g).map(rcCard).join("")).join("");
   const analysed = withRep.filter((p) => x.reports[p.repo]!.items.length).length;
   const leading = withRep.filter((p) => x.reports[p.repo]!.items.length && x.reports[p.repo]!.compare.rank === 1).length;
   const high = withRep.reduce((n, p) => n + (x.reports[p.repo]!.steps ?? []).filter((st) => st.impact === "high").length, 0);
   return `<section id="rivals" class="sec">${head}
 ${x.enabled ? "" : `<p class="pp-note">${esc(R.off)}</p>`}
 <div class="rv-sum reveal"><div><b>${analysed}</b><span>${esc(s.adminx.analysed)}</span></div><div><b>${leading}</b><span>${esc(s.adminx.leading)}</span></div><div><b>${high}</b><span>${esc(R2.steps)} · ${esc(R2.impact)} ${esc(R2.levels.high)}</span></div></div>
-<div class="rc-grid">${cards}</div>
+<div class="rc-grid" id="rv-grid" data-groups="${groups.join(",")}" data-cats data-open-key="repofolio-admin-rv-open">${cards}</div>
 ${without.length ? `<p class="pp-note rv-pending">${esc(R.none)} ${without.map((p) => `<button type="button" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</button>`).join(" ")}</p>` : ""}
 </section>`;
 }

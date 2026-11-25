@@ -341,13 +341,13 @@ body[data-mode="simple"] .si-form{box-shadow:none}
 .grid-sep .gs-t{display:flex;align-items:baseline;gap:12px;min-width:0}
 .grid-sep .gs-t span{color:var(--muted);font-size:.85rem}
 /* public projects page: each category is a bar you open; featured is a plain heading */
-.grid[data-cats] .grid-sep{align-items:center;gap:14px;padding:12px 14px 12px 12px;margin-top:12px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 82%,transparent);transition:border-color .25s,background .25s,box-shadow .25s}
-.grid[data-cats] .grid-sep:first-child{margin-top:0}
-.grid[data-cats] .grid-sep:not(.folded)[role=button]{margin-bottom:4px}
-.grid[data-cats] .grid-sep[data-sep=featured]{border:0;background:none;padding:2px 2px 8px;border-radius:0;border-bottom:1px solid var(--line)}
-.grid[data-cats] .gs-t{flex-direction:column;align-items:flex-start;gap:3px}
-.grid[data-cats] .gs-t b{font:700 1.08rem var(--display);line-height:1.2}
-.grid[data-cats] .gs-t span{font-size:.8rem}
+[data-cats] .grid-sep{align-items:center;gap:14px;padding:12px 14px 12px 12px;margin-top:12px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 82%,transparent);transition:border-color .25s,background .25s,box-shadow .25s}
+[data-cats] .grid-sep:first-child{margin-top:0}
+[data-cats] .grid-sep:not(.folded)[role=button]{margin-bottom:4px}
+[data-cats] .grid-sep[data-sep=featured]{border:0;background:none;padding:2px 2px 8px;border-radius:0;border-bottom:1px solid var(--line)}
+[data-cats] .gs-t{flex-direction:column;align-items:flex-start;gap:3px}
+[data-cats] .gs-t b{font:700 1.08rem var(--display);line-height:1.2}
+[data-cats] .gs-t span{font-size:.8rem}
 .gs-ic{width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);transition:transform .35s var(--ease)}
 .gs-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .grid-sep[data-sep=featured] .gs-ic{color:#eab308;background:color-mix(in srgb,#eab308 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#eab308 28%,transparent)}
@@ -355,8 +355,8 @@ body[data-mode="simple"] .si-form{box-shadow:none}
 .grid-sep.folded .gs-peek{opacity:1;max-width:46%}
 .gs-peek i{font:500 .74rem var(--mono);font-style:normal;white-space:nowrap;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--bg)}
 .gs-peek i.more{border-style:dashed}
-.grid[data-cats] .grid-sep em{margin-left:auto;min-width:30px;text-align:center;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--fg) 6%,transparent)}
-.grid[data-cats] .grid-sep.folded em{margin-left:0}
+[data-cats] .grid-sep em{margin-left:auto;min-width:30px;text-align:center;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--fg) 6%,transparent)}
+[data-cats] .grid-sep.folded em{margin-left:0}
 .grid-sep .fold{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);color:var(--muted);font-style:normal;transition:transform .4s var(--ease),background .25s,color .25s,border-color .25s}
 .grid-sep .fold svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .grid-sep.folded .fold{transform:rotate(-90deg)}
@@ -365,8 +365,12 @@ body[data-mode="simple"] .si-form{box-shadow:none}
 .grid-sep[role=button]:hover .fold{background:var(--accent);border-color:var(--accent);color:#fff}
 .grid-sep[role=button]:hover .gs-ic{transform:scale(1.06) rotate(-4deg)}
 .grid-sep[role=button]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.grid[data-cats]{overflow-anchor:none}
-@media (max-width:640px){.gs-peek{display:none}.grid[data-cats] .gs-t span{display:none}.grid[data-cats] .grid-sep.folded em{margin-left:auto}}
+[data-cats]{overflow-anchor:none}
+.rc.fold{display:none}
+.rc-grid[data-cats]{gap:20px 24px}
+.grid[data-admin] .card.compact .card-top{flex-wrap:nowrap}
+.grid[data-admin] .card.compact .card-top h3{flex:1 1 auto;min-width:0}
+@media (max-width:640px){.gs-peek{display:none}[data-cats] .gs-t span{display:none}[data-cats] .grid-sep.folded em{margin-left:auto}}
 /* admin: eye toggle (on the public site or not) */
 .show-tog{margin-left:auto;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
 .show-tog svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -1301,8 +1305,8 @@ body[data-mode="simple"] .stars{font-weight:600}
 /* group headings on the projects page */
 body[data-mode="simple"] .grid-sep{background:none;border:0;padding:6px 2px 4px}
 body[data-mode="simple"] .grid-sep b{font-size:1.02rem}
-body[data-mode="simple"] .grid[data-cats] .grid-sep[role=button]{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);padding:12px 14px 12px 12px}
-body[data-mode="simple"] .grid[data-cats] .grid-sep[role=button]:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+body[data-mode="simple"] [data-cats] .grid-sep[role=button]{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);padding:12px 14px 12px 12px}
+body[data-mode="simple"] [data-cats] .grid-sep[role=button]:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
 body[data-mode="simple"] .gs-ic{box-shadow:none}
 /* stats tiles and toolbar sit on the tint like the cards */
 body[data-mode="simple"] .stat,body[data-mode="simple"] .tile{background:var(--card);box-shadow:var(--shadow)}

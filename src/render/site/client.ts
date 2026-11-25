@@ -554,14 +554,8 @@ export function clientMain(): void {
           const sep = $(`.grid-sep[data-sep="${g}"]`, grid);
           if (!sep) return;
           const mine = sorted.filter((c) => c.dataset.group === g);
-          const vis = mine.filter((c) => !c.hidden).length;
           const folded = !searching && isFolded(g);
-          sep.hidden = vis === 0;
-          sep.classList.toggle("folded", folded);
-          if (sep.hasAttribute("aria-expanded")) { sep.setAttribute("aria-expanded", String(!folded)); sep.title = folded ? S.cats.unfold : S.cats.fold; }
-          $("em", sep).textContent = vis === mine.length ? String(mine.length) : `${vis} / ${mine.length}`;
-          const peek = $(".gs-peek", sep);
-          if (peek) { const names = mine.filter((c) => !c.hidden).map((c) => $("h3", c).textContent); peek.innerHTML = names.slice(0, 4).map((n) => `<i>${esc(n)}</i>`).join("") + (names.length > 4 ? `<i class="more">+${names.length - 4}</i>` : ""); }
+          paintSep(sep, mine, folded);
           grid.appendChild(sep);
           mine.forEach((c) => { c.classList.toggle("fold", folded); grid.appendChild(c); });
         });
@@ -571,36 +565,48 @@ export function clientMain(): void {
     if (!instant && document.startViewTransition && motion() === "full") document.startViewTransition(doIt);
     else doIt();
   }
-  // Put cards under their group headings right away. Featured stays open; the categories start folded and
-  // the ones opened are remembered in this browser.
-  const GROUPS = grid && grid.dataset.groups ? grid.dataset.groups.split(",") : [];
-  const OPEN_KEY = "repofolio-open";
-  let OPEN = (() => { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || "[]"); } catch (e) { return []; } })();
-  const isFolded = (g) => !!grid && grid.hasAttribute("data-cats") && g !== "featured" && !OPEN.includes(g);
-  if (GROUPS.length) runFilter(true);
-  if (grid) {
+  // A group bar: count (or "shown / all" while filtering), open state, and a preview of the names when folded.
+  const paintSep = (sep, mine, folded) => {
+    const vis = mine.filter((c) => !c.hidden);
+    sep.hidden = vis.length === 0;
+    sep.classList.toggle("folded", folded);
+    if (sep.hasAttribute("aria-expanded")) { sep.setAttribute("aria-expanded", String(!folded)); sep.title = folded ? S.cats.unfold : S.cats.fold; }
+    $("em", sep).textContent = vis.length === mine.length ? String(mine.length) : `${vis.length} / ${mine.length}`;
+    const peek = $(".gs-peek", sep);
+    if (peek) { const names = vis.map((c) => ($("h3", c) || $(".rc-name b", c) || c).textContent); peek.innerHTML = names.slice(0, 4).map((n) => `<i>${esc(n)}</i>`).join("") + (names.length > 4 ? `<i class="more">+${names.length - 4}</i>` : ""); }
+  };
+  // Which groups are open is remembered per page (public projects, admin projects, admin competitors).
+  const openSet = (box) => {
+    const key = box.dataset.openKey || "repofolio-open";
+    let list = (() => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } })();
+    return {
+      folded: (g) => box.hasAttribute("data-cats") && g !== "featured" && !list.includes(g),
+      set: (g, open) => { list = open ? list.concat(g) : list.filter((x) => x !== g); try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {} },
+    };
+  };
+  const still = () => motion() !== "full" || !document.body.animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const EASE = "cubic-bezier(.2,.8,.2,1)";
+  // Group bars open and close their group. The clicked bar stays where it is on screen; closing rolls the cards
+  // back up into the bar, opening drops them down from it row by row, and everything below slides (FLIP).
+  const foldable = (box, open, relayout) => {
     let busy = false;
-    const still = () => motion() !== "full" || !grid.animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const EASE = "cubic-bezier(.2,.8,.2,1)";
     const fold = async (sep) => {
       if (!sep.hasAttribute("aria-expanded") || busy) return;
-      const g = sep.dataset.sep, opening = isFolded(g);
-      OPEN = opening ? OPEN.concat(g) : OPEN.filter((x) => x !== g);
-      try { localStorage.setItem(OPEN_KEY, JSON.stringify(OPEN)); } catch (e) {}
+      const g = sep.dataset.sep, opening = open.folded(g);
+      open.set(g, opening);
       const y0 = sep.getBoundingClientRect().top;
       const pin = () => { const d = sep.getBoundingClientRect().top - y0; if (Math.abs(d) > 1) window.scrollBy(0, d); };
-      if (still()) { runFilter(true); return pin(); }
+      if (still()) { relayout(); return pin(); }
       busy = true;
-      // Cards of this group leave (or arrive) in a quick stagger; everything below slides to its new place (FLIP).
-      const mine = $$(`.card[data-group="${g}"]`, grid).filter((c) => !c.hidden);
-      const rest = [...grid.children].filter((el) => !mine.includes(el) && !el.hidden && !el.classList.contains("fold") && el.getClientRects().length);
+      const mine = [...box.children].filter((c) => c.dataset.group === g && !c.hidden);
+      const rest = [...box.children].filter((el) => !mine.includes(el) && !el.hidden && !el.classList.contains("fold") && el.getClientRects().length);
       // Closing rolls the cards back up into the bar, last row first.
       if (!opening) {
         const tops = [...new Set(mine.map((c) => Math.round(c.getBoundingClientRect().top)))].sort((a, b) => b - a);
         await Promise.all(mine.map((c) => c.animate([{ opacity: 1, transform: "none", clipPath: "inset(0 0 0 0 round 16px)" }, { opacity: 0, transform: "translateY(-10px)", clipPath: "inset(0 0 100% 0 round 16px)" }], { duration: 200, delay: Math.min(tops.indexOf(Math.round(c.getBoundingClientRect().top)), 4) * 40, easing: "ease-in", fill: "forwards" }).finished.catch(() => {})));
       }
       const first = new Map(rest.map((el) => [el, el.getBoundingClientRect()]));
-      runFilter(true);
+      relayout();
       pin();
       if (!opening) mine.forEach((c) => c.getAnimations().forEach((a) => a.cancel()));
       rest.forEach((el) => {
@@ -618,8 +624,28 @@ export function clientMain(): void {
       }
       setTimeout(() => (busy = false), 240);
     };
-    grid.addEventListener("click", (e) => { const sep = e.target.closest(".grid-sep[role=button]"); if (sep) fold(sep); });
-    grid.addEventListener("keydown", (e) => { const sep = e.target.closest && e.target.closest(".grid-sep[role=button]"); if (sep && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fold(sep); } });
+    box.addEventListener("click", (e) => { const sep = e.target.closest(".grid-sep[role=button]"); if (sep && sep.parentNode === box) fold(sep); });
+    box.addEventListener("keydown", (e) => { const sep = e.target.closest && e.target.closest(".grid-sep[role=button]"); if (sep && sep.parentNode === box && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fold(sep); } });
+  };
+  // Projects grid: cards go under their group headings right away. Featured stays open; the rest start folded.
+  const GROUPS = grid && grid.dataset.groups ? grid.dataset.groups.split(",") : [];
+  const gridOpen = grid ? openSet(grid) : null;
+  const isFolded = (g) => !!gridOpen && gridOpen.folded(g);
+  if (GROUPS.length) runFilter(true);
+  if (grid && GROUPS.length) foldable(grid, gridOpen, () => runFilter(true));
+  // Admin competitors page: same groups, no filtering.
+  const rvGrid = $("#rv-grid");
+  if (rvGrid && rvGrid.dataset.groups) {
+    const open = openSet(rvGrid);
+    const lay = () => rvGrid.dataset.groups.split(",").forEach((g) => {
+      const sep = $(`.grid-sep[data-sep="${g}"]`, rvGrid);
+      if (!sep) return;
+      const mine = [...rvGrid.children].filter((c) => c.dataset.group === g), f = open.folded(g);
+      paintSep(sep, mine, f);
+      mine.forEach((c) => { c.classList.toggle("fold", f); if (!f) c.classList.add("in"); });
+    });
+    lay();
+    foldable(rvGrid, open, lay);
   }
   const q = $("#q");
   if (q) q.addEventListener("input", () => { F.q = q.value; runFilter(); });
@@ -1211,7 +1237,7 @@ export function clientMain(): void {
           const k = b.dataset.show, on = now[k], card = b.closest(".card");
           b.setAttribute("aria-pressed", String(on));
           if (!b.disabled) b.title = on ? S.vis.show : S.vis.hide;
-          if (card && !b.disabled && card.closest("#grid")) { card.dataset.group = on ? "shown" : "hidden"; card.classList.toggle("vis-dirty", on !== was[k]); }
+          if (card && !b.disabled && card.closest("#grid")) card.classList.toggle("vis-dirty", on !== was[k]);
         });
         const n = changed().length;
         vb.hidden = n === 0;

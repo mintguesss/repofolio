@@ -51,3 +51,5 @@ projects:
     status: done
   stock-manager:
     ignore: [no-description]
+  personal_web_old:
+    status: done

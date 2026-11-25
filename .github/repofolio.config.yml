@@ -55,6 +55,7 @@ projects:
     status: done
   NowMap:
     ignore: [no-description]
+    status: done
   TAICA_LLM:
     ignore: [no-license]
   personal_web:

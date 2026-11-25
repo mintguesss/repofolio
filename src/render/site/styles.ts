@@ -365,6 +365,7 @@ body[data-mode="simple"] .si-form{box-shadow:none}
 .grid-sep[role=button]:hover .fold{background:var(--accent);border-color:var(--accent);color:#fff}
 .grid-sep[role=button]:hover .gs-ic{transform:scale(1.06) rotate(-4deg)}
 .grid-sep[role=button]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.grid[data-cats]{overflow-anchor:none}
 @media (max-width:640px){.gs-peek{display:none}.grid[data-cats] .gs-t span{display:none}.grid[data-cats] .grid-sep.folded em{margin-left:auto}}
 /* admin: eye toggle (on the public site or not) */
 .show-tog{margin-left:auto;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
@@ -1307,5 +1308,12 @@ body[data-mode="simple"] .gs-ic{box-shadow:none}
 body[data-mode="simple"] .stat,body[data-mode="simple"] .tile{background:var(--card);box-shadow:var(--shadow)}
 body[data-mode="simple"] .toolbar .search,body[data-mode="simple"] .toolbar .select,body[data-mode="simple"] .icon-seg{background:var(--card)}
 body[data-mode="simple"] .btn.ghost{background:var(--card)}
+/* featured six: a notch smaller than full cards, home page and projects page alike */
+.featured-grid.six{gap:20px}
+.featured-grid.six .card .cover,.grid[data-cats] .card.big .cover{aspect-ratio:2.3/1}
+.featured-grid.six .card .card-body,.grid[data-cats] .card.big .card-body{gap:9px;padding:14px 16px 14px}
+.featured-grid.six .card h3,.grid[data-cats] .card.big h3{font-size:1.12rem}
+.featured-grid.six .card .sum,.grid[data-cats] .card.big .sum{-webkit-line-clamp:2;font-size:.88rem}
+.featured-grid.six .card .tech,.grid[data-cats] .card.big .tech{font-size:.72rem}
 `;
 }

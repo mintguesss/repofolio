@@ -587,20 +587,35 @@ export function clientMain(): void {
       const g = sep.dataset.sep, opening = isFolded(g);
       OPEN = opening ? OPEN.concat(g) : OPEN.filter((x) => x !== g);
       try { localStorage.setItem(OPEN_KEY, JSON.stringify(OPEN)); } catch (e) {}
-      if (still()) return runFilter(true);
+      const y0 = sep.getBoundingClientRect().top;
+      const pin = () => { const d = sep.getBoundingClientRect().top - y0; if (Math.abs(d) > 1) window.scrollBy(0, d); };
+      if (still()) { runFilter(true); return pin(); }
       busy = true;
       // Cards of this group leave (or arrive) in a quick stagger; everything below slides to its new place (FLIP).
       const mine = $$(`.card[data-group="${g}"]`, grid).filter((c) => !c.hidden);
       const rest = [...grid.children].filter((el) => !mine.includes(el) && !el.hidden && !el.classList.contains("fold") && el.getClientRects().length);
-      if (!opening) await Promise.all(mine.map((c, i) => c.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-8px) scale(.96)" }], { duration: 170, delay: Math.min(i, 8) * 16, easing: "ease-in", fill: "forwards" }).finished.catch(() => {})));
+      // Closing rolls the cards back up into the bar, last row first.
+      if (!opening) {
+        const tops = [...new Set(mine.map((c) => Math.round(c.getBoundingClientRect().top)))].sort((a, b) => b - a);
+        await Promise.all(mine.map((c) => c.animate([{ opacity: 1, transform: "none", clipPath: "inset(0 0 0 0 round 16px)" }, { opacity: 0, transform: "translateY(-10px)", clipPath: "inset(0 0 100% 0 round 16px)" }], { duration: 200, delay: Math.min(tops.indexOf(Math.round(c.getBoundingClientRect().top)), 4) * 40, easing: "ease-in", fill: "forwards" }).finished.catch(() => {})));
+      }
       const first = new Map(rest.map((el) => [el, el.getBoundingClientRect()]));
       runFilter(true);
+      pin();
       if (!opening) mine.forEach((c) => c.getAnimations().forEach((a) => a.cancel()));
       rest.forEach((el) => {
         const a = first.get(el), b = el.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
         if (Math.abs(dx) + Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 420, easing: EASE });
       });
-      if (opening) mine.forEach((c, i) => c.animate([{ opacity: 0, transform: "translateY(18px) scale(.96)" }, { opacity: 1, transform: "none" }], { duration: 380, delay: 60 + Math.min(i, 10) * 40, easing: EASE, fill: "backwards" }));
+      // Opening drops down from the bar like a menu: row by row, each card unrolling from its top edge.
+      if (opening) {
+        const tops = [...new Set(mine.map((c) => Math.round(c.getBoundingClientRect().top)))].sort((a, b) => a - b);
+        const col = {};
+        mine.forEach((c) => {
+          const t = Math.round(c.getBoundingClientRect().top), row = tops.indexOf(t), k = (col[t] = (col[t] || 0) + 1) - 1;
+          c.animate([{ opacity: 0, transform: "translateY(-14px)", clipPath: "inset(0 0 100% 0 round 16px)" }, { opacity: 1, transform: "none", clipPath: "inset(0 0 0 0 round 16px)" }], { duration: 420, delay: 40 + Math.min(row, 4) * 90 + Math.min(k, 3) * 30, easing: EASE, fill: "backwards" });
+        });
+      }
       setTimeout(() => (busy = false), 240);
     };
     grid.addEventListener("click", (e) => { const sep = e.target.closest(".grid-sep[role=button]"); if (sep) fold(sep); });

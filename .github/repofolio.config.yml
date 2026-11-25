@@ -57,3 +57,5 @@ projects:
     ignore: [no-description]
   TAICA_LLM:
     ignore: [no-license]
+  personal_web:
+    ignore: [no-license]

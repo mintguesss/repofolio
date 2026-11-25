@@ -248,7 +248,8 @@ const plain = (s: string) =>
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/<[^>]+>/g, " ")
-    .replace(/[*_`~]/g, "")
+    // Markup only: a single ~ is a range (300~700MB), ~~ is strikethrough.
+    .replace(/~~|[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 

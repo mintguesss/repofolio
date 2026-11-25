@@ -177,12 +177,28 @@ export function liveSection(d: ShowcaseData, s: SiteStrings, head: string, canAc
   const slowN = rows.filter(slow).length;
   const none = d.projects.filter((p) => !p.deployments.length && p.status !== "archived");
   const host = (u: string) => u.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const gh = (p: PublicProject) => (p.repo.includes("/") ? `https://github.com/${p.repo}` : p.codeUrl);
+  // Where each host's deploy settings live (GitHub Pages: the repo's own settings).
+  const DASH: Record<string, [string, string]> = {
+    vercel: ["Vercel", "https://vercel.com/dashboard"], netlify: ["Netlify", "https://app.netlify.com/"], fly: ["Fly.io", "https://fly.io/dashboard"],
+    render: ["Render", "https://dashboard.render.com/"], railway: ["Railway", "https://railway.com/dashboard"], cloudflare: ["Cloudflare", "https://dash.cloudflare.com/"],
+    gcp: ["Google Cloud", "https://console.cloud.google.com/run"], huggingface: ["Hugging Face", "https://huggingface.co/spaces"], heroku: ["Heroku", "https://dashboard.heroku.com/apps"], supabase: ["Supabase", "https://supabase.com/dashboard/projects"],
+  };
+  const deployLink = (r: Row): [string, string] | null => {
+    const g = gh(r.p);
+    if (r.dep.provider === "github-pages" && g) return [`${g}/settings/pages`, "GitHub Pages"];
+    const d = r.dep.provider ? DASH[r.dep.provider] : undefined;
+    return d ? [d[1], d[0]] : null;
+  };
   const row = (r: Row) => {
     const st = !r.dep.ok ? "down" : slow(r) ? "slow" : "up";
     const ignored = r.p.admin?.ignored?.includes("url-down");
     const acts = [
       `<a class="fx" href="${esc(r.dep.url)}" target="_blank" rel="noopener">${esc(L.open)} ↗</a>`,
       `<a class="fx" href="#" data-open="${esc(r.p.id)}">${esc(L.details)}</a>`,
+      gh(r.p) ? `<a class="fx" href="${esc(gh(r.p)!)}" target="_blank" rel="noopener" title="${esc(L.githubHint)}">${esc(L.github)} ↗</a>` : "",
+      deployLink(r) ? `<a class="fx" href="${esc(deployLink(r)![0])}" target="_blank" rel="noopener">${esc(L.deploy.replace("{p}", deployLink(r)![1]))} ↗</a>` : "",
+      gh(r.p) && !r.dep.ok ? `<a class="fx" href="${esc(gh(r.p)!)}/actions" target="_blank" rel="noopener" title="${esc(L.actionsHint)}">${esc(L.actions)} ↗</a>` : "",
       !r.dep.ok && canAct && !ignored ? `<button type="button" class="fx" data-fix="ignore" data-pid="${esc(r.p.id)}" data-issue="url-down">${esc(L.ignore)}</button>` : "",
       ignored ? `<em class="lv-ign">${esc(L.ignored)}</em>` : "",
     ].join("");
@@ -192,6 +208,6 @@ export function liveSection(d: ShowcaseData, s: SiteStrings, head: string, canAc
 <div class="adm-tools reveal">${canAct ? `<button type="button" class="btn ghost" data-refresh>⟳ ${esc(L.recheck)}</button>` : ""}</div>
 <div class="lv-sum reveal"><div class="lv-k up"><b>${rows.length - down - slowN}</b><span>${esc(L.up)}</span></div><div class="lv-k slow"><b>${slowN}</b><span>${esc(L.slow)}</span></div><div class="lv-k down"><b>${down}</b><span>${esc(L.down)}</span></div><div class="lv-k"><b>${none.length}</b><span>${esc(L.noDeploy)}</span></div></div>
 ${rows.length ? `<ul class="lv-list reveal">${rows.map(row).join("")}</ul>` : `<p class="empty reveal">${esc(L.none)}</p>`}
-${none.length ? `<h3 class="lv-h reveal">${esc(L.noDeploy)}</h3><p class="lv-none reveal">${none.map((p) => `<a href="#" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</a>`).join(" ")}</p><p class="lv-hint reveal">${esc(L.hint)}</p>` : ""}
+${none.length ? `<h3 class="lv-h reveal">${esc(L.noDeploy)}</h3><p class="lv-none reveal">${none.map((p) => `<span class="lv-nd"><a href="#" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</a>${gh(p) ? `<a class="lv-gh" href="${esc(gh(p)!)}" target="_blank" rel="noopener" title="${esc(L.githubHint)}" aria-label="${esc(L.github)}">↗</a>` : ""}</span>`).join(" ")}</p><p class="lv-hint reveal">${esc(L.hint)}</p>` : ""}
 </section>`;
 }

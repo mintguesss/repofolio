@@ -2,7 +2,7 @@ import type { Config, Platform } from "../../schema.js";
 import { PLATFORM_INFO } from "../../promote/platforms.js";
 import { ANIMATIONS, BACKGROUNDS, FONTS, GLOWS, LAYOUTS, MODES, SCHEMES, THEME_PRESETS } from "../../schema.js";
 import type { Inventory } from "../../types.js";
-import { buildShowcase, esc, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
+import { buildShowcase, CATEGORIES, esc, pickFeatured, REPO_URL, type PublicProject, type ShowcaseData } from "../public.js";
 import { clientMain } from "./client.js";
 import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
@@ -72,7 +72,7 @@ function linkLabel(label: string, s: SiteStrings): string {
   return label === "live" ? s.visit : label;
 }
 
-function card(p: PublicProject, s: SiteStrings, icons: IconSprite, opts: { big?: boolean } = {}): string {
+function card(p: PublicProject, s: SiteStrings, icons: IconSprite, opts: { big?: boolean; compact?: boolean; group?: string } = {}): string {
   const tech = [...new Set([...p.stack, ...p.languages.slice(0, 2).map((l) => l.name)])];
   const text = [p.name, p.repo, p.summary, p.purpose ?? "", ...tech, ...p.tags].join(" ").toLowerCase();
   const live = p.links.find((l) => l.label === "live");
@@ -81,13 +81,14 @@ function card(p: PublicProject, s: SiteStrings, icons: IconSprite, opts: { big?:
     p.codeUrl ? `<a class="btn-mini" href="${esc(p.codeUrl)}" target="_blank" rel="noopener">${icons.icon("github", "bi")} ${esc(s.code)}</a>` : "",
   ].join("");
   const statusText = s.statusLabels[p.status];
-  return `<article class="card reveal${p.featured ? " featured" : ""}${opts.big ? " big" : ""}" tabindex="0" data-id="${esc(p.id)}" data-status="${p.status}" data-tech="${esc(tech.map((x) => x.toLowerCase()).join("|"))}" data-text="${esc(text)}" data-stars="${p.stars}" data-updated="${esc(p.updated)}" data-created="${esc(p.created)}" data-name="${esc(p.name.toLowerCase())}" data-featured="${p.featured ? 1 : 0}"${p.admin ? ` data-group="${p.admin.shown ? "shown" : "hidden"}"` : ""}>
+  const group = opts.group ?? (p.admin ? (p.admin.shown ? "shown" : "hidden") : undefined);
+  return `<article class="card reveal${p.featured ? " featured" : ""}${opts.big ? " big" : ""}${opts.compact ? " compact" : ""}" tabindex="0" data-id="${esc(p.id)}" data-status="${p.status}" data-tech="${esc(tech.map((x) => x.toLowerCase()).join("|"))}" data-text="${esc(text)}" data-stars="${p.stars}" data-updated="${esc(p.updated)}" data-created="${esc(p.created)}" data-name="${esc(p.name.toLowerCase())}" data-featured="${p.featured ? 1 : 0}" data-rank="${p.rank ?? 99}" data-thin="${p.thin ? 1 : 0}"${group ? ` data-group="${group}"` : ""}>
 <div class="cover">${p.image ? `<img loading="lazy" decoding="async" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">` : ""}<div class="cover-fallback" aria-hidden="true"><span>${esc(p.name.slice(0, 1).toUpperCase())}</span></div></div>
 <div class="card-body">
-<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.team ? `<span class="pill team" title="${esc(p.team)}">👥 ${esc(p.team)}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}${p.admin && !p.admin.shown ? `<span class="pill">${esc(s.admin.hidden)}</span>` : ""}${p.admin ? `<span class="hp sm" style="--hc:${healthColor(p.admin.health)}" title="${esc(s.admin.health)}"><b>${p.admin.health}</b></span>` : ""}</div>
+<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.team ? `<span class="pill team" title="${esc(p.team)}">👥 ${esc(p.team)}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}${p.admin && !p.admin.shown ? `<span class="pill">${esc(s.admin.hidden)}</span>` : ""}${p.admin ? `<span class="hp sm" style="--hc:${healthColor(p.admin.health)}" title="${esc(s.admin.health)}"><b>${p.admin.health}</b></span>` : ""}${p.admin ? `<button type="button" class="feat-tog" data-feat="${esc(p.admin.cfgKey)}" aria-pressed="${p.featured}" title="${esc(p.featured ? s.fp.unfeature : s.fp.add)}"${p.private ? " disabled" : ""}>★</button>` : ""}</div>
 <p class="sum">${esc(p.summary || "—")}</p>
-<div class="techs">${tech.slice(0, 6).map((t) => `<span class="tech" title="${esc(t)}">${icons.icon(t)}<em>${esc(t)}</em></span>`).join("")}</div>
-${sparkline(p.activity)}
+<div class="techs">${tech.slice(0, opts.compact ? 3 : 6).map((t) => `<span class="tech" title="${esc(t)}">${icons.icon(t)}<em>${esc(t)}</em></span>`).join("")}</div>
+${opts.compact ? "" : sparkline(p.activity)}
 <div class="card-foot"><span class="when" data-time="${esc(p.updated)}">${esc(statusText)}${p.release ? ` · ${esc(p.release)}` : ""}</span><span class="acts">${links}</span></div>
 </div>
 <span class="shine" aria-hidden="true"></span>
@@ -200,10 +201,9 @@ ${terminal}
 }
 
 function featuredSection(d: ShowcaseData, s: SiteStrings, icons: IconSprite, idx: number): string {
-  let list = d.projects.filter((p) => p.featured);
-  if (!list.length) list = [...d.projects].sort((a, b) => b.stars - a.stars || Date.parse(b.updated) - Date.parse(a.updated)).slice(0, 3);
+  const list = pickFeatured(d.projects.filter((p) => !p.admin || p.admin.shown));
   if (!list.length) return "";
-  return `<section id="featured" class="sec">${sectionHead("featured", s.featured, s.featuredSub, idx)}<div class="featured-grid">${list.slice(0, 4).map((p) => card(p, s, icons, { big: true })).join("")}</div></section>`;
+  return `<section id="featured" class="sec">${sectionHead("featured", s.featured, s.featuredSub, idx)}<div class="featured-grid six">${list.map((p) => card(p, s, icons, { big: true })).join("")}</div></section>`;
 }
 
 function projectsSection(d: ShowcaseData, config: Config, s: SiteStrings, icons: IconSprite, idx: number): string {
@@ -221,9 +221,23 @@ function projectsSection(d: ShowcaseData, config: Config, s: SiteStrings, icons:
 ${topTech.length ? `<button type="button" class="filter-toggle" id="tech-toggle" aria-expanded="false" aria-controls="tech-filter">${esc(s.techFilter)} <b id="tech-count"></b><span aria-hidden="true">▾</span></button>` : ""}
 </div>
 <div class="chips" id="tech-filter" hidden>${topTech.map((t) => `<button type="button" class="chip" data-tech="${esc(t.name.toLowerCase())}" aria-pressed="false">${icons.icon(t.name)}${esc(t.name)}<b>${t.count}</b></button>`).join("")}</div>
-<div class="grid" id="grid"${d.projects.some((p) => p.admin) ? " data-split" : ""}>${d.projects.some((p) => p.admin) ? `<div class="grid-sep" data-sep="shown"><b>${esc(s.adminx.groupShown)}</b><span>${esc(s.adminx.groupShownSub)}</span><em></em></div><div class="grid-sep" data-sep="hidden"><b>${esc(s.adminx.groupHidden)}</b><span>${esc(s.adminx.groupHiddenSub)}</span><em></em></div>` : ""}${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>
+${grid(d, s, icons)}
 <div class="empty" id="empty" hidden><p>${esc(s.noResults)}</p><button type="button" class="btn ghost" id="clear">${esc(s.clear)}</button></div>
 </section>`;
+}
+
+/** The projects grid. Admin: public and not-public groups, plus the featured picker. Public: featured, then categories. */
+function grid(d: ShowcaseData, s: SiteStrings, icons: IconSprite): string {
+  const admin = d.projects.some((p) => p.admin);
+  const sep = (g: string, title: string, sub = "", fold = true) => `<div class="grid-sep" data-sep="${g}"${fold ? ` role="button" tabindex="0" aria-expanded="true" title="${esc(s.cats.fold)}"` : ""}><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}<em></em>${fold ? '<i class="fold" aria-hidden="true">▾</i>' : ""}</div>`;
+  if (admin) {
+    const picked = d.projects.filter((p) => p.featured).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+    return `<div class="fp reveal" id="feat-pick" data-init="${esc(JSON.stringify(picked.map((p) => p.admin!.cfgKey)))}"><div class="fp-h"><b>★ ${esc(s.fp.title)}</b><span>${esc(s.fp.sub)}</span><em class="fp-n"></em></div><ol class="fp-list"></ol><p class="fp-empty">${esc(s.fp.empty)}</p><div class="fp-acts"><button type="button" class="btn primary" id="fp-save" disabled>${esc(s.fp.save)}</button><span class="pp-msg"></span></div></div>
+<div class="grid" id="grid" data-groups="shown,hidden">${sep("shown", s.adminx.groupShown, s.adminx.groupShownSub, false)}${sep("hidden", s.adminx.groupHidden, s.adminx.groupHiddenSub, false)}${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>`;
+  }
+  const feat = new Set(pickFeatured(d.projects).map((p) => p.id));
+  const groups = ["featured", ...CATEGORIES].filter((g) => d.projects.some((p) => (feat.has(p.id) ? "featured" : p.category) === g));
+  return `<div class="grid" id="grid" data-groups="${groups.join(",")}" data-cats>${groups.map((g) => sep(g, s.cats[g as keyof typeof s.cats])).join("")}${d.projects.map((p) => (feat.has(p.id) ? card(p, s, icons, { big: true, group: "featured" }) : card(p, s, icons, { compact: true, group: p.category }))).join("\n")}</div>`;
 }
 
 const LAYOUT_ICON: Record<string, string> = {
@@ -458,6 +472,14 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
       return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
     .join("");
+  // Admin: its own pages up front; the pages visitors see go under one menu.
+  const ADMIN_PAGES = new Set(["admin", "posts", "site", "live", "rivals", "settings"]);
+  const links = navItems.match(/<a [^>]*data-nav="[^"]+"[^>]*>.*?<\/a>/g) ?? [];
+  const isAdminLink = (a: string) => ADMIN_PAGES.has(/data-nav="([^"]+)"/.exec(a)![1]!);
+  const outside = links.filter((a) => !isAdminLink(a));
+  const navHtml = admin && multi && outside.length
+    ? `<nav>${links.filter(isAdminLink).join("")}</nav><div class="nav-more"><button type="button" class="nav-more-btn" aria-expanded="false" aria-haspopup="true">👁 ${esc(s.navPublic)} <span aria-hidden="true">▾</span></button><div class="nav-menu" role="menu" hidden>${outside.join("")}</div></div>`
+    : `<nav>${navItems}</nav>`;
   // Icons the client may need for the modal / palette.
   icons.icon("github");
   for (const p of d.projects) for (const dep of p.deployments) if (dep.provider) icons.icon(dep.provider);
@@ -524,7 +546,7 @@ ${icons.sprite()}
 ${admin ? `<div class="admin-bar">🔒 ${esc(s.admin.mode)}<span class="adm-upd">${esc(s.adminx.updated)} <span data-time="${esc(d.generatedAt)}">${esc(d.generatedAt.slice(0, 16).replace("T", " "))}</span></span>${extras?.dispatch ? `<button type="button" id="adm-refresh">⟳ ${esc(s.adminx.refresh)}</button>` : ""}<a href="./">${esc(s.admin.publicSite)} ↗</a><button type="button" onclick="try{[localStorage,sessionStorage].forEach(function(s){Object.keys(s).forEach(function(k){if(k.indexOf('repofolio-admin')===0)s.removeItem(k)})})}catch(e){};location.href='./'">${esc(s.admin.logout)}</button></div>` : ""}
 <header class="nav">
 <a class="brand" href="${multi ? "#/" : "#hero"}">${avatar ? `<img src="${esc(avatar)}" alt="" width="28" height="28">` : ""}<span>${esc(d.owner)}</span></a>
-<nav>${navItems}</nav>
+${navHtml}
 <div class="nav-actions"><button type="button" class="icon-btn" id="open-palette" title="${esc(s.palette)}"><span>⌕</span><kbd>⌘K</kbd></button>${config.site.customizer ? `<button type="button" class="icon-btn" id="open-custom" title="${esc(s.customize)}" aria-label="${esc(s.customize)}"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.4-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>` : ""}</div>
 </header>
 <main>

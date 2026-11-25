@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { PLATFORMS, POST_STYLES, type Config, type Platform } from "../schema.js";
+import { PLATFORMS, POST_STYLES, postStyle, type Config, type Platform } from "../schema.js";
 import type { Post, PostResult, State } from "../state.js";
 import type { Inventory } from "../types.js";
 import type { AiMeter } from "../ai.js";
@@ -18,8 +18,8 @@ const Text = z.object({ text: z.string().max(60000), title: z.string().max(300).
 export const RequestSchema = z.array(z.discriminatedUnion("op", [
   z.object({ op: z.literal("approve"), id: z.string(), platforms: z.array(z.enum(PLATFORMS)).default([]), manual: z.array(z.enum(PLATFORMS)).default([]), edits: z.partialRecord(z.enum(PLATFORMS), Text).default({}) }),
   z.object({ op: z.literal("skip"), id: z.string() }),
-  z.object({ op: z.literal("draft"), repo: z.string(), style: z.enum(POST_STYLES).optional() }),
-  z.object({ op: z.literal("redraft"), id: z.string(), style: z.enum(POST_STYLES) }),
+  z.object({ op: z.literal("draft"), repo: z.string(), style: postStyle.optional() }),
+  z.object({ op: z.literal("redraft"), id: z.string(), style: postStyle }),
   z.object({ op: z.literal("config"), set: ConfigPatchSchema }),
   z.object({ op: z.literal("site"), repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/), act: z.enum(["dismiss", "restore"]) }),
 ])).max(50);

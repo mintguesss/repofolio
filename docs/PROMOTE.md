@@ -32,17 +32,17 @@ Links point to `<portfolio>/p/<project>/`, a share page whose preview card uses 
 
 ## Post styles
 
-Based on how job seekers and build-in-public developers usually write, each draft can switch between five styles in the admin page (the workflow rewrites it, about 2 minutes):
+Based on how build-in-public developers usually write, each draft can switch between five styles in the admin page (the workflow rewrites it, about 2 minutes):
 
 | Style | Shape | Good for |
 |---|---|---|
 | Launch | What you shipped, the problem, 2–4 features, the stack, try it | New project, going live |
 | Build story | Why you built it, an obstacle or trade-off, what you learned, what is next | Milestones, retrospectives |
 | Deep dive | One technical part start to finish, with the code | Reaching engineers |
-| Recruiter-friendly | The project as evidence: built solo, skills shown, a concrete result, open to talk | Portfolio intro, job hunting |
+| Showcase | One line on what it is, one or two concrete facts (behaviour, a design choice, the stack), the link. Plain, no emoji | Portfolio intro, new projects, going live |
 | Short update | 1–3 lines and the link | Releases, weekly digest |
 
-The default is **recruiter-friendly** (`style: recruiter`). `style: auto` picks per event instead (intro and spotlight: recruiter-friendly; new project and live: launch; milestones: story; releases and weekly: short). Change it in ⚙ Settings.
+The default is **showcase** (`style: showcase`; the old name `recruiter` still works). `style: auto` picks per event instead (intro, spotlight, new project and live: showcase; milestones: story; releases and weekly: short). Change it in ⚙ Settings.
 
 Platform length and tone apply on top (LinkedIn long, X and Bluesky short, DEV an article, PTT its own format). Templates only include content in the post language; Claude rewrites in the style, translates into the post language and never invents facts.
 

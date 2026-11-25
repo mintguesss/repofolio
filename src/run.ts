@@ -36,7 +36,7 @@ export function writeOutputs(inv: Inventory, config: Config, dir = config.output
     [join(site, "index.html"), ""],
     [join(site, "card.svg"), renderCard(inv, config.language, { accent: config.site.theme.accent, owners: config.owners })],
     [join(site, "projects.json"), JSON.stringify(buildShowcase(inv, config), null, 2)],
-    [join(dir, "profile.md"), renderProfileSection(inv, config.language)],
+    [join(dir, "profile.md"), renderProfileSection(inv, config.language, { sort: config.profile.sort, limit: config.profile.limit, title: config.profile.title })],
   ];
   const adminInv = opts.adminInv ?? inv;
   const password = process.env.REPOFOLIO_ADMIN_PASSWORD;

@@ -251,6 +251,9 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
 
   const daysSincePush = Math.max(0, Math.floor((now.getTime() - Date.parse(gh.pushed_at)) / 86_400_000));
   const override = config.projects[gh.name] ?? config.projects[full];
+  // Featured: the admin page's ordered pick wins over .project.yml.
+  const pick = config.site.featured.map((k) => k.toLowerCase());
+  const rank = pick.length ? pick.findIndex((k) => k === gh.name.toLowerCase() || k === full.toLowerCase()) : -1;
   const chosen = override?.status ?? meta.status;
   const statusInferred = !chosen;
   const status = chosen ?? inferStatus({ archived: gh.archived, daysSincePush, staleDays: config.staleDays });
@@ -282,7 +285,8 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     latestRelease: release ? { tag: release.tag_name, publishedAt: release.published_at, url: release.html_url } : undefined,
     readme,
     hasMetaFile: !!metaName,
-    meta: { ...meta, tags: meta.tags.length ? meta.tags : llmTags },
+    meta: { ...meta, tags: meta.tags.length ? meta.tags : llmTags, featured: pick.length ? rank >= 0 : meta.featured },
+    ...(rank >= 0 ? { featuredRank: rank } : {}),
     metaProblems: problems,
     status,
     statusInferred,

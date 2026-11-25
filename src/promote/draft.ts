@@ -33,10 +33,12 @@ function fill(text: string, url: string): string {
 const list = (v: unknown) => (Array.isArray(v) ? v : []) as string[];
 const str = (v: unknown) => (v == null ? "" : String(v));
 const tagify = (t: string) => t.replace(/[^\p{L}\p{N}]+/gu, "");
+/** A fact as a clause: no trailing punctuation, no leading emoji. */
+const clause = (t: string) => t.trim().replace(/^[\p{Extended_Pictographic}\s]+/u, "").replace(/[\s.。!！,，;；:：]+$/u, "");
 
 /** Which style an event gets when the config says "auto". */
 export function autoStyle(kind: PostEvent["kind"]): Exclude<PostStyle, "auto"> {
-  return ({ intro: "recruiter", "new-project": "launch", release: "short", stars: "story", live: "launch", weekly: "short", spotlight: "recruiter" } as const)[kind];
+  return ({ intro: "showcase", "new-project": "showcase", release: "short", stars: "story", live: "showcase", weekly: "short", spotlight: "showcase" } as const)[kind];
 }
 
 /** How each style is written. Fed to Claude; the templates follow the same structure. */
@@ -44,7 +46,7 @@ export const STYLE_GUIDE: Record<Exclude<PostStyle, "auto">, string> = {
   launch: "LAUNCH: hook line saying what you shipped; the problem it solves and for whom; 2–4 concrete features; the stack; a call to action to try it / give feedback.",
   story: "STORY: first person, why you started it, one real obstacle or trade-off (only if it is in the facts; otherwise the hardest part implied by the scope), what you learned, what's next. Honest, no humblebrag.",
   deepdive: "DEEP DIVE: one technical aspect explained start to finish (architecture, a library choice, how a feature works), aimed at engineers, with the stack named precisely. Link to the code.",
-  recruiter: "RECRUITER-FRIENDLY: the project as evidence of skills. What you built and your role (solo), the stack and skills it shows, one measurable or concrete result from the facts, and a soft line that you're open to opportunities / happy to talk. No desperation, no buzzwords.",
+  showcase: "SHOWCASE, written by an engineer for other engineers. Line 1: the project name and what it is, in one plain sentence. Then one or two concrete, specific facts from the facts given: how it behaves, a design decision or constraint, the stack. Then the link. Short. No emoji and no exclamation marks, even where the platform style would allow them. No chatty openers (\"I just built\", \"最近做了一個\"), no adjectives selling it, no calls to action, nothing about jobs, hiring or being open to talk.",
   short: "SHORT UPDATE: 1–3 lines, what changed and the link. No filler.",
 };
 
@@ -102,10 +104,16 @@ export function templateDraft(ev: PostEvent, p: Platform, lang: Lang, hashtags: 
   const next = list(f.next)[0];
   const top2 = list(f.stack).slice(0, 2).join(zh ? "、" : " and ");
   const listBlock = ev.kind === "weekly" || ev.kind === "intro" ? bullets : featBullets;
+  // Showcase: name and what it is, in one line, no emoji.
+  const title = sum ? `${name}${zh ? "：" : " — "}${clause(sum)}${zh ? "。" : "."}` : name;
+  const plainHead = ev.kind === "intro"
+    ? (zh ? `作品集：${f.projects} 個專案，每晚從 GitHub 重新產生。` : `Portfolio: ${f.projects} projects, regenerated from GitHub every night.`)
+    : headline.replace(/[!！]/g, zh ? "。" : ".");
   let lines: string[];
   if (short) {
-    const hook = style === "recruiter" && top2 ? (zh ? `用 ${top2} 做了 ${name}` : `Built ${name} with ${top2}`) : headline;
-    lines = [hook, ev.kind === "intro" || ev.kind === "weekly" ? "" : sum, u, hash];
+    const solo = ev.kind !== "intro" && ev.kind !== "weekly";
+    if (style === "showcase") lines = [solo ? title : headline, solo && top2 ? (zh ? `技術：${top2}` : `Stack: ${top2}`) : "", u, hash];
+    else lines = [headline, solo ? sum : "", u, hash];
   } else if (style === "short") {
     lines = [headline, sum, ev.kind === "weekly" ? bullets : "", privateNote, `👉 ${u}`, hash];
   } else if (style === "story") {
@@ -129,17 +137,11 @@ export function templateDraft(ev: PostEvent, p: Platform, lang: Lang, hashtags: 
       `👉 ${u}`,
       hash,
     ];
-  } else if (style === "recruiter") {
-    lines = [
-      ev.kind === "intro" ? headline : zh ? `我獨立做了 ${name}${top2 ? `，主要用 ${top2}` : ""}。` : `I built ${name} on my own${top2 ? ` with ${top2}` : ""}.`,
-      sum,
-      listBlock,
-      stack && (zh ? `這個專案用到：${stack}` : `Skills it shows: ${stack}`),
-      privateNote,
-      zh ? "如果你的團隊在找這方面的人，很樂意聊聊。" : "If your team needs someone who builds things like this, I'd be glad to talk.",
-      `👉 ${u}`,
-      hash,
-    ];
+  } else if (style === "showcase") {
+    const facts = feats.slice(0, 2).map(clause);
+    lines = ev.kind === "intro" || ev.kind === "weekly"
+      ? [plainHead, bullets.split("• ").join("- "), privateNote, u, hash]
+      : [title, [facts.length ? facts.join(zh ? "；" : "; ") + (zh ? "。" : ".") : "", stack ? (zh ? `技術：${stack}。` : `Stack: ${stack}.`) : ""].filter(Boolean).join(zh ? "" : " "), u, hash];
   } else {
     lines = [headline, sum, listBlock, privateNote, stack && (zh ? `技術：${stack}` : `Built with ${stack}`), zh ? `歡迎試用、給我回饋 👉 ${u}` : `Try it and tell me what you think 👉 ${u}`, hash];
   }

@@ -135,7 +135,11 @@ export interface State {
   /** Claude usage and cost per month (last 12). */
   usage: UsageMonth[];
   /** Personal website: repos the owner chose not to add (owner/name). */
-  site?: { dismissed: string[] };
+  site?: {
+    dismissed: string[];
+    /** Drafts per public repo (owner/name), kept until the repo is pushed again. */
+    drafts?: Record<string, { pushedAt: string; draft: import("./personal.js").SiteSuggestion }>;
+  };
 }
 
 export interface Brief { about: string; features: string[] }

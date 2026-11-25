@@ -41,6 +41,12 @@ export interface PublicProject {
   updated: string;
   release?: string;
   featured: boolean;
+  /** Order among the featured projects (admin pick). */
+  rank?: number;
+  /** Which group the projects page puts it in. */
+  category: Category;
+  /** Little to show (no description, a short README or none): listed last in its group. */
+  thin: boolean;
   private: boolean;
   image?: string;
   activity?: number[];
@@ -56,6 +62,23 @@ export interface PublicProject {
   team?: string;
   /** Only in the private admin build (never in the public site / projects.json). */
   admin?: AdminInfo;
+}
+
+export const CATEGORIES = ["ai", "web", "dev", "other", "team"] as const;
+export type Category = (typeof CATEGORIES)[number];
+const ML = /pytorch|tensorflow|yolo|opencv|mediapipe|bert|transformers|scikit|sklearn|whisper|llama|keras|\bvit\b|ocr|gemma|qwen|\bllm\b|langchain|huggingface|jupyter|machine-learning|deep-learning|\bml\b|\bai\b|rag\b|anthropic|openai|claude-api/i;
+const DEVTOOL = /\bcli\b|plugin|github-action|\baction\b|developer-tools|devtool|\bsdk\b|library|vscode|claude-code|\bmcp\b|eslint|npm-package/i;
+const WEBAPP = /next\.?js|react|vue|svelte|nuxt|angular|express|fastapi|flask|django|laravel|supabase|firebase|tailwind|vite|astro|php|html/i;
+const COURSE = /(^|[-_])(hw\d*|homework|lab\d*|course|final|midterm|assignment|exercise)([-_]|$)|作業|課程|期末|期中/i;
+
+/** The projects page groups: team and course work last, then by what the project is built with. */
+export function categoryOf(r: Pick<RepoRecord, "name" | "role" | "stack" | "topics" | "languages" | "deployments">): Category {
+  if (r.role === "contributor" || COURSE.test(r.name)) return "team";
+  const hay = [...r.stack, ...r.topics, ...Object.keys(r.languages).slice(0, 3)].join(" ");
+  if (ML.test(hay)) return "ai";
+  if (DEVTOOL.test(hay)) return "dev";
+  if (WEBAPP.test(hay) || r.deployments.some((d) => d.url)) return "web";
+  return "other";
 }
 
 export interface AdminInfo {
@@ -156,6 +179,9 @@ export function toPublic(r: RepoRecord): PublicProject {
     updated: r.pushedAt,
     release: r.private ? undefined : r.latestRelease?.tag,
     featured: r.meta.featured,
+    rank: r.featuredRank,
+    category: categoryOf(r),
+    thin: !r.description && (!r.readme || r.readme.length < 600),
     private: r.private,
     image,
     activity: r.activity,
@@ -231,7 +257,19 @@ export function selectShowcase(inv: Inventory): PublicProject[] {
   return inv.repos
     .filter((r) => r.showcase)
     .map(toPublic)
-    .sort((a, b) => Number(b.featured) - Number(a.featured) || b.stars - a.stars || Date.parse(b.updated) - Date.parse(a.updated));
+    .sort(byFeatured);
+}
+
+/** Featured first (in the picked order), then thin ones last, then stars, then the latest push. */
+export function byFeatured(a: PublicProject, b: PublicProject): number {
+  return Number(b.featured) - Number(a.featured) || (a.rank ?? 99) - (b.rank ?? 99) || Number(a.thin) - Number(b.thin) || b.stars - a.stars || Date.parse(b.updated) - Date.parse(a.updated);
+}
+
+/** The projects shown as featured: the picked / flagged ones, else the most starred non-thin ones. */
+export function pickFeatured(projects: PublicProject[], n = 6): PublicProject[] {
+  const flagged = projects.filter((p) => p.featured).sort(byFeatured);
+  if (flagged.length) return flagged.slice(0, n);
+  return projects.filter((p) => !p.thin && !p.private).sort((a, b) => b.stars - a.stars || Date.parse(b.updated) - Date.parse(a.updated)).slice(0, n);
 }
 
 export interface ShowcaseData {
@@ -258,7 +296,7 @@ export interface ShowcaseData {
 /** Everything the public site (and projects.json) shows. Built only from public-safe fields. */
 export function buildShowcase(inv: Inventory, config?: Pick<Config, "owners">, admin = false): ShowcaseData {
   const projects = admin
-    ? inv.repos.map(toAdmin).sort((a, b) => Number(b.featured) - Number(a.featured) || Date.parse(b.updated) - Date.parse(a.updated))
+    ? inv.repos.map(toAdmin).sort((a, b) => Number(b.featured) - Number(a.featured) || (a.rank ?? 99) - (b.rank ?? 99) || Date.parse(b.updated) - Date.parse(a.updated))
     : selectShowcase(inv);
   const shownRepos = admin ? inv.repos : inv.repos.filter((r) => r.showcase);
   const langBytes = new Map<string, number>();

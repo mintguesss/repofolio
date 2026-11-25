@@ -54,6 +54,8 @@ export interface RepoRecord {
   readme?: { length: number; sha: string; excerpt: string; image?: string; intro?: ReadmeIntro };
   hasMetaFile: boolean;
   meta: ProjectMeta;
+  /** Position in `site.featured` (0 = first), when the admin page picked the featured projects. */
+  featuredRank?: number;
   metaProblems: string[];
   status: Status;
   statusInferred: boolean;

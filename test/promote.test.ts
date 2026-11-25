@@ -266,7 +266,7 @@ describe("post styles", () => {
     detectEvents(inv([rec("a")]), c, s, NOW);
     const [ev] = detectEvents(inv([rec("a"), rec("b", { readme: { length: 999, sha: "x", excerpt: "e", intro: { paragraphs: [], features: ["Imports Markdown", "Spaced repetition"], sections: [] } } })]), c, s, NOW);
     const texts = new Set<string>();
-    for (const style of ["launch", "story", "deepdive", "recruiter", "short"] as const) {
+    for (const style of ["launch", "story", "deepdive", "showcase", "short"] as const) {
       for (const p of PLATFORMS) {
         const d = templateDraft(ev!, p, "en", [], style);
         expect(postLength(p, d.text), `${style} ${p}`).toBeLessThanOrEqual(PLATFORM_INFO[p].limit);
@@ -285,7 +285,7 @@ describe("post styles", () => {
     const f = (async () => new Response("", { status: 404 })) as typeof fetch;
     await runPromote({ inv: inv([rec("a")]), config: c, state: s, requests: [], env: {}, now: NOW, fetch: f });
     const post = s.posts[0]!;
-    expect(post.style).toBe("recruiter");
+    expect(post.style).toBe("showcase");
     await runPromote({ inv: inv([rec("a")]), config: c, state: s, requests: [{ op: "redraft", id: post.id, style: "short" }], env: {}, now: NOW, fetch: f });
     expect(post.style).toBe("short");
   });

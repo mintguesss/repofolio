@@ -4,7 +4,7 @@ repos: []               # extra owner/name repos
 exclude: []             # names or owner/name; trailing * wildcard ok
 contributions:          # organisation / team repos you have commits in (team, research, course projects)
   enabled: false
-  minCommits: 1
+  minCommits: 3          # fewer commits than this and a team repo is left out
   orgs: []              # organisations to look through too (needed with fine-grained tokens)
 # personalSite:         # the admin page's 🌐 tab adds entries (and photos) to your personal website repo
 #   repo: you/personal-site
@@ -15,6 +15,10 @@ contributions:          # organisation / team repos you have commits in (team, r
 #   base: /personal-site             # basePath the site is served under
 #   url: https://you.github.io/personal-site/
 #   skip: []                         # repos already on the site under another name
+# profile:              # the block in your profile README (profile-readme input)
+#   sort: recent        # featured | recent (latest pushed, with the date)
+#   limit: 5
+#   title: "### 最近在做"
 includeForks: false
 includeArchived: true
 includePrivate: true    # private repos go in CATALOG.md; never on the public site unless showcase: true

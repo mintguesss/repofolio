@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { isScalar, isSeq, parseDocument } from "yaml";
 import { z } from "zod";
 import type { GitHubClient } from "./github.js";
-import { ConfigSchema, PLATFORMS, POST_STYLES, STATUSES } from "./schema.js";
+import { ConfigSchema, PLATFORMS, STATUSES, postStyle } from "./schema.js";
 
 /** Models offered in the admin settings page. Any model id still works when written into the config by hand. */
 export const MODEL_CHOICES = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"] as const;
@@ -11,15 +11,16 @@ const bool = z.boolean().optional();
 /** What the admin settings page may change (nothing else in the config is reachable from the browser). */
 export const ConfigPatchSchema = z.object({
   language: z.enum(["en", "zh-TW"]).optional(),
+  site: z.object({ featured: z.array(z.string().regex(/^[\w.-]+(\/[\w.-]+)?$/)).max(12).optional() }).strict().optional(),
   llm: z.object({
     model: z.string().regex(/^claude-[a-z0-9-]+$/).max(60).optional(),
     monthlyBudget: z.number().min(0).max(1000).optional(),
-    features: z.object({ summaries: bool, intros: bool, drafts: bool, competitors: bool }).optional(),
+    features: z.object({ summaries: bool, intros: bool, drafts: bool, competitors: bool, site: bool }).optional(),
   }).optional(),
   promote: z.object({
     enabled: bool,
     platforms: z.array(z.enum(PLATFORMS)).max(PLATFORMS.length).optional(),
-    style: z.enum(POST_STYLES).optional(),
+    style: postStyle.optional(),
     hashtags: z.array(z.string().regex(/^[\p{L}\p{N}_]{1,40}$/u)).max(10).optional(),
     events: z.object({ weekly: z.union([z.enum(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]), z.literal(false)]).optional() }).optional(),
   }).optional(),

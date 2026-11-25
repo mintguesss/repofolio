@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Config } from "./schema.js";
 
 /** Every place repofolio may call Claude. Each one can be switched off in `llm.features`. */
-export const AI_FEATURES = ["summaries", "intros", "drafts", "competitors"] as const;
+export const AI_FEATURES = ["summaries", "intros", "drafts", "competitors", "site"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 /** USD per million tokens [input, output]. Unknown models are priced like Opus 5.5 (the safe side for a budget). */

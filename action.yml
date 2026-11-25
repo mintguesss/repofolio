@@ -24,7 +24,7 @@ inputs:
     description: Open an issue in this repo for each stale project
     required: false
   profile-readme:
-    description: Path to a profile README to update between <!-- repofolio:start --> and <!-- repofolio:end -->
+    description: Profile README(s) to update between <!-- repofolio:start --> and <!-- repofolio:end -->. One per line, optionally path:lang (en or zh-TW). What goes in is set by `profile` in the config.
     required: false
   site-url:
     description: Public URL of the showcase site (linked from the profile README block). Defaults to site.url in the config.

@@ -26,8 +26,10 @@ export const PLATFORMS = ["linkedin", "bluesky", "mastodon", "threads", "x", "de
 export type Platform = (typeof PLATFORMS)[number];
 
 /** Post styles (see docs/PROMOTE.md). auto = picked per event. */
-export const POST_STYLES = ["auto", "launch", "story", "deepdive", "recruiter", "short"] as const;
+export const POST_STYLES = ["auto", "launch", "story", "deepdive", "showcase", "short"] as const;
 export type PostStyle = (typeof POST_STYLES)[number];
+/** A post style; the old name "recruiter" still reads as "showcase". */
+export const postStyle = z.preprocess((v) => (v === "recruiter" ? "showcase" : v), z.enum(POST_STYLES));
 
 const url = z.string().url();
 
@@ -167,6 +169,8 @@ export const SiteSchema = z.object({
   customizer: z.boolean().default(true),
   /** Canonical URL of the published site (for og:url and the profile "All projects" link). */
   url: z.string().url().optional(),
+  /** Featured projects in order (name or owner/name), picked in the admin page. Empty = `featured: true` in .project.yml, else the most starred. */
+  featured: z.array(z.string()).max(12).default([]),
 });
 
 export const PublishSchema = z.object({
@@ -190,11 +194,19 @@ export const ConfigSchema = z.object({
   contributions: z.object({
     enabled: z.boolean().default(false),
     /** Your commits a repo needs before it counts as yours to show. */
-    minCommits: z.number().int().min(1).max(100).default(1),
+    minCommits: z.number().int().min(1).max(100).default(3),
     /** Organisations (or users) to look through as well, for tokens that can't list your memberships (fine-grained tokens). */
     orgs: z.array(z.string()).default([]),
   }).prefault({}),
   /** A personal website repo the admin page can add entries to (projects, side projects, awards, certificates, experience). */
+  /** The block repofolio keeps in a profile README (`profile-readme` input). */
+  profile: z.object({
+    /** featured: the showcase order. recent: the latest pushed projects, with the date (shows you keep building). */
+    sort: z.enum(["featured", "recent"]).default("featured"),
+    limit: z.number().int().min(1).max(20).default(6),
+    /** A heading above the list, e.g. "### 最近在做". */
+    title: z.string().optional(),
+  }).prefault({}),
   personalSite: z.object({
     repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/).optional(),
     branch: z.string().default("main"),
@@ -233,6 +245,7 @@ export const ConfigSchema = z.object({
       intros: z.string().optional(),
       drafts: z.string().optional(),
       competitors: z.string().optional(),
+      site: z.string().optional(),
     }).prefault({}),
     /** Which features may use Claude. */
     features: z.object({
@@ -244,6 +257,8 @@ export const ConfigSchema = z.object({
       drafts: z.boolean().default(true),
       /** Picking real competitors, the feature table and next steps. */
       competitors: z.boolean().default(true),
+      /** Personal-site entries for new repos, written after the site's own entries (a few per run, cached). */
+      site: z.boolean().default(true),
     }).prefault({}),
     /** Stop calling Claude once this month's spend reaches this many USD (0 = no cap). */
     monthlyBudget: z.number().min(0).default(5),
@@ -305,8 +320,8 @@ export const ConfigSchema = z.object({
     mentionPrivate: z.boolean().default(false),
     /** Write drafts with Claude (needs ANTHROPIC_API_KEY). auto = when the key is set. Falls back to templates. */
     llm: z.union([z.boolean(), z.literal("auto")]).default("auto"),
-    /** Default writing style: recruiter (job-hunting, the default), launch, story, deepdive, short, or auto (per event). Changeable per draft in the admin page. */
-    style: z.enum(POST_STYLES).default("recruiter"),
+    /** Default writing style: showcase (the default: what it is, one or two facts, the link), launch, story, deepdive, short, or auto (per event). Changeable per draft in the admin page. */
+    style: postStyle.default("showcase"),
     /** Extra hashtags for every post (without #). */
     hashtags: z.array(z.string()).default([]),
     /** Pending drafts older than this are dropped. */

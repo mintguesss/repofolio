@@ -297,7 +297,17 @@ export function clientMain(): void {
   };
   addEventListener("scroll", onScroll, { passive: true });
   onScroll();
-  const navLinks = $$(".nav nav a");
+  const navLinks = $$(".nav nav a, .nav-menu a");
+  // Admin: the menu with the public pages.
+  const moreBtn = $(".nav-more-btn"), moreMenu = $(".nav-menu");
+  if (moreBtn && moreMenu) {
+    const setMenu = (open) => { moreMenu.hidden = !open; moreBtn.setAttribute("aria-expanded", String(open)); };
+    moreBtn.addEventListener("click", (e) => { e.stopPropagation(); setMenu(moreMenu.hidden); });
+    moreMenu.addEventListener("click", () => setMenu(false));
+    document.addEventListener("click", (e) => { if (!e.target.closest(".nav-more")) setMenu(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+    addEventListener("rf:page", (e) => moreBtn.classList.toggle("on", $$("a", moreMenu).some((a) => a.dataset.nav === e.detail)));
+  }
   if (!C.multi) {
     const secObs = new IntersectionObserver((ents) => {
       ents.forEach((e) => { if (e.isIntersecting) navLinks.forEach((a) => a.classList.toggle("on", a.dataset.nav === e.target.id)); });
@@ -525,7 +535,7 @@ export function clientMain(): void {
         if (ok) { shown++; c.classList.add("in"); }
       });
       const key = {
-        featured: (c) => [-Number(c.dataset.featured), -Number(c.dataset.stars), -Date.parse(c.dataset.updated)],
+        featured: (c) => [-Number(c.dataset.featured), Number(c.dataset.rank || 99), Number(c.dataset.thin || 0), -Number(c.dataset.stars), -Date.parse(c.dataset.updated)],
         stars: (c) => [-Number(c.dataset.stars), -Date.parse(c.dataset.updated)],
         updated: (c) => [-Date.parse(c.dataset.updated)],
         created: (c) => [-Date.parse(c.dataset.created)],
@@ -536,16 +546,22 @@ export function clientMain(): void {
         .sort((a, b) => { for (let i = 0; i < a[0].length; i++) { if (a[0][i] < b[0][i]) return -1; if (a[0][i] > b[0][i]) return 1; } return 0; })
         .map(([, c]) => c);
       sorted.forEach((c) => grid.appendChild(c));
-      // Admin: public and not-public projects in two groups, each sorted on its own.
-      if (grid.hasAttribute("data-split")) {
-        ["shown", "hidden"].forEach((g) => {
+      // Groups (admin: public / not public; public site: featured, then categories), each sorted on its own.
+      // A search or filter opens every group, so nothing that matches stays folded away.
+      if (GROUPS.length) {
+        const searching = terms.length > 0 || !!F.status || F.tech.size > 0;
+        GROUPS.forEach((g) => {
           const sep = $(`.grid-sep[data-sep="${g}"]`, grid);
+          if (!sep) return;
           const mine = sorted.filter((c) => c.dataset.group === g);
           const vis = mine.filter((c) => !c.hidden).length;
+          const folded = !searching && FOLDED.has(g);
           sep.hidden = vis === 0;
+          sep.classList.toggle("folded", folded);
+          if (sep.hasAttribute("aria-expanded")) { sep.setAttribute("aria-expanded", String(!folded)); sep.title = folded ? S.cats.unfold : S.cats.fold; }
           $("em", sep).textContent = vis === mine.length ? String(mine.length) : `${vis} / ${mine.length}`;
           grid.appendChild(sep);
-          mine.forEach((c) => grid.appendChild(c));
+          mine.forEach((c) => { c.classList.toggle("fold", folded); grid.appendChild(c); });
         });
       }
       $("#empty").hidden = shown > 0;
@@ -553,8 +569,22 @@ export function clientMain(): void {
     if (!instant && document.startViewTransition && motion() === "full") document.startViewTransition(doIt);
     else doIt();
   }
-  // Admin: put cards under their group headings right away.
-  if (grid && grid.hasAttribute("data-split")) runFilter(true);
+  // Put cards under their group headings right away. Folded groups are remembered in this browser (team work starts folded).
+  const GROUPS = grid && grid.dataset.groups ? grid.dataset.groups.split(",") : [];
+  const FOLD_KEY = "repofolio-folded";
+  const FOLDED = new Set((() => { try { const v = localStorage.getItem(FOLD_KEY); return v ? JSON.parse(v) : grid && grid.hasAttribute("data-cats") ? ["team"] : []; } catch (e) { return []; } })());
+  if (GROUPS.length) runFilter(true);
+  if (grid) {
+    const fold = (sep) => {
+      if (!sep.hasAttribute("aria-expanded")) return;
+      const g = sep.dataset.sep;
+      if (FOLDED.has(g)) FOLDED.delete(g); else FOLDED.add(g);
+      try { localStorage.setItem(FOLD_KEY, JSON.stringify([...FOLDED])); } catch (e) {}
+      runFilter(true);
+    };
+    grid.addEventListener("click", (e) => { const sep = e.target.closest(".grid-sep[role=button]"); if (sep) fold(sep); });
+    grid.addEventListener("keydown", (e) => { const sep = e.target.closest && e.target.closest(".grid-sep[role=button]"); if (sep && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fold(sep); } });
+  }
   const q = $("#q");
   if (q) q.addEventListener("input", () => { F.q = q.value; runFilter(); });
   $$("#status-filter button").forEach((b) => b.addEventListener("click", () => {
@@ -905,7 +935,7 @@ export function clientMain(): void {
     A.push({ label: S.copyLink, kw: "copy link share url", run: () => copy(location.href.split("#")[0]) });
     const gh = $('.ctas a[href*="github.com"]');
     if (gh) A.push({ label: S.openGithub, kw: "github profile", run: () => window.open(gh.href, "_blank", "noopener") });
-    $$(".nav nav a").forEach((a) => A.push({ label: `→ ${a.textContent}`, kw: "go page section", run: () => goPage(a.dataset.nav) }));
+    $$(".nav nav a, .nav-menu a").forEach((a) => A.push({ label: `→ ${a.textContent}`, kw: "go page section", run: () => goPage(a.dataset.nav) }));
     A.push({ label: S.shortcuts, kw: "help keyboard shortcuts", run: () => ($("#help").hidden = false) });
     return A;
   }
@@ -989,7 +1019,68 @@ export function clientMain(): void {
   const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
   const load = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   /** Trigger the workflow with the owner's token (approvals, "update now"). */
-  async function dispatch(reqs) {
+  /* ── run progress: watch the workflow runs a dispatch or commit started (public repos read without a token) ── */
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let pillEl = null;
+  function pill(html, cls) {
+    if (!pillEl) { pillEl = document.createElement("div"); pillEl.className = "run-pill"; pillEl.setAttribute("role", "status"); document.body.appendChild(pillEl); }
+    pillEl.className = "run-pill on " + (cls || "");
+    pillEl.innerHTML = html + '<button type="button" class="rp-x" aria-label="×">×</button>';
+    $(".rp-x", pillEl).addEventListener("click", () => pillEl.classList.remove("on"));
+  }
+  async function listRuns(repo, since) {
+    const url = `https://api.github.com/repos/${repo}/actions/runs?per_page=10&created=${encodeURIComponent(">=" + new Date(since - 15000).toISOString().slice(0, 19) + "Z")}`;
+    const tok = load(TK);
+    const h = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    let r = await fetch(url, { headers: tok ? Object.assign({ Authorization: "Bearer " + tok }, h) : h, cache: "no-store" });
+    if (!r.ok && tok) r = await fetch(url, { headers: h, cache: "no-store" });
+    if (!r.ok) throw new Error(String(r.status));
+    return (await r.json()).workflow_runs || [];
+  }
+  const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  /** Follow every run started since `since` (chained ones too, e.g. a Pages build after a deploy) until all finish. */
+  async function watchRuns(repo, since, o) {
+    const S2 = S.run, t0 = Date.now(), name = esc(o.label);
+    const base = o.reload ? await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).catch(() => "") : "";
+    let seen = false, quiet = 0, last = null;
+    pill(`<b>${name}</b> <span>${esc(S2.queued)}</span> <em>0:00</em>`, "busy");
+    while (Date.now() - t0 < 8 * 60000) {
+      await sleep(4000);
+      let runs;
+      try { runs = (await listRuns(repo, since)).filter((r) => Date.parse(r.created_at) >= since - 15000); } catch (e) { continue; }
+      const active = runs.filter((r) => r.status !== "completed");
+      if (runs.length) last = runs[0];
+      if (active.length) {
+        seen = true; quiet = 0;
+        const run = active.find((r) => r.status === "in_progress") || active[0];
+        pill(`<b>${name}</b> <span>${esc(run.status === "in_progress" ? S2.running : S2.queued)}</span> <em>${mmss(Date.now() - t0)}</em> <a href="${esc(run.html_url)}" target="_blank" rel="noopener">${esc(S2.log)} ↗</a>`, "busy");
+        continue;
+      }
+      if (!runs.length) { if (Date.now() - t0 > 90000) return pill(`<b>${name}</b> <span>${esc(S2.lost)}</span>`, "bad"); continue; }
+      seen = true;
+      const bad = runs.find((r) => r.conclusion && !["success", "skipped", "neutral"].includes(r.conclusion));
+      if (bad) return pill(`<b>${name}</b> <span>${esc(S2.failed)}</span> <a href="${esc(bad.html_url)}" target="_blank" rel="noopener">${esc(S2.log)} ↗</a>`, "bad");
+      // A finished deploy can start a second run (Pages); wait a few seconds before calling it done.
+      if (!quiet) { quiet = Date.now(); continue; }
+      if (Date.now() - quiet < 9000) continue;
+      break;
+    }
+    if (!seen) return;
+    if (o.reload) {
+      // Pages caches pages for minutes: fetch around the cache until the new build is served, then reload.
+      pill(`<b>${name}</b> <span>${esc(S2.waiting)}</span> <em>${mmss(Date.now() - t0)}</em>`, "busy");
+      for (let i = 0; i < 20; i++) {
+        const now = await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).catch(() => base);
+        if (now && now !== base) { location.replace(location.pathname + "?v=" + Date.now() + location.hash); return; }
+        await sleep(3000);
+      }
+      return pill(`<b>${name}</b> <span>${esc(S2.done)}</span> <button type="button" class="btn-mini" data-rp-reload>${esc(S2.reload)}</button>`, "ok");
+    }
+    pill(`<b>${name}</b> <span>${esc(o.doneText || S2.done)}</span> <em>${mmss(Date.now() - t0)}</em>${o.link ? ` <a href="${esc(o.link)}" target="_blank" rel="noopener">${esc(S2.open)} ↗</a>` : ""}${o.offerReload ? ` <button type="button" class="btn-mini" data-rp-reload>${esc(S2.reload)}</button>` : ""}`, "ok");
+  }
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-rp-reload]")) location.replace(location.pathname + "?v=" + Date.now() + location.hash); });
+
+  async function dispatch(reqs, o) {
     const tok = load(TK);
     const tokBox = $("#pp-tok-box");
     if (!tok || !AD || !AD.dispatch) {
@@ -1003,6 +1094,7 @@ export function clientMain(): void {
         body: JSON.stringify({ ref: d.ref, inputs: { posts: JSON.stringify(reqs) } }),
       });
       if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch (e) {} throw new Error(`${SP.failed} (${r.status}${m ? ": " + m : ""})`); }
+      watchRuns(d.repo, Date.now(), { label: S.run.repofolio, reload: !!(o && o.reload), offerReload: true });
   }
   if (AD) {
     const tokEl = $("#pp-tok"), tokState = $("#pp-tok-state"), tokBox = $("#pp-tok-box");
@@ -1072,9 +1164,50 @@ export function clientMain(): void {
         holder.outerHTML = `<em class="fx-sent">✓ ${esc(S.fix.sent)}</em>`;
       } catch (err) { b.disabled = false; toast(err.message); }
     });
+    const fp = $("#feat-pick");
+    if (fp) {
+      const byKey = Object.fromEntries(P.filter((p) => p.admin).map((p) => [p.admin.cfgKey, p]));
+      const init = JSON.parse(fp.dataset.init || "[]").filter((k) => byKey[k]);
+      let pick = init.slice();
+      const list = $(".fp-list", fp), saveB = $("#fp-save"), msg = $(".pp-msg", fp);
+      const draw = () => {
+        list.innerHTML = pick.map((k, i) => { const p = byKey[k]; return `<li data-k="${esc(k)}"><span class="fp-i">${i + 1}</span>${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<b>${esc(p.name)}</b><span class="fp-b"><button type="button" data-fp="left" title="${esc(S.fp.left)}"${i ? "" : " disabled"}>←</button><button type="button" data-fp="right" title="${esc(S.fp.right)}"${i < pick.length - 1 ? "" : " disabled"}>→</button><button type="button" data-fp="remove" title="${esc(S.fp.remove)}">×</button></span></li>`; }).join("");
+        $(".fp-empty", fp).hidden = pick.length > 0;
+        $(".fp-n", fp).textContent = pick.length + " / 6";
+        saveB.disabled = JSON.stringify(pick) === JSON.stringify(init);
+        $$(".feat-tog").forEach((b) => { const on = pick.includes(b.dataset.feat); b.setAttribute("aria-pressed", String(on)); b.title = on ? S.fp.unfeature : S.fp.add; });
+      };
+      draw();
+      document.addEventListener("click", (e) => {
+        const t = e.target.closest(".feat-tog");
+        if (!t) return;
+        e.stopPropagation();
+        const k = t.dataset.feat;
+        if (pick.includes(k)) pick = pick.filter((x) => x !== k);
+        else if (pick.length >= 6) return toast(S.fp.full);
+        else pick.push(k);
+        draw();
+      });
+      list.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-fp]");
+        if (!b) return;
+        const i = pick.indexOf(b.closest("li").dataset.k), act = b.dataset.fp;
+        if (act === "remove") pick.splice(i, 1);
+        else { const j = act === "left" ? i - 1 : i + 1; [pick[i], pick[j]] = [pick[j], pick[i]]; }
+        draw();
+      });
+      saveB.addEventListener("click", async () => {
+        saveB.disabled = true; msg.textContent = ""; msg.classList.remove("bad");
+        try {
+          await dispatch([{ op: "config", set: { site: { featured: pick } } }]);
+          init.splice(0, init.length, ...pick);
+          msg.textContent = "✓ " + S.fp.saved;
+        } catch (err) { saveB.disabled = false; msg.textContent = err.message; msg.classList.add("bad"); }
+      });
+    }
     $$("#adm-refresh, [data-refresh]").forEach((rb) => rb.addEventListener("click", async () => {
       rb.disabled = true;
-      try { await dispatch([]); $$("#adm-refresh, [data-refresh]").forEach((x) => { x.disabled = true; x.textContent = "✓ " + S.adminx.refreshSent; }); }
+      try { await dispatch([], { reload: true }); $$("#adm-refresh, [data-refresh]").forEach((x) => { x.disabled = true; x.textContent = "✓ " + S.adminx.refreshSent; }); }
       catch (e) { rb.disabled = false; toast(e.message); }
     }));
   }
@@ -1238,7 +1371,7 @@ export function clientMain(): void {
       const main = fs.filter((f) => !f[4]).map((f) => field(kind, f, v)).join("");
       const det = fs.filter((f) => f[4]);
       return `<form class="si-form" data-kind="${kind}"${sug ? ` data-repo="${esc(sug.repo)}"` : ""}>
-<div class="si-form-h"><b>${esc(ST.kinds[kind])}</b>${sug ? `<span class="pp-chip">${esc(sug.repo)}</span>` : ""}</div>
+<div class="si-form-h">${kind === "build" || kind === "project" ? `<span class="si-kind" role="radiogroup" aria-label="${esc(ST.asKind)}"><small>${esc(ST.asKind)}</small>${["build", "project"].map((k) => `<button type="button" role="radio" aria-checked="${k === kind}" class="${k === kind ? "on" : ""}" data-si-kind="${k}">${esc(ST.kinds[k])}</button>`).join("")}</span>` : `<b>${esc(ST.kinds[kind])}</b>`}${sug ? `<span class="pp-chip">${esc(sug.repo)}</span>` : ""}${sug && sug.by ? `<small class="si-by">${esc(sug.by === "llm" ? ST.byLlm : ST.byRules)}</small>` : ""}</div>
 <div class="si-grid">${main}</div>
 ${det.length ? `<details class="si-det" open><summary>${esc(ST.detail)} <small>${esc(ST.detailSub)}</small></summary><div class="si-grid">${det.map((f) => field(kind, f, v)).join("")}</div></details>` : ""}
 <div class="si-acts"><button type="submit" class="btn primary">${esc(ST.save)}</button><button type="button" class="btn ghost" data-si-cancel>${esc(ST.cancel)}</button><span class="pp-msg"></span></div>
@@ -1261,8 +1394,10 @@ ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.le
     render();
 
     let pick = null; // the photo chosen in the open form
-    function openEditor(kind, v, sug) {
-      pick = null;
+    let memo = {}; // values per kind while the form is open
+    const SHARED = ["title", "subtitle", "id", "period", "tags", "description", "image"];
+    function openEditor(kind, v, sug, keep) {
+      if (!keep) { pick = null; memo = {}; }
       const ed = $("#si-editor");
       ed.innerHTML = form(kind, v, sug);
       ed.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1281,6 +1416,18 @@ ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.le
       if (t && idIn && !idIn.value) t.addEventListener("input", () => { if (!idIn.dataset.touched) idIn.value = PK.slugify(t.value); });
       if (idIn) idIn.addEventListener("input", () => (idIn.dataset.touched = "1"));
       $("[data-si-cancel]", f).addEventListener("click", () => { ed.innerHTML = ""; pick = null; });
+      $$("[data-si-kind]", f).forEach((b) => b.addEventListener("click", () => {
+        const to = b.dataset.siKind;
+        if (to === kind) return;
+        const cur = Object.assign({}, v);
+        $$("input[name], textarea[name], select[name]", f).forEach((el) => (cur[el.name] = el.value));
+        memo[kind] = cur;
+        const nv = memo[to] ? Object.assign({}, memo[to]) : PK.convert(to, cur);
+        SHARED.forEach((k) => (nv[k] = cur[k]));
+        const keepPick = pick;
+        openEditor(to, nv, sug, true);
+        if (keepPick) { pick = keepPick; const ef = $("#si-editor form"); $(".si-prev", ef).innerHTML = `<img src="${URL.createObjectURL(keepPick)}" alt="">`; }
+      }));
       f.addEventListener("submit", (e) => { e.preventDefault(); save(f, kind, sug); });
     }
 
@@ -1342,6 +1489,8 @@ ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.le
       $$("input[name], textarea[name], select[name]", f).forEach((el) => (v[el.name] = el.value.trim()));
       const miss = REQUIRED[kind].filter((k) => !v[k]);
       if (miss.length) return say(fill(ST.missing, { f: miss.map((k) => ST.f[k] || k).join("、") }), true);
+      const gap = PK.missing(kind, v);
+      if (gap.length) { const el = $(`[name="${gap[0]}"]`, f); if (el) el.focus(); return say(fill(ST.emptySec, { f: gap.map((k) => ST.f[k] || k).join("、") }), true); }
       btn.disabled = true; say(ST.saving);
       try {
         const head = await gh("GET", `/repos/${SITE.repo}/git/ref/heads/${enc(SITE.branch)}`);
@@ -1381,6 +1530,7 @@ ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.le
         const title = v.title || v.name || v.role;
         const c = await gh("POST", `/repos/${SITE.repo}/git/commits`, { message: `Add ${ST.kinds[kind]}: ${title} (from the repofolio admin page)`, tree: t.sha, parents: [parent] });
         await gh("PATCH", `/repos/${SITE.repo}/git/refs/heads/${enc(SITE.branch)}`, { sha: c.sha });
+        watchRuns(SITE.repo, Date.now(), { label: S.run.site, doneText: S.run.live, link: SITE.url ? SITE.url.replace(/\/?$/, "/") + "?v=" + Date.now() : "" });
         if (sug) { added.add(sug.repo); putSet(ADDED, added); }
         f.outerHTML = `<div class="si-done">✓ ${esc(ST.saved)} <a href="https://github.com/${esc(SITE.repo)}/commit/${c.sha}" target="_blank" rel="noopener">${esc(ST.commit)} ↗</a> · <a href="https://github.com/${esc(SITE.repo)}/actions" target="_blank" rel="noopener">${esc(ST.deploy)} ↗</a></div>`;
         if (sug) $$(`.si-card[data-repo="${CSS.escape(sug.repo)}"]`, app).forEach((x) => x.remove());

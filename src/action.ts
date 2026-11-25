@@ -97,10 +97,10 @@ async function run() {
     if (req.op !== "site") continue;
     const list = new Set(state.site?.dismissed ?? []);
     if (req.act === "dismiss") list.add(req.repo); else list.delete(req.repo);
-    state.site = { dismissed: [...list] };
+    state.site = { ...state.site, dismissed: [...list] };
   }
   if (config.personalSite.repo && config.admin.enabled) {
-    extras.site = await personalSite({ config, client, repos: full.repos, state, log: (m) => console.log(m) })
+    extras.site = await personalSite({ config, client, repos: full.repos, state, meter, log: (m) => console.log(m) })
       .catch((e) => { console.log(`::warning::personal site: ${(e as Error).message.slice(0, 200)}`); return undefined; });
   }
   if (store) {
@@ -149,10 +149,13 @@ async function run() {
     if (created.length) console.log(`Opened ${created.length} stale issue(s)`);
   }
 
-  const profile = input("profile-readme");
-  if (profile) {
-    const before = existsSync(profile) ? readFileSync(profile, "utf8") : "";
-    writeFileSync(profile, spliceProfile(before, renderProfileSection(inv, config.language, { siteUrl: input("site-url") || config.site.url })));
+  // One README per line, optionally "path:lang" (e.g. README.md:zh-TW and README.en.md:en).
+  for (const line of input("profile-readme").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const m = /^(.*?)(?::(en|zh-TW))?$/.exec(line)!;
+    const path = m[1]!, lang = (m[2] as "en" | "zh-TW" | undefined) ?? config.language;
+    const before = existsSync(path) ? readFileSync(path, "utf8") : "";
+    const title = config.profile.title && lang !== config.language ? undefined : config.profile.title;
+    writeFileSync(path, spliceProfile(before, renderProfileSection(inv, lang, { siteUrl: input("site-url") || config.site.url, sort: config.profile.sort, limit: config.profile.limit, title: title ?? (config.profile.title ? (lang === "zh-TW" ? "### 最近在做" : "### Recently") : undefined) })));
   }
 
   if (config.publish && bool("publish", true)) {

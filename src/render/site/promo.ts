@@ -70,7 +70,7 @@ ${info.article ? `<input class="pp-title" value="${esc(d.title ?? post.event.tit
   const ev = post.event;
   return `<article class="pp reveal" data-post="${esc(post.id)}" data-url="${esc(ev.url)}" data-title="${esc(ev.title)}">
 <header class="pp-head"><span class="pp-kind k-${ev.kind}">${esc(P.kinds[ev.kind])}</span><h4>${esc(ev.title)}</h4><small>${esc(fmtDate(post.createdAt, lang))} · ${esc(P.by[post.source])}</small>${ev.projectId ? `<button type="button" class="linklike" data-open="${esc(ev.projectId)}">↗</button>` : ""}</header>
-<div class="pp-body">${ev.image ? `<div class="pp-img"><img src="${esc(ev.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>` : ""}<div class="pp-edit"><div class="pp-style"><span>${esc(s.styles.label)}</span><div class="pp-styles" role="radiogroup">${POST_STYLES.filter((x) => x !== "auto").map((st) => `<button type="button" role="radio" class="pp-st${(post.style ?? "launch") === st ? " on" : ""}" data-style="${st}" aria-checked="${(post.style ?? "launch") === st}" title="${esc(s.styles.hints[st])}">${esc(s.styles.names[st])}</button>`).join("")}</div></div><div class="pp-tabs" role="tablist">${tabs}</div>${panes}</div></div>
+<div class="pp-body">${ev.image ? `<div class="pp-img"><img src="${esc(ev.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>` : ""}<div class="pp-edit"><div class="pp-style"><span>${esc(s.styles.label)}</span><div class="pp-styles" role="radiogroup">${POST_STYLES.filter((x) => x !== "auto").map((st) => `<button type="button" role="radio" class="pp-st${(post.style === ("recruiter" as string) ? "showcase" : post.style ?? "launch") === st ? " on" : ""}" data-style="${st}" aria-checked="${(post.style === ("recruiter" as string) ? "showcase" : post.style ?? "launch") === st}" title="${esc(s.styles.hints[st])}">${esc(s.styles.names[st])}</button>`).join("")}</div></div><div class="pp-tabs" role="tablist">${tabs}</div>${panes}</div></div>
 <footer class="pp-foot"><button type="button" class="btn primary pp-approve">${esc(P.approve)}</button><button type="button" class="btn ghost pp-skip">${esc(P.skip)}</button><span class="pp-msg" role="status"></span></footer>
 </article>`;
 }
@@ -193,7 +193,7 @@ ${num("llm.monthlyBudget", budget, T.budget, 'min="0" max="1000" step="1"')}</fi
 <fieldset><legend>${esc(s.promo.title)}</legend>
 ${on("promote.enabled", config.promote.enabled, T.promoteOn)}
 <div class="st-field"><span>${esc(T.platforms)}</span><div class="st-chips">${plats}</div></div>
-${select("promote.style", config.promote.style, s.styles.label, POST_STYLES.map((st) => [st, s.styles.names[st]]))}
+${select("promote.style", config.promote.style as string === "recruiter" ? "showcase" : config.promote.style, s.styles.label, POST_STYLES.map((st) => [st, s.styles.names[st]]))}
 ${select("promote.events.weekly", weekly === false ? "off" : weekly, T.weekly, [["off", T.off], ...days.map((d) => [d, T.days[d]] as [string, string])])}
 <label class="st-field"><span>${esc(T.hashtags)}</span><input type="text" name="promote.hashtags" value="${esc(config.promote.hashtags.join(", "))}" data-init="${esc(config.promote.hashtags.join(", "))}" placeholder="buildinpublic, opensource"></label></fieldset>
 <fieldset><legend>${esc(s.rivals.title)}</legend>

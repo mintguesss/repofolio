@@ -111,15 +111,20 @@ export const PROFILE_START = "<!-- repofolio:start -->";
 export const PROFILE_END = "<!-- repofolio:end -->";
 
 /** Markdown block listing showcased projects, for splicing into a profile README. */
-export function renderProfileSection(inv: Inventory, lang: Lang, opts: { limit?: number; siteUrl?: string } = {}): string {
-  const projects = selectShowcase(inv).slice(0, opts.limit ?? 6);
+export function renderProfileSection(inv: Inventory, lang: Lang, opts: { limit?: number; siteUrl?: string; sort?: "featured" | "recent"; title?: string } = {}): string {
+  const zh = lang === "zh-TW";
+  const all = selectShowcase(inv).filter((p) => !p.private);
+  const recent = opts.sort === "recent";
+  const projects = (recent ? [...all].sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated)) : all).slice(0, opts.limit ?? 6);
   const lines = projects.map((p) => {
     const live = p.links.find((l) => l.label === "live");
     const name = p.codeUrl ? `[**${p.name}**](${p.codeUrl})` : `**${p.name}**`;
-    return `- ${name}${p.stars ? ` ⭐${p.stars}` : ""} — ${p.summary || ""}${live ? ` · [${lang === "zh-TW" ? "線上版" : "live"}](${live.url})` : ""}`;
+    const when = recent ? ` · ${p.updated.slice(0, 10)}` : "";
+    return `- ${name}${p.stars && !recent ? ` ⭐${p.stars}` : ""} — ${p.summary || ""}${live ? ` · [${zh ? "線上版" : "live"}](${live.url})` : ""}${when}`;
   });
-  const more = opts.siteUrl ? [``, `[${lang === "zh-TW" ? "看全部專案 →" : "All projects →"}](${opts.siteUrl})`] : [];
-  return [PROFILE_START, ...lines, ...more, PROFILE_END].join("\n");
+  const head = opts.title ? [opts.title, ""] : [];
+  const more = opts.siteUrl ? [``, `[${zh ? "看全部專案 →" : "All projects →"}](${opts.siteUrl})`] : [];
+  return [PROFILE_START, ...head, ...lines, ...more, PROFILE_END].join("\n");
 }
 
 /** Replace the marked block in a README (or append it if markers are missing). */

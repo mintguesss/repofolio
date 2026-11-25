@@ -140,7 +140,7 @@ export function personalKit() {
           highlights: rows(f.highlights, 3).map(([title, desc, detail], i) => ({ title, desc, detail, color: COLORS[i % COLORS.length] })),
           problem: paras(f.problem).length ? paras(f.problem) : [s(f.description)],
           features: rows(f.features, 3).map(([title, summary, detail]) => ({ title, summary, detail: detail || summary })),
-          decisions: decisions.length ? decisions : [{ tab: "設計", title: s(f.subtitle) || s(f.title), body: [s(f.oneLiner) || s(f.description)] }],
+          decisions,
           architecture: String(f.architecture || "").split(/\r?\n/).filter((l) => l.trim()),
           techStack: list(f.techStack).length ? list(f.techStack) : tags,
         },
@@ -170,7 +170,28 @@ export function personalKit() {
     return out;
   }
 
-  return { lit, insertEntry, insertDetail, known, norm, groups, count, slugify, fileSafe, imagePath, build, apply, PLACE };
+  /** Detail-page sections that would show up empty on the site (it renders every section). */
+  function missing(kind: Kind, f: Dict): string[] {
+    if (kind !== "build") return [];
+    return ["description", "oneLiner", "highlights", "problem", "features", "decisions", "architecture", "techStack"].filter((k) => !s(f[k]) && !(k === "techStack" && list(f.tags).length) && !(k === "oneLiner" && s(f.description)));
+  }
+
+  /** A build form as a project form, and back (when the owner picks the other kind). */
+  function convert(to: Kind, f: Dict): Dict {
+    const o: Dict = { ...f, kind: to };
+    if (to === "project") {
+      o.link = s(f.demo) || s(f.github);
+      o.ptype = s(f.ptype) || "project";
+      o.highlights = rows(f.highlights, 3).map((r) => r[0]).filter(Boolean).join("\n");
+    } else if (to === "build") {
+      if (!s(f.github) && /github\.com/.test(s(f.link))) o.github = s(f.link);
+      else if (!s(f.demo)) o.demo = s(f.link);
+      o.highlights = rows(f.highlights, 1).map((r) => r[0] + " | " + r[0] + " | ").join("\n");
+    }
+    return o;
+  }
+
+  return { lit, insertEntry, insertDetail, known, norm, groups, count, slugify, fileSafe, imagePath, build, apply, missing, convert, PLACE };
 }
 
 export type PersonalKit = ReturnType<typeof personalKit>;

@@ -8,6 +8,8 @@ export class GitHubError extends Error {
 
 export interface GitHubClientOptions {
   token?: string;
+  /** Tried once when the token is refused (403), e.g. the workflow's own token for public repos of an organisation that blocks personal tokens. */
+  fallbackToken?: string;
   baseUrl?: string;
   fetch?: typeof fetch;
   userAgent?: string;
@@ -15,6 +17,7 @@ export interface GitHubClientOptions {
 
 export class GitHubClient {
   private readonly token?: string;
+  private readonly fallbackToken?: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: typeof fetch;
   private readonly userAgent: string;
@@ -22,6 +25,7 @@ export class GitHubClient {
 
   constructor(opts: GitHubClientOptions = {}) {
     this.token = opts.token;
+    this.fallbackToken = opts.fallbackToken && opts.fallbackToken !== opts.token ? opts.fallbackToken : undefined;
     this.baseUrl = (opts.baseUrl ?? "https://api.github.com").replace(/\/$/, "");
     this.fetchImpl = opts.fetch ?? fetch;
     this.userAgent = opts.userAgent ?? "repofolio";
@@ -37,7 +41,13 @@ export class GitHubClient {
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
     for (let attempt = 0; ; attempt++) {
       this.requests++;
-      const res = await this.fetchImpl(url, { headers });
+      let res = await this.fetchImpl(url, { headers });
+      if (res.status === 403 && this.fallbackToken && res.headers.get("x-ratelimit-remaining") !== "0") {
+        this.requests++;
+        const again = await this.fetchImpl(url, { headers: { ...headers, Authorization: `Bearer ${this.fallbackToken}` } });
+        if (again.ok) return again;
+        res = again.status === 403 ? res : again;
+      }
       const retryable = res.status >= 500 || (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0") || res.status === 429;
       if (!retryable || attempt >= 2) return res;
       const reset = Number(res.headers.get("retry-after") ?? 0);

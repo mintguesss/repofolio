@@ -46,7 +46,8 @@ async function run() {
   if (input("language") === "en" || input("language") === "zh-TW") config.language = input("language") as "en" | "zh-TW";
   if (bool("llm", config.llm.enabled)) config.llm.enabled = true;
 
-  const client = new GitHubClient({ token, userAgent: `repofolio-action/${VERSION}` });
+  // The workflow's own token can still read public repos when an organisation refuses the personal one.
+  const client = new GitHubClient({ token, fallbackToken: input("state-token") || process.env.GITHUB_TOKEN, userAgent: `repofolio-action/${VERSION}` });
   const password = process.env.REPOFOLIO_ADMIN_PASSWORD;
   const env = process.env as Record<string, string | undefined>;
   const wantCompetitors = config.competitors.enabled && config.admin.enabled;

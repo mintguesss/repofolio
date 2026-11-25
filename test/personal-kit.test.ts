@@ -86,3 +86,22 @@ describe("personalKit", () => {
     expect(K2.imagePath("award", { title: "第 22 屆 育秀盃" }, "jpg")).toBe("awards/第-22-屆-育秀盃.jpg");
   });
 });
+
+import { GitHubClient } from "../src/github.js";
+describe("GitHubClient fallback token", () => {
+  it("retries a refused request once with the fallback token", async () => {
+    const seen: string[] = [];
+    const fake = (async (_u: string, o: { headers: Record<string, string> }) => {
+      seen.push(o.headers.Authorization!);
+      return o.headers.Authorization === "Bearer main" ? new Response("{}", { status: 403 }) : new Response('{"ok":1}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const c = new GitHubClient({ token: "main", fallbackToken: "wf", fetch: fake });
+    expect(await c.get("/orgs/x/repos")).toEqual({ ok: 1 });
+    expect(seen).toEqual(["Bearer main", "Bearer wf"]);
+  });
+  it("keeps the first 403 when the fallback is refused too", async () => {
+    const fake = (async () => new Response("no", { status: 403 })) as unknown as typeof fetch;
+    const c = new GitHubClient({ token: "main", fallbackToken: "wf", fetch: fake });
+    await expect(c.get("/orgs/x/repos")).rejects.toThrow(/403/);
+  });
+});

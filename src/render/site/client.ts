@@ -1340,7 +1340,14 @@ export function clientMain(): void {
   const SITE = C.site, PK = window.__pk, ST = S.site;
   if (SITE && SITE.ok && AD && PK && $("#site-app")) {
     const app = $("#site-app");
-    const ADDED = "repofolio-admin-site-added", HID = "repofolio-admin-site-hidden";
+    const ADDED = "repofolio-admin-site-added-at", HID = "repofolio-admin-site-hidden";
+    // Added repos stay hidden only until a build has seen the commit: from then on the build knows
+    // whether the entry is on the site (taken off again → it's a suggestion again).
+    const BUILT = Date.parse((AD && AD.generatedAt) || "") || 0;
+    const readAdded = () => { try { const o = JSON.parse(load(ADDED) || "{}"); return o && typeof o === "object" && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } };
+    const getAdded = () => { const o = readAdded(); return new Set(Object.keys(o).filter((k) => o[k] > BUILT)); };
+    const markAdded = (repo) => { const o = readAdded(), keep = {}; o[repo] = Date.now(); Object.keys(o).forEach((k) => { if (o[k] > BUILT) keep[k] = o[k]; }); store(ADDED, JSON.stringify(keep)); };
+    store("repofolio-admin-site-added", null); // the old list hid repos forever
     const getSet = (k) => { try { return new Set(JSON.parse(load(k) || "[]")); } catch (e) { return new Set(); } };
     const putSet = (k, set) => store(k, JSON.stringify([...set].slice(-200)));
     const fill = (t, o) => String(t).replace(/\{(\w+)\}/g, (_, k) => (o[k] != null ? o[k] : ""));
@@ -1378,7 +1385,7 @@ ${det.length ? `<details class="si-det" open><summary>${esc(ST.detail)} <small>$
 </form>`;
     }
 
-    const hidden = getSet(HID), added = getSet(ADDED);
+    const hidden = getSet(HID), added = getAdded();
     function render() {
       const sugs = SITE.suggestions.filter((x) => !hidden.has(x.repo) && !added.has(x.repo));
       const dis = SITE.dismissed.concat(SITE.suggestions.filter((x) => hidden.has(x.repo) && !added.has(x.repo)));
@@ -1531,7 +1538,7 @@ ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.le
         const c = await gh("POST", `/repos/${SITE.repo}/git/commits`, { message: `Add ${ST.kinds[kind]}: ${title} (from the repofolio admin page)`, tree: t.sha, parents: [parent] });
         await gh("PATCH", `/repos/${SITE.repo}/git/refs/heads/${enc(SITE.branch)}`, { sha: c.sha });
         watchRuns(SITE.repo, Date.now(), { label: S.run.site, doneText: S.run.live, link: SITE.url ? SITE.url.replace(/\/?$/, "/") + "?v=" + Date.now() : "" });
-        if (sug) { added.add(sug.repo); putSet(ADDED, added); }
+        if (sug) { added.add(sug.repo); markAdded(sug.repo); }
         f.outerHTML = `<div class="si-done">✓ ${esc(ST.saved)} <a href="https://github.com/${esc(SITE.repo)}/commit/${c.sha}" target="_blank" rel="noopener">${esc(ST.commit)} ↗</a> · <a href="https://github.com/${esc(SITE.repo)}/actions" target="_blank" rel="noopener">${esc(ST.deploy)} ↗</a></div>`;
         if (sug) $$(`.si-card[data-repo="${CSS.escape(sug.repo)}"]`, app).forEach((x) => x.remove());
         toast(ST.saved);

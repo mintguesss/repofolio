@@ -22,7 +22,7 @@ export interface ScanOptions {
 const META_FILES = [".project.yml", ".project.yaml"];
 const MANIFESTS = ["package.json", "requirements.txt", "pyproject.toml", "environment.yml"];
 
-export async function listRepos(client: GitHubClient, config: Config): Promise<GhRepo[]> {
+export async function listRepos(client: GitHubClient, config: Config, log: (m: string) => void = () => {}): Promise<GhRepo[]> {
   const byName = new Map<string, GhRepo>();
   let owners = config.owners;
   const me = await client.get<{ login: string }>("/user").catch(() => null);
@@ -42,19 +42,27 @@ export async function listRepos(client: GitHubClient, config: Config): Promise<G
   }
   // Organisation / team repos you have commits in.
   if (config.contributions.enabled && me) {
-    const others = await client.paginate<GhRepo>("/user/repos?affiliation=organization_member,collaborator&sort=pushed").catch(() => [] as GhRepo[]);
+    // Status only: the path could name a private repo, and logs of a public repo are public.
+    const seen = new Set<string>();
+    const why = (e: Error) => {
+      const st = String((e as Error & { status?: number }).status ?? "error");
+      if (!seen.has(st)) { seen.add(st); log(`contributions: GitHub refused a request (${st}); the token may not reach your organisations`); }
+      return [] as GhRepo[];
+    };
+    const others = await client.paginate<GhRepo>("/user/repos?affiliation=organization_member,collaborator&sort=pushed").catch(why);
     for (const org of config.contributions.orgs) {
       const isOrg = await client.get<unknown>(`/orgs/${org}`).catch(() => null);
-      const list = await client.paginate<GhRepo>(isOrg ? `/orgs/${org}/repos?type=all&sort=pushed` : `/users/${org}/repos?type=owner&sort=pushed`).catch(() => [] as GhRepo[]);
+      const list = await client.paginate<GhRepo>(isOrg ? `/orgs/${org}/repos?type=all&sort=pushed` : `/users/${org}/repos?type=owner&sort=pushed`).catch(why);
       for (const r of list) if (!others.some((o) => o.full_name === r.full_name)) others.push(r);
     }
     for (const r of others) {
       const key = r.full_name.toLowerCase();
       if (byName.has(key) || r.fork) continue;
-      const mine = await client.get<unknown[]>(`/repos/${r.full_name}/commits?author=${encodeURIComponent(me.login)}&per_page=100`).catch(() => null);
+      const mine = await client.get<unknown[]>(`/repos/${r.full_name}/commits?author=${encodeURIComponent(me.login)}&per_page=100`).catch((e: Error) => { why(e); return null; });
       const n = Array.isArray(mine) ? mine.length : 0;
       if (n >= config.contributions.minCommits) byName.set(key, Object.assign(r, { contributed: n }));
     }
+    log(`contributions: looked at ${others.length} repo(s) in organisations / as collaborator, ${[...byName.values()].filter((r) => (r as GhRepo & { contributed?: number }).contributed).length} with your commits`);
   }
   for (const full of config.repos) {
     const r = await client.get<GhRepo>(`/repos/${full}`);
@@ -328,7 +336,7 @@ export async function fetchProfile(client: GitHubClient, login: string): Promise
 
 export async function scan(opts: ScanOptions): Promise<Inventory> {
   const log = opts.log ?? (() => {});
-  const repos = await listRepos(opts.client, opts.config);
+  const repos = await listRepos(opts.client, opts.config, opts.log);
   opts.onList?.(repos);
   log(`Found ${repos.length} repos. Scanning…`);
   const records = await pool(repos, 4, async (gh) => {

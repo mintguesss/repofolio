@@ -55,3 +55,5 @@ projects:
     status: done
   NowMap:
     ignore: [no-description]
+  TAICA_LLM:
+    ignore: [no-license]

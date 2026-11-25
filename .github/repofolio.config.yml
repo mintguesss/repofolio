@@ -47,3 +47,5 @@ llm:
 projects:
   aidit_backup:
     ignore: [no-description]
+  FootballPredict:
+    status: done

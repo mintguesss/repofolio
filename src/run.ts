@@ -31,7 +31,7 @@ export function writeOutputs(inv: Inventory, config: Config, dir = config.output
   const site = join(dir, "site");
   mkdirSync(site, { recursive: true });
   const files: [string, string][] = [
-    [join(dir, "inventory.json"), JSON.stringify(inv, null, 2)],
+    [join(dir, "inventory.json"), JSON.stringify({ ...inv, repos: inv.repos.map(({ privateCover: _, ...r }) => r) }, null, 2)],
     [join(dir, "CATALOG.md"), renderCatalog(inv, config.language)],
     [join(site, "index.html"), ""],
     [join(site, "card.svg"), renderCard(inv, config.language, { accent: config.site.theme.accent, owners: config.owners })],

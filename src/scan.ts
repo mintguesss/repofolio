@@ -40,6 +40,17 @@ export async function listRepos(client: GitHubClient, config: Config): Promise<G
     }
     for (const r of list) byName.set(r.full_name.toLowerCase(), r);
   }
+  // Organisation / team repos you have commits in.
+  if (config.contributions.enabled && me) {
+    const others = await client.paginate<GhRepo>("/user/repos?affiliation=organization_member,collaborator&sort=pushed").catch(() => [] as GhRepo[]);
+    for (const r of others) {
+      const key = r.full_name.toLowerCase();
+      if (byName.has(key) || r.fork) continue;
+      const mine = await client.get<unknown[]>(`/repos/${r.full_name}/commits?author=${encodeURIComponent(me.login)}&per_page=100`).catch(() => null);
+      const n = Array.isArray(mine) ? mine.length : 0;
+      if (n >= config.contributions.minCommits) byName.set(key, Object.assign(r, { contributed: n }));
+    }
+  }
   for (const full of config.repos) {
     const r = await client.get<GhRepo>(`/repos/${full}`);
     if (r) byName.set(r.full_name.toLowerCase(), r);
@@ -183,6 +194,24 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     }
   }
 
+  // Private repos: their images need the token, so embed one (small enough) in the encrypted admin page.
+  let privateCover: string | undefined;
+  if (gh.private && !meta.image) {
+    let src = readmeText ? readmeImage(readmeText, full, gh.default_branch) : undefined;
+    if (!src || !src.startsWith(`https://raw.githubusercontent.com/${full}/`)) {
+      const tree = await client.get<{ tree: { path: string; type: string }[] }>(`/repos/${full}/git/trees/${encodeURIComponent(gh.default_branch)}?recursive=1`).catch(() => null);
+      src = pickScreenshot((tree?.tree ?? []).filter((e) => e.type === "blob").map((e) => e.path), full, gh.default_branch);
+    }
+    const prefix = `https://raw.githubusercontent.com/${full}/`;
+    const m = src?.startsWith(prefix) ? /^([^/]+)\/(.+)$/.exec(src.slice(prefix.length)) : null;
+    if (m) {
+      const bytes = await client.getBytes(`/repos/${full}/contents/${m[2]}?ref=${encodeURIComponent(decodeURIComponent(m[1]!))}`).catch(() => null);
+      const ext = (m[2]!.split(".").pop() ?? "").toLowerCase();
+      const type = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "webp" ? "image/webp" : ext === "gif" ? "image/gif" : "image/png";
+      if (bytes && bytes.length <= 400_000) privateCover = `data:${type};base64,${bytes.toString("base64")}`;
+    }
+  }
+
   // Summary: explicit > LLM > GitHub description > README excerpt
   let summary = "";
   let summarySource: RepoRecord["summarySource"] = "none";
@@ -251,6 +280,8 @@ export async function scanRepo(gh: GhRepo, opts: ScanOptions): Promise<RepoRecor
     stale,
     showcase,
     cover,
+    privateCover,
+    ...((gh as GhRepo & { contributed?: number }).contributed ? { role: "contributor" as const, myCommits: (gh as GhRepo & { contributed?: number }).contributed } : {}),
     activity: Array.isArray(participation?.owner) && participation.owner.length ? participation.owner : undefined,
   };
   return { ...base, health: [], healthScore: 100 };

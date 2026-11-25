@@ -512,7 +512,7 @@ export function clientMain(): void {
   /* ───────── filtering / sorting ───────── */
   const grid = $("#grid");
   const F = { q: "", status: "", tech: new Set(), sort: "featured" };
-  function runFilter() {
+  function runFilter(instant) {
     if (!grid) return;
     const cards = $$(".card", grid);
     const terms = F.q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -531,15 +531,30 @@ export function clientMain(): void {
         created: (c) => [-Date.parse(c.dataset.created)],
         name: (c) => [c.dataset.name],
       }[F.sort];
-      cards
+      const sorted = cards
         .map((c) => [key(c), c])
         .sort((a, b) => { for (let i = 0; i < a[0].length; i++) { if (a[0][i] < b[0][i]) return -1; if (a[0][i] > b[0][i]) return 1; } return 0; })
-        .forEach(([, c]) => grid.appendChild(c));
+        .map(([, c]) => c);
+      sorted.forEach((c) => grid.appendChild(c));
+      // Admin: public and not-public projects in two groups, each sorted on its own.
+      if (grid.hasAttribute("data-split")) {
+        ["shown", "hidden"].forEach((g) => {
+          const sep = $(`.grid-sep[data-sep="${g}"]`, grid);
+          const mine = sorted.filter((c) => c.dataset.group === g);
+          const vis = mine.filter((c) => !c.hidden).length;
+          sep.hidden = vis === 0;
+          $("em", sep).textContent = vis === mine.length ? String(mine.length) : `${vis} / ${mine.length}`;
+          grid.appendChild(sep);
+          mine.forEach((c) => grid.appendChild(c));
+        });
+      }
       $("#empty").hidden = shown > 0;
     };
-    if (document.startViewTransition && motion() === "full") document.startViewTransition(doIt);
+    if (!instant && document.startViewTransition && motion() === "full") document.startViewTransition(doIt);
     else doIt();
   }
+  // Admin: put cards under their group headings right away.
+  if (grid && grid.hasAttribute("data-split")) runFilter(true);
   const q = $("#q");
   if (q) q.addEventListener("input", () => { F.q = q.value; runFilter(); });
   $$("#status-filter button").forEach((b) => b.addEventListener("click", () => {
@@ -1035,6 +1050,8 @@ export function clientMain(): void {
     new MutationObserver(() => markFixable($("#m-body"))).observe($("#m-body"), { childList: true });
     const toggleFix = (t) => { const li = t.closest("li.fixable"); if (!li) return; const open = !li.classList.contains("open"); $$("li.fixable.open", li.parentElement).forEach((x) => x.classList.remove("open")); li.classList.toggle("open", open); };
     document.addEventListener("click", (e) => { const t = e.target.closest("li.fixable > span"); if (t) toggleFix(t); });
+    // Live page: click a row for its actions.
+    document.addEventListener("click", (e) => { const r = e.target.closest(".lv-row"); if (!r || e.target.closest("a,button")) return; const open = !r.classList.contains("open"); $$(".lv-row.open").forEach((x) => x.classList.toggle("open", false)); r.classList.toggle("open", open); });
     document.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("li.fixable > span")) { e.preventDefault(); toggleFix(e.target); } });
     document.addEventListener("click", async (e) => {
       const b = e.target.closest("[data-fix]");
@@ -1184,6 +1201,197 @@ export function clientMain(): void {
       try { await dispatch([{ op: "draft", repo: b.dataset.spotlight }]); b.textContent = "✓ " + SP.sentDraft; }
       catch (err) { b.disabled = false; toast(err.message); }
     });
+  }
+
+  /* ───────── admin: personal website (writes entries + photos into the site repo with the owner's token) ───────── */
+  const SITE = C.site, PK = window.__pk, ST = S.site;
+  if (SITE && SITE.ok && AD && PK && $("#site-app")) {
+    const app = $("#site-app");
+    const ADDED = "repofolio-admin-site-added", HID = "repofolio-admin-site-hidden";
+    const getSet = (k) => { try { return new Set(JSON.parse(load(k) || "[]")); } catch (e) { return new Set(); } };
+    const putSet = (k, set) => store(k, JSON.stringify([...set].slice(-200)));
+    const fill = (t, o) => String(t).replace(/\{(\w+)\}/g, (_, k) => (o[k] != null ? o[k] : ""));
+    const FIELDS = {
+      project: [["title"], ["subtitle"], ["id"], ["period"], ["ptype", "sel", ["project", "research"]], ["tags"], ["description", "area", 4], ["highlights", "area", 4, "highlights_project"], ["image", "img"], ["link"]],
+      build: [["title"], ["subtitle"], ["id"], ["group", "group"], ["period"], ["tags"], ["description", "area", 3], ["image", "img"], ["github"], ["demo"],
+        ["oneLiner", "area", 2, null, 1], ["metadata", "area", 3, null, 1], ["highlights", "area", 4, "highlights_build", 1], ["problem", "area", 4, null, 1], ["features", "area", 4, null, 1], ["decisions", "area", 3, null, 1], ["architecture", "area", 4, null, 1], ["techStack", null, null, null, 1]],
+      award: [["title"], ["year"], ["org"], ["category", "sel", ["competition", "school"]], ["image", "img"], ["link"]],
+      cert: [["name"], ["issuer"], ["date"], ["image", "img"], ["objectPosition"]],
+      experience: [["role"], ["company"], ["period"], ["desc", "area", 2], ["tags"]],
+    };
+    const REQUIRED = { project: ["title"], build: ["title"], award: ["title"], cert: ["name"], experience: ["role"] };
+    const now = String(new Date().getFullYear());
+    const blank = (kind) => ({ kind, period: now, year: now, date: now, ptype: "project", category: "competition", group: SITE.groups[0] || "" });
+
+    function field(kind, [k, t, x, hint, detail], v) {
+      const id = "si-" + k;
+      const label = `<label for="${id}">${esc(ST.f[k] || k)}${hint ? ` <small>${esc(ST.h[hint])}</small>` : ""}</label>`;
+      const val = esc(v[k] || "");
+      if (t === "area") return `<div class="si-f wide">${label}<textarea id="${id}" name="${k}" rows="${x}">${val}</textarea></div>`;
+      if (t === "sel") return `<div class="si-f">${label}<select id="${id}" name="${k}">${x.map((o) => `<option value="${o}"${v[k] === o ? " selected" : ""}>${esc(ST.options[o] || o)}</option>`).join("")}</select></div>`;
+      if (t === "group") return `<div class="si-f">${label}<input id="${id}" name="${k}" value="${val}" list="si-groups" autocomplete="off"><datalist id="si-groups">${SITE.groups.map((g) => `<option value="${esc(g)}">`).join("")}</datalist></div>`;
+      if (t === "img") return `<div class="si-f wide si-img"><label>${esc(ST.image)} <small>${esc(ST.imageHint)}</small></label><div class="si-img-row"><div class="si-prev">${v.image ? `<img src="${esc(v.image)}" alt="" referrerpolicy="no-referrer">` : `<span>${esc(ST.noImage)}</span>`}</div><div class="si-img-in"><label class="btn ghost si-file">📷 ${esc(ST.imageFile)}<input type="file" accept="image/*" hidden></label><input name="image" value="${val}" placeholder="${esc(ST.imageUrl)}" autocomplete="off"></div></div></div>`;
+      return `<div class="si-f${detail ? " wide" : ""}">${label}<input id="${id}" name="${k}" value="${val}" autocomplete="off"></div>`;
+    }
+    function form(kind, v, sug) {
+      const fs = FIELDS[kind];
+      const main = fs.filter((f) => !f[4]).map((f) => field(kind, f, v)).join("");
+      const det = fs.filter((f) => f[4]);
+      return `<form class="si-form" data-kind="${kind}"${sug ? ` data-repo="${esc(sug.repo)}"` : ""}>
+<div class="si-form-h"><b>${esc(ST.kinds[kind])}</b>${sug ? `<span class="pp-chip">${esc(sug.repo)}</span>` : ""}</div>
+<div class="si-grid">${main}</div>
+${det.length ? `<details class="si-det" open><summary>${esc(ST.detail)} <small>${esc(ST.detailSub)}</small></summary><div class="si-grid">${det.map((f) => field(kind, f, v)).join("")}</div></details>` : ""}
+<div class="si-acts"><button type="submit" class="btn primary">${esc(ST.save)}</button><button type="button" class="btn ghost" data-si-cancel>${esc(ST.cancel)}</button><span class="pp-msg"></span></div>
+</form>`;
+    }
+
+    const hidden = getSet(HID), added = getSet(ADDED);
+    function render() {
+      const sugs = SITE.suggestions.filter((x) => !hidden.has(x.repo) && !added.has(x.repo));
+      const dis = SITE.dismissed.concat(SITE.suggestions.filter((x) => hidden.has(x.repo) && !added.has(x.repo)));
+      const counts = Object.entries(SITE.counts).map(([k, n]) => `<span class="pp-chip">${n} ${esc(ST.counts[k] || k)}</span>`).join("");
+      app.innerHTML = `<div class="si-top"><span>${esc(ST.target)} <a href="https://github.com/${esc(SITE.repo)}" target="_blank" rel="noopener"><code>${esc(SITE.repo)}@${esc(SITE.branch)}</code></a></span>${SITE.url ? `<a class="btn ghost" href="${esc(SITE.url)}" target="_blank" rel="noopener">${esc(ST.open)} ↗</a>` : ""}<span class="si-counts">${counts}</span></div>
+<p class="si-note">🔑 ${esc(fill(ST.tokenNote, { repo: SITE.repo }))}</p>
+<div class="si-manual"><b>${esc(ST.manual)}</b>${Object.keys(FIELDS).map((k) => `<button type="button" class="btn ghost" data-si-new="${k}">＋ ${esc(ST.kinds[k])}</button>`).join("")}</div>
+<div id="si-editor"></div>
+<h3 class="si-h">${esc(ST.suggest)} <em>${sugs.length}</em></h3><p class="si-sub">${esc(ST.suggestSub)}</p>
+${sugs.length ? `<div class="si-list">${sugs.map((x) => `<article class="si-card" data-repo="${esc(x.repo)}">${x.form.image ? `<img src="${esc(x.form.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<div><div class="si-card-h"><b>${esc(x.form.title)}</b>${x.team ? `<span class="pill team">👥 ${esc(x.team)}</span>` : ""}<span class="si-repo">${esc(x.repo)}</span></div><p>${esc(x.summary || "")}</p><div class="si-card-a"><button type="button" class="btn primary" data-si-edit="${esc(x.repo)}">${esc(ST.edit)}</button><button type="button" class="btn ghost" data-si-dismiss="${esc(x.repo)}">${esc(ST.dismiss)}</button></div></div></article>`).join("")}</div>` : `<p class="empty">${esc(ST.none)}</p>`}
+${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.length})</summary><p>${dis.map((x) => `<button type="button" class="pp-chip" data-si-restore="${esc(x.repo)}">${esc(x.form.title)} ↺</button>`).join(" ")}</p></details>` : ""}`;
+    }
+    render();
+
+    let pick = null; // the photo chosen in the open form
+    function openEditor(kind, v, sug) {
+      pick = null;
+      const ed = $("#si-editor");
+      ed.innerHTML = form(kind, v, sug);
+      ed.scrollIntoView({ behavior: "smooth", block: "start" });
+      const f = $("form", ed);
+      const file = $("input[type=file]", f);
+      if (file) file.addEventListener("change", () => {
+        const fl = file.files && file.files[0];
+        if (!fl) return;
+        pick = fl;
+        $(".si-prev", f).innerHTML = `<img src="${URL.createObjectURL(fl)}" alt="">`;
+        $("input[name=image]", f).value = "";
+      });
+      const urlIn = $("input[name=image]", f);
+      if (urlIn) urlIn.addEventListener("change", () => { pick = null; const u = urlIn.value.trim(); $(".si-prev", f).innerHTML = u ? `<img src="${esc(u)}" alt="" referrerpolicy="no-referrer">` : `<span>${esc(ST.noImage)}</span>`; });
+      const t = $("input[name=title]", f), idIn = $("input[name=id]", f);
+      if (t && idIn && !idIn.value) t.addEventListener("input", () => { if (!idIn.dataset.touched) idIn.value = PK.slugify(t.value); });
+      if (idIn) idIn.addEventListener("input", () => (idIn.dataset.touched = "1"));
+      $("[data-si-cancel]", f).addEventListener("click", () => { ed.innerHTML = ""; pick = null; });
+      f.addEventListener("submit", (e) => { e.preventDefault(); save(f, kind, sug); });
+    }
+
+    app.addEventListener("click", async (e) => {
+      const nw = e.target.closest("[data-si-new]"), ed = e.target.closest("[data-si-edit]"), dm = e.target.closest("[data-si-dismiss]"), rs = e.target.closest("[data-si-restore]");
+      if (nw) openEditor(nw.dataset.siNew, blank(nw.dataset.siNew));
+      else if (ed) { const sug = SITE.suggestions.find((x) => x.repo === ed.dataset.siEdit); if (sug) openEditor(sug.form.kind || "build", Object.assign(blank("build"), sug.form), sug); }
+      else if (dm || rs) {
+        const repo = (dm || rs).dataset[dm ? "siDismiss" : "siRestore"];
+        (dm || rs).disabled = true;
+        try {
+          await dispatch([{ op: "site", repo, act: dm ? "dismiss" : "restore" }]);
+          if (dm) hidden.add(repo); else { hidden.delete(repo); SITE.dismissed = SITE.dismissed.filter((x) => x.repo !== repo); }
+          putSet(HID, hidden);
+          render();
+          toast(dm ? ST.dismissedSent : ST.restoreSent);
+        } catch (err) { (dm || rs).disabled = false; toast(err.message); }
+      }
+    });
+
+    // ── GitHub (the owner's token, straight from the browser) ──
+    async function gh(method, path, body, raw) {
+      const tok = load(TK);
+      if (!tok) throw new Error(ST.needToken);
+      const r = await fetch("https://api.github.com" + path, {
+        method,
+        headers: Object.assign({ Authorization: "Bearer " + tok, Accept: raw ? "application/vnd.github.raw" : "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, body ? { "Content-Type": "application/json" } : {}),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (r.status === 404 && method === "GET" && raw) return null;
+      if (!r.ok) {
+        let m = ""; try { m = (await r.json()).message || ""; } catch (x) {}
+        if (r.status === 403 || (r.status === 404 && method !== "GET")) throw new Error(fill(ST.noAccess, { repo: SITE.repo }) + (m ? ` (${m})` : ""));
+        throw new Error(`${r.status}${m ? ": " + m : ""}`);
+      }
+      return raw ? r.text() : r.json();
+    }
+    const enc = (p) => p.split("/").map(encodeURIComponent).join("/");
+    const b64 = (blob) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+    const extOf = (type) => ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg" })[type] || "jpg";
+    /** Phone photos are huge: scale to 1600 px on the long side. Screenshots stay PNG. */
+    async function shrink(blob) {
+      if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) return { blob, ext: extOf(blob.type) };
+      const bmp = await createImageBitmap(blob);
+      const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      if (k === 1 && blob.size < 900000) return { blob, ext: extOf(blob.type) };
+      const cv = document.createElement("canvas");
+      cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+      cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+      const png = blob.type === "image/png" && blob.size < 1500000;
+      const out = await new Promise((r) => cv.toBlob(r, png ? "image/png" : "image/jpeg", 0.86));
+      return { blob: out, ext: png ? "png" : "jpg" };
+    }
+
+    async function save(f, kind, sug) {
+      const msg = $(".pp-msg", f), btn = $("button[type=submit]", f);
+      const say = (t, bad) => { msg.textContent = t; msg.classList.toggle("bad", !!bad); };
+      const v = {};
+      $$("input[name], textarea[name], select[name]", f).forEach((el) => (v[el.name] = el.value.trim()));
+      const miss = REQUIRED[kind].filter((k) => !v[k]);
+      if (miss.length) return say(fill(ST.missing, { f: miss.map((k) => ST.f[k] || k).join("、") }), true);
+      btn.disabled = true; say(ST.saving);
+      try {
+        const head = await gh("GET", `/repos/${SITE.repo}/git/ref/heads/${enc(SITE.branch)}`);
+        const parent = head.object.sha;
+        const commit = await gh("GET", `/repos/${SITE.repo}/git/commits/${parent}`);
+        const data = await gh("GET", `/repos/${SITE.repo}/contents/${enc(SITE.data)}?ref=${parent}`, null, true);
+        if (data == null) throw new Error(ST.readFail);
+        const details = kind === "build" ? await gh("GET", `/repos/${SITE.repo}/contents/${enc(SITE.details)}?ref=${parent}`, null, true) : undefined;
+        if (kind === "build" && details == null) throw new Error(ST.readFail);
+        // The image: an uploaded photo, or a URL to copy into the site (repo screenshots, etc.).
+        const files = [];
+        let src = pick;
+        if (!src && /^https?:\/\//.test(v.image)) {
+          const r = await fetch(v.image).catch(() => null);
+          if (r && r.ok) src = await r.blob();
+        }
+        if (src) {
+          const { blob, ext } = await shrink(src);
+          let rel = PK.imagePath(kind, v, ext);
+          for (let n = 2; n < 9; n++) {
+            const there = await gh("GET", `/repos/${SITE.repo}/contents/${enc(SITE.publicDir + "/" + rel)}?ref=${parent}`, null, true);
+            if (there == null) break;
+            rel = PK.imagePath(kind, v, ext).replace(/(\.\w+)$/, `-${n}$1`);
+          }
+          files.push({ path: SITE.publicDir + "/" + rel, content: await b64(blob), encoding: "base64" });
+          v.image = (SITE.base || "") + "/" + rel;
+        }
+        const out = PK.apply(kind, v, data, details);
+        files.push({ path: SITE.data, content: out.data, encoding: "utf-8" });
+        if (out.details != null) files.push({ path: SITE.details, content: out.details, encoding: "utf-8" });
+        const tree = [];
+        for (const fl of files) {
+          const b = await gh("POST", `/repos/${SITE.repo}/git/blobs`, { content: fl.content, encoding: fl.encoding });
+          tree.push({ path: fl.path, mode: "100644", type: "blob", sha: b.sha });
+        }
+        const t = await gh("POST", `/repos/${SITE.repo}/git/trees`, { base_tree: commit.tree.sha, tree });
+        const title = v.title || v.name || v.role;
+        const c = await gh("POST", `/repos/${SITE.repo}/git/commits`, { message: `Add ${ST.kinds[kind]}: ${title} (from the repofolio admin page)`, tree: t.sha, parents: [parent] });
+        await gh("PATCH", `/repos/${SITE.repo}/git/refs/heads/${enc(SITE.branch)}`, { sha: c.sha });
+        if (sug) { added.add(sug.repo); putSet(ADDED, added); }
+        f.outerHTML = `<div class="si-done">✓ ${esc(ST.saved)} <a href="https://github.com/${esc(SITE.repo)}/commit/${c.sha}" target="_blank" rel="noopener">${esc(ST.commit)} ↗</a> · <a href="https://github.com/${esc(SITE.repo)}/actions" target="_blank" rel="noopener">${esc(ST.deploy)} ↗</a></div>`;
+        if (sug) $$(`.si-card[data-repo="${CSS.escape(sug.repo)}"]`, app).forEach((x) => x.remove());
+        toast(ST.saved);
+      } catch (err) {
+        btn.disabled = false;
+        const m = String(err.message || err);
+        say(/already/.test(m) ? ST.exists : m, true);
+        if (m === ST.needToken) { const box = $("#pp-tok-box"); if (box) { goPage("admin"); setTimeout(() => { box.open = true; box.scrollIntoView({ block: "center", behavior: "smooth" }); }, 120); } }
+      }
+    }
   }
 
   applyTheme();

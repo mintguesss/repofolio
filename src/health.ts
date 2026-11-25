@@ -13,7 +13,8 @@ export function checkHealth(r: HealthInput, lang: Lang = "en"): HealthIssue[] {
     issues.push({ id, level, message: zh ? tw : en });
   const live = r.status !== "archived";
   // The profile README repo (me/me) is not a project: topics, licence, staleness and deploy checks don't apply.
-  const profile = r.name.toLowerCase() === r.owner.toLowerCase();
+  // Team / organisation repos you contribute to aren't yours to fix up either.
+  const profile = r.name.toLowerCase() === r.owner.toLowerCase() || r.role === "contributor";
 
   if (!r.readme) add("no-readme", "error", "No README", "沒有 README");
   else if (r.readme.length < 300)

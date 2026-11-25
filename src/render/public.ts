@@ -52,6 +52,8 @@ export interface PublicProject {
   brief?: { about: string; features: string[] };
   /** Language the README is written in (by script), to tell if `intro` matches the site language. */
   introLang?: "zh" | "en";
+  /** Organisation / owner of a team repo you contribute to. */
+  team?: string;
   /** Only in the private admin build (never in the public site / projects.json). */
   admin?: AdminInfo;
 }
@@ -161,8 +163,19 @@ export function toPublic(r: RepoRecord): PublicProject {
     deployments,
     intro: r.private ? undefined : r.readme?.intro,
     brief: r.private ? undefined : r.brief,
+    team: r.role === "contributor" && !r.private ? r.owner : undefined,
     introLang: r.readme?.intro ? scriptOf(r.readme.intro.paragraphs.join(" ") || r.readme.excerpt) : undefined,
   };
+}
+
+/** A plain cover for a private repo without a usable screenshot: name, languages, a colour from the name. */
+export function generatedCover(r: Pick<RepoRecord, "name" | "languages" | "summary">): string {
+  const hue = [...r.name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const x = (s: string) => s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]!);
+  const langs = Object.entries(r.languages).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
+  const name = r.name.length > 22 ? r.name.slice(0, 21) + "…" : r.name;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},55%,22%)"/><stop offset="1" stop-color="hsl(${(hue + 50) % 360},60%,10%)"/></linearGradient><radialGradient id="r" cx=".85" cy=".1" r=".7"><stop offset="0" stop-color="hsl(${hue},80%,60%)" stop-opacity=".45"/><stop offset="1" stop-color="hsl(${hue},80%,60%)" stop-opacity="0"/></radialGradient></defs><rect width="1200" height="630" fill="url(#g)"/><rect width="1200" height="630" fill="url(#r)"/><g fill="none" stroke="#fff" stroke-opacity=".06">${Array.from({ length: 12 }, (_, i) => `<path d="M${i * 100} 0V630"/>`).join("")}${Array.from({ length: 7 }, (_, i) => `<path d="M0 ${i * 100}H1200"/>`).join("")}</g><text x="80" y="330" font-family="Inter,Segoe UI,system-ui,sans-serif" font-size="${name.length > 14 ? 76 : 96}" font-weight="800" fill="#fff">${x(name)}</text><text x="82" y="400" font-family="ui-monospace,Consolas,monospace" font-size="30" fill="#fff" fill-opacity=".7">${x(langs.join(" · "))}</text><text x="82" y="540" font-family="ui-monospace,Consolas,monospace" font-size="24" fill="#fff" fill-opacity=".45">🔒 private</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 /** Admin build: every field, private repos in full. The output must never be published. */
@@ -180,7 +193,8 @@ export function toAdmin(r: RepoRecord): PublicProject {
     forks: r.forks,
     license: r.license ?? undefined,
     release: r.latestRelease?.tag,
-    image: r.meta.image ?? r.cover ?? (r.private ? undefined : p.image),
+    image: r.meta.image ?? r.cover ?? (r.private ? (r.privateCover ?? generatedCover(r)) : p.image),
+    team: r.role === "contributor" ? r.owner : undefined,
     deployments,
     intro: r.readme?.intro,
     brief: r.brief,

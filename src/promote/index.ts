@@ -21,6 +21,7 @@ export const RequestSchema = z.array(z.discriminatedUnion("op", [
   z.object({ op: z.literal("draft"), repo: z.string(), style: z.enum(POST_STYLES).optional() }),
   z.object({ op: z.literal("redraft"), id: z.string(), style: z.enum(POST_STYLES) }),
   z.object({ op: z.literal("config"), set: ConfigPatchSchema }),
+  z.object({ op: z.literal("site"), repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/), act: z.enum(["dismiss", "restore"]) }),
 ])).max(50);
 export type PromoteRequest = z.infer<typeof RequestSchema>[number];
 
@@ -77,7 +78,7 @@ export async function runPromote(opts: {
 
   // 1. Decisions made in the admin page.
   for (const req of opts.requests) {
-    if (req.op === "config") continue; // applied by the action before the scan
+    if (req.op === "config" || req.op === "site") continue; // handled by the action
     if (req.op === "draft") {
       const r = inv.repos.find((x) => x.fullName === req.repo && postable(x));
       if (r) extra.push({ ev: spotlightEvent(config, r, now), style: req.style });

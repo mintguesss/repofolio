@@ -134,6 +134,8 @@ export interface State {
   intros: Record<string, Intro>;
   /** Claude usage and cost per month (last 12). */
   usage: UsageMonth[];
+  /** Personal website: repos the owner chose not to add (owner/name). */
+  site?: { dismissed: string[] };
 }
 
 export interface Brief { about: string; features: string[] }

@@ -7,8 +7,9 @@ import { clientMain } from "./client.js";
 import { ICONS } from "./icons.js";
 import { siteStrings, type SiteStrings } from "./strings.js";
 import { PRESET_COLORS, SIMPLE_ACCENT, siteCss } from "./styles.js";
-import { homeStats, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
-import { postsSection, promoClientConfig, rivalsSection, settingsSection, tokenBox, type AdminExtras } from "./promo.js";
+import { homeStats, liveSection, STATUS_COLORS, statsKpis, timelineSection } from "./widgets.js";
+import { postsSection, promoClientConfig, rivalsSection, settingsSection, siteSection, tokenBox, type AdminExtras } from "./promo.js";
+import { personalKit } from "../../personal-kit.js";
 
 const PROVIDER_ICON: Record<string, string> = { "github-pages": "github-pages", fly: "fly", gcp: "gcp" };
 
@@ -80,10 +81,10 @@ function card(p: PublicProject, s: SiteStrings, icons: IconSprite, opts: { big?:
     p.codeUrl ? `<a class="btn-mini" href="${esc(p.codeUrl)}" target="_blank" rel="noopener">${icons.icon("github", "bi")} ${esc(s.code)}</a>` : "",
   ].join("");
   const statusText = s.statusLabels[p.status];
-  return `<article class="card reveal${p.featured ? " featured" : ""}${opts.big ? " big" : ""}" tabindex="0" data-id="${esc(p.id)}" data-status="${p.status}" data-tech="${esc(tech.map((x) => x.toLowerCase()).join("|"))}" data-text="${esc(text)}" data-stars="${p.stars}" data-updated="${esc(p.updated)}" data-created="${esc(p.created)}" data-name="${esc(p.name.toLowerCase())}" data-featured="${p.featured ? 1 : 0}">
+  return `<article class="card reveal${p.featured ? " featured" : ""}${opts.big ? " big" : ""}" tabindex="0" data-id="${esc(p.id)}" data-status="${p.status}" data-tech="${esc(tech.map((x) => x.toLowerCase()).join("|"))}" data-text="${esc(text)}" data-stars="${p.stars}" data-updated="${esc(p.updated)}" data-created="${esc(p.created)}" data-name="${esc(p.name.toLowerCase())}" data-featured="${p.featured ? 1 : 0}"${p.admin ? ` data-group="${p.admin.shown ? "shown" : "hidden"}"` : ""}>
 <div class="cover">${p.image ? `<img loading="lazy" decoding="async" src="${esc(p.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('noimg');this.remove()">` : ""}<div class="cover-fallback" aria-hidden="true"><span>${esc(p.name.slice(0, 1).toUpperCase())}</span></div></div>
 <div class="card-body">
-<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}${p.admin && !p.admin.shown ? `<span class="pill">${esc(s.admin.hidden)}</span>` : ""}${p.admin ? `<span class="hp sm" style="--hc:${healthColor(p.admin.health)}" title="${esc(s.admin.health)}"><b>${p.admin.health}</b></span>` : ""}</div>
+<div class="card-top"><span class="dot st-${p.status}" title="${esc(statusText)}"></span><h3>${esc(p.name)}</h3>${p.stars ? `<span class="stars" title="${esc(s.stars)}">★ ${p.stars}</span>` : ""}${p.team ? `<span class="pill team" title="${esc(p.team)}">👥 ${esc(p.team)}</span>` : ""}${p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}${p.admin && !p.admin.shown ? `<span class="pill">${esc(s.admin.hidden)}</span>` : ""}${p.admin ? `<span class="hp sm" style="--hc:${healthColor(p.admin.health)}" title="${esc(s.admin.health)}"><b>${p.admin.health}</b></span>` : ""}</div>
 <p class="sum">${esc(p.summary || "—")}</p>
 <div class="techs">${tech.slice(0, 6).map((t) => `<span class="tech" title="${esc(t)}">${icons.icon(t)}<em>${esc(t)}</em></span>`).join("")}</div>
 ${sparkline(p.activity)}
@@ -220,7 +221,7 @@ function projectsSection(d: ShowcaseData, config: Config, s: SiteStrings, icons:
 ${topTech.length ? `<button type="button" class="filter-toggle" id="tech-toggle" aria-expanded="false" aria-controls="tech-filter">${esc(s.techFilter)} <b id="tech-count"></b><span aria-hidden="true">▾</span></button>` : ""}
 </div>
 <div class="chips" id="tech-filter" hidden>${topTech.map((t) => `<button type="button" class="chip" data-tech="${esc(t.name.toLowerCase())}" aria-pressed="false">${icons.icon(t.name)}${esc(t.name)}<b>${t.count}</b></button>`).join("")}</div>
-<div class="grid" id="grid">${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>
+<div class="grid" id="grid"${d.projects.some((p) => p.admin) ? " data-split" : ""}>${d.projects.some((p) => p.admin) ? `<div class="grid-sep" data-sep="shown"><b>${esc(s.adminx.groupShown)}</b><span>${esc(s.adminx.groupShownSub)}</span><em></em></div><div class="grid-sep" data-sep="hidden"><b>${esc(s.adminx.groupHidden)}</b><span>${esc(s.adminx.groupHiddenSub)}</span><em></em></div>` : ""}${d.projects.map((p) => card(p, s, icons)).join("\n")}</div>
 <div class="empty" id="empty" hidden><p>${esc(s.noResults)}</p><button type="button" class="btn ghost" id="clear">${esc(s.clear)}</button></div>
 </section>`;
 }
@@ -430,6 +431,8 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     const at = rendered.reduce((k, [sec], i) => (sec === "hero" || sec === "featured" ? i + 1 : k), 0);
     const extraSecs: [string, string][] = [["admin", adminSection(d, s, 0, extras)]];
     if (extras?.promote) extraSecs.push(["posts", postsSection(d, extras.promote, s, sectionHead("posts", s.promo.title, s.promo.sub, 0), lang, extras.dispatch)]);
+    if (extras?.site) extraSecs.push(["site", siteSection(extras.site, s, sectionHead("site", s.site.title, s.site.sub, 0))]);
+    extraSecs.push(["live", liveSection(d, s, sectionHead("live", s.live.title, s.live.sub, 0), !!extras?.dispatch)]);
     if (extras?.competitors) extraSecs.push(["rivals", rivalsSection(d, extras.competitors, s, sectionHead("rivals", s.rivals.title, s.rivals.sub, 0))]);
     rendered.splice(at, 0, ...extraSecs);
     // Settings go last in the nav.
@@ -451,7 +454,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
   const navTargets = multi ? pageOrder : rendered.map(([sec]) => sec).filter((x) => x !== "hero");
   const navItems = navTargets
     .map((x) => {
-      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : x === "posts" ? `📣 ${s.promo.nav}` : x === "rivals" ? `🎯 ${s.rivals.nav}` : x === "settings" ? `⚙ ${s.settings.nav}` : s.nav[x as keyof SiteStrings["nav"]];
+      const label = x === "home" ? s.nav.home : x === "admin" ? `🔒 ${s.admin.nav}` : x === "posts" ? `📣 ${s.promo.nav}` : x === "site" ? `🌐 ${s.site.nav}` : x === "live" ? `🚀 ${s.live.nav}` : x === "rivals" ? `🎯 ${s.rivals.nav}` : x === "settings" ? `⚙ ${s.settings.nav}` : s.nav[x as keyof SiteStrings["nav"]];
       return `<a href="${multi ? `#/${x === "home" ? "" : x}` : `#${x}`}" data-nav="${x}">${esc(label)}</a>`;
     })
     .join("");
@@ -470,6 +473,7 @@ export function renderSite(inv: Inventory, config: Config, opts: { admin?: boole
     customizer: config.site.customizer,
     promo: promoClientConfig(extras?.promote),
     admin: admin ? { dispatch: extras?.dispatch, generatedAt: d.generatedAt } : undefined,
+    site: admin ? extras?.site : undefined,
     multi,
     options: { mode: MODES, scheme: SCHEMES, preset: THEME_PRESETS, background: BACKGROUNDS, layout: LAYOUTS, font: FONTS, animation: ANIMATIONS, glow: GLOWS },
     presetBgs: Object.fromEntries(Object.entries(PRESET_COLORS).map(([k, v]) => [k, v.bg])),
@@ -533,6 +537,7 @@ ${sections}
 ${config.site.customizer ? `<aside class="custom" id="custom" aria-label="${esc(s.customize)}" hidden></aside>` : ""}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script type="application/json" id="rf-data">${inlineJson({ config: clientConfig, projects: d.projects })}</script>
+${admin && extras?.site ? `<script>window.__pk=(${personalKit.toString()})();</script>` : ""}
 <script>(${clientMain.toString()})();</script>
 </body>
 </html>

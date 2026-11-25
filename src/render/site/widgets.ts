@@ -164,3 +164,34 @@ export function timelineSection(d: ShowcaseData, s: SiteStrings, head: string, l
 </div>
 </section>`;
 }
+
+/** Admin: every deployment across projects (private ones too), down first, with what to do about each. */
+export function liveSection(d: ShowcaseData, s: SiteStrings, head: string, canAct: boolean): string {
+  const L = s.live;
+  type Row = { p: PublicProject; dep: PublicProject["deployments"][number] };
+  const rows: Row[] = d.projects.flatMap((p) => p.deployments.map((dep) => ({ p, dep })));
+  const slow = (r: Row) => r.dep.ok && (r.dep.ms ?? 0) > 2500;
+  const rank = (r: Row) => (!r.dep.ok ? 0 : slow(r) ? 1 : 2);
+  rows.sort((a, b) => rank(a) - rank(b) || a.p.name.localeCompare(b.p.name));
+  const down = rows.filter((r) => !r.dep.ok).length;
+  const slowN = rows.filter(slow).length;
+  const none = d.projects.filter((p) => !p.deployments.length && p.status !== "archived");
+  const host = (u: string) => u.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const row = (r: Row) => {
+    const st = !r.dep.ok ? "down" : slow(r) ? "slow" : "up";
+    const ignored = r.p.admin?.ignored?.includes("url-down");
+    const acts = [
+      `<a class="fx" href="${esc(r.dep.url)}" target="_blank" rel="noopener">${esc(L.open)} ↗</a>`,
+      `<a class="fx" href="#" data-open="${esc(r.p.id)}">${esc(L.details)}</a>`,
+      !r.dep.ok && canAct && !ignored ? `<button type="button" class="fx" data-fix="ignore" data-pid="${esc(r.p.id)}" data-issue="url-down">${esc(L.ignore)}</button>` : "",
+      ignored ? `<em class="lv-ign">${esc(L.ignored)}</em>` : "",
+    ].join("");
+    return `<li class="lv-row ${st}"><span class="lv-dot" title="${esc(L[st])}"></span><div class="lv-main"><b>${esc(r.p.name)}</b>${r.p.private ? `<span class="pill">${esc(s.private)}</span>` : ""}<a class="lv-url" href="${esc(r.dep.url)}" target="_blank" rel="noopener">${esc(host(r.dep.url))}</a></div><span class="lv-meta">${r.dep.provider ? `<span class="pp-chip">${esc(r.dep.provider)}</span>` : ""}<span class="lv-env">${esc(r.dep.name)}</span></span><span class="lv-resp">${!r.dep.ok ? esc(String(r.dep.status ?? L.down)) : r.dep.ms != null ? `${r.dep.ms} ms` : "—"}</span><span class="fxs lv-acts">${acts}</span></li>`;
+  };
+  return `<section id="live" class="sec">${head}
+<div class="adm-tools reveal">${canAct ? `<button type="button" class="btn ghost" data-refresh>⟳ ${esc(L.recheck)}</button>` : ""}</div>
+<div class="lv-sum reveal"><div class="lv-k up"><b>${rows.length - down - slowN}</b><span>${esc(L.up)}</span></div><div class="lv-k slow"><b>${slowN}</b><span>${esc(L.slow)}</span></div><div class="lv-k down"><b>${down}</b><span>${esc(L.down)}</span></div><div class="lv-k"><b>${none.length}</b><span>${esc(L.noDeploy)}</span></div></div>
+${rows.length ? `<ul class="lv-list reveal">${rows.map(row).join("")}</ul>` : `<p class="empty reveal">${esc(L.none)}</p>`}
+${none.length ? `<h3 class="lv-h reveal">${esc(L.noDeploy)}</h3><p class="lv-none reveal">${none.map((p) => `<a href="#" class="pp-chip" data-open="${esc(p.id)}">${esc(p.name)}</a>`).join(" ")}</p><p class="lv-hint reveal">${esc(L.hint)}</p>` : ""}
+</section>`;
+}

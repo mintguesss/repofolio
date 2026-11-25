@@ -15,6 +15,15 @@ site:
     mode: tech # simple | tech
     scheme: auto # auto | light | dark
     layout: grid # grid | list
+  featured:
+    [
+      ClaudeQuota,
+      fraud-radar,
+      minglu_kneopi,
+      Clean-Contributors,
+      aidit,
+      NightMarket
+    ]
 # Card cover per project (screenshots from the personal site). Others use the README / repo screenshots.
 images:
   Folio-manager: https://mintguesss.github.io/personal_web/builds/folio-manager.jpg

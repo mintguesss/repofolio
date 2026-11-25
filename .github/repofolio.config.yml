@@ -54,4 +54,4 @@ projects:
   personal_web_old:
     status: done
   NowMap:
-    status: paused
+    ignore: [no-description]

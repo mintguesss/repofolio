@@ -6,6 +6,7 @@ import { PLATFORM_INFO, TITLE_ONLY, type Connection } from "../../promote/platfo
 import { esc, type ShowcaseData } from "../public.js";
 import { STATUS_COLORS } from "./widgets.js";
 import type { SiteStrings } from "./strings.js";
+import type { SiteExtras } from "../../personal.js";
 
 export interface Dispatch { repo: string; workflow: string; ref: string }
 
@@ -22,6 +23,8 @@ export interface AdminExtras {
   /** The workflow the admin page can trigger (approvals, "update now"). */
   dispatch?: Dispatch;
   competitors?: { enabled: boolean; reports: Record<string, CompetitorReport> };
+  /** Personal website: what's on it and what could be added. */
+  site?: SiteExtras;
 }
 
 const fmtDate = (iso: string, lang: string) => {
@@ -212,4 +215,10 @@ ${select("language", config.language, T.language, [["zh-TW", "繁體中文"], ["
 ${extras.dispatch ? `<div class="adm-tools reveal"><span>${esc(s.adminx.updated)} <b data-time="${esc(generatedAt)}">${esc(generatedAt.slice(0, 16).replace("T", " "))}</b></span><button type="button" class="btn ghost" data-refresh>⟳ ${esc(s.fix.now)}</button></div>` : ""}
 <div class="st-layout"><div class="st-side">${keyCard}${keysCard}</div>${form}</div>
 </section>`;
+}
+
+/** Personal website tab: the client fills it in (suggestions, forms, image upload, commit to the site repo). */
+export function siteSection(x: SiteExtras, s: SiteStrings, head: string): string {
+  const T = s.site;
+  return `<section id="site" class="sec">${head}<div id="site-app" class="si">${x.ok ? "" : `<p class="si-err">⚠ ${esc(T.error)}: ${esc(x.error ?? "")}</p>`}</div></section>`;
 }

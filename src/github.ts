@@ -61,6 +61,13 @@ export class GitHubClient {
     return res.text();
   }
 
+  /** GET raw bytes (e.g. an image in a private repo). */
+  async getBytes(path: string): Promise<Buffer | null> {
+    const res = await this.raw(path, "application/vnd.github.raw");
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  }
+
   async paginate<T>(path: string, max = 1000): Promise<T[]> {
     const out: T[] = [];
     let next: string | null = path + (path.includes("?") ? "&" : "?") + "per_page=100";

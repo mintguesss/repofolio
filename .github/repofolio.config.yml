@@ -57,3 +57,13 @@ projects:
     ignore: [no-description]
   TAICA_LLM:
     ignore: [no-license]
+# Organisation / team repos you have commits in (research, course and team projects).
+contributions:
+  enabled: true
+# Personal website: the admin page's 🌐 tab adds entries (and photos) to it in its own format.
+personalSite:
+  repo: mintguesss/personal_web
+  branch: master
+  base: /personal_web
+  url: https://mintguesss.github.io/personal_web/
+  skip: [TAICA_LLM]

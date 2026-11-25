@@ -186,6 +186,28 @@ export const ConfigSchema = z.object({
   repos: z.array(z.string()).default([]),
   /** Repo names or owner/name to skip. Supports trailing * wildcard. */
   exclude: z.array(z.string()).default([]),
+  /** Repos in organisations (or someone else's repos) that you have commits in, e.g. team or research projects. */
+  contributions: z.object({
+    enabled: z.boolean().default(false),
+    /** Your commits a repo needs before it counts as yours to show. */
+    minCommits: z.number().int().min(1).max(100).default(1),
+  }).prefault({}),
+  /** A personal website repo the admin page can add entries to (projects, side projects, awards, certificates, experience). */
+  personalSite: z.object({
+    repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/).optional(),
+    branch: z.string().default("main"),
+    /** The TypeScript file that holds the site's data arrays (projects, builds, awards, certifications, experience). */
+    data: z.string().default("src/data/portfolio.ts"),
+    /** Detail pages for builds, keyed by id. */
+    details: z.string().default("src/data/buildsDetail.ts"),
+    /** Folder whose files are served at the site root (images go here). */
+    publicDir: z.string().default("public"),
+    /** Path prefix the site is served under, e.g. "/personal_web". */
+    base: z.string().default(""),
+    url: z.string().url().optional(),
+    /** Repos that are already on the site under another name, or that shouldn't be suggested. */
+    skip: z.array(z.string()).default([]),
+  }).prefault({}),
   includeForks: z.boolean().default(false),
   includeArchived: z.boolean().default(true),
   includePrivate: z.boolean().default(true),

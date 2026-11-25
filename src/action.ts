@@ -11,6 +11,7 @@ import { AI_FEATURES, AiMeter, type AiFeature } from "./ai.js";
 import { analyzeCompetitors } from "./competitors.js";
 import { attachBriefs, writeIntros } from "./intro.js";
 import { parseRequests, runPromote } from "./promote/index.js";
+import { personalSite } from "./personal.js";
 import type { AdminExtras } from "./render/site/promo.js";
 import { scan } from "./scan.js";
 import { GitHubStateStore, emptyState, type State } from "./state.js";
@@ -53,7 +54,7 @@ async function run() {
 
   // State (post queue, competitor cache, intros, Claude usage) lives on a branch of the hub repo.
   // Loaded before the scan so README summaries count towards the monthly Claude budget too.
-  const useState = !!hub && (config.promote.enabled || requests.length > 0 || wantCompetitors || hasClaude);
+  const useState = !!hub && (config.promote.enabled || requests.length > 0 || wantCompetitors || hasClaude || !!config.personalSite.repo);
   const store = useState
     ? new GitHubStateStore(new GitHubClient({ token: input("state-token") || process.env.GITHUB_TOKEN || token, userAgent: `repofolio-action/${VERSION}` }), hub!, config.state.branch, password)
     : undefined;
@@ -90,6 +91,17 @@ async function run() {
   const extras: AdminExtras = {};
   const wf = /\/\.github\/workflows\/([^@]+)@/.exec(process.env.GITHUB_WORKFLOW_REF ?? "")?.[1];
   if (hub && wf) extras.dispatch = { repo: hub, workflow: wf, ref: process.env.GITHUB_REF_NAME || "main" };
+  // "Don't add this to my site": remembered on the state branch.
+  for (const req of requests) {
+    if (req.op !== "site") continue;
+    const list = new Set(state.site?.dismissed ?? []);
+    if (req.act === "dismiss") list.add(req.repo); else list.delete(req.repo);
+    state.site = { dismissed: [...list] };
+  }
+  if (config.personalSite.repo && config.admin.enabled) {
+    extras.site = await personalSite({ config, client, repos: full.repos, state, log: (m) => console.log(m) })
+      .catch((e) => { console.log(`::warning::personal site: ${(e as Error).message.slice(0, 200)}`); return undefined; });
+  }
   if (store) {
     // Private repos may only enter the state when nobody else can read it: encrypted, or a private hub.
     const allowPrivate = !!password || hubRepo?.private === true;

@@ -2,6 +2,18 @@
 owners: []              # GitHub users/orgs to scan; empty = the token's user
 repos: []               # extra owner/name repos
 exclude: []             # names or owner/name; trailing * wildcard ok
+contributions:          # organisation / team repos you have commits in (team, research, course projects)
+  enabled: false
+  minCommits: 1
+# personalSite:         # the admin page's 🌐 tab adds entries (and photos) to your personal website repo
+#   repo: you/personal-site
+#   branch: main
+#   data: src/data/portfolio.ts      # arrays: projects, builds, awards, certifications, experience
+#   details: src/data/buildsDetail.ts
+#   publicDir: public
+#   base: /personal-site             # basePath the site is served under
+#   url: https://you.github.io/personal-site/
+#   skip: []                         # repos already on the site under another name
 includeForks: false
 includeArchived: true
 includePrivate: true    # private repos go in CATALOG.md; never on the public site unless showcase: true

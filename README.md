@@ -124,6 +124,9 @@ publish:
 The same site, for your eyes only: every repo including private ones and a health score on each card. There's no link to it; it lives at a file name you pick (`admin.page`). It adds:
 
 - **🔒 Admin**: an overview (status mix, health, recent commits, idle projects, promotion and competitor summaries) and what to fix, worst first. Click an issue to act on it: fix it on GitHub (licence picker, topics, README…), ignore it, or for idle projects keep going (remind in 30 days), mark done, pause or archive. **⟳ Update now** rebuilds without waiting for the schedule.
+- **Projects in two groups**: what's on the public site and what isn't (private or hidden repos). Screenshots of private repos are fetched with your token and embedded in the encrypted page; without one you get a generated cover.
+- **🚀 Live**: every site and service across your projects, private ones too: up, slow or down (down first, with the status code). Click a row to open it, see the project or stop the down warning. Projects without a live URL are listed too.
+- **🌐 My site** (set `personalSite`): add new things to your personal website in its own data format: projects, side projects (with a detail page), awards, certificates, experience, with photo upload (resized to 1600 px). Public repos that aren't on the site yet get a draft from their README; edit it and press "Add to my site" to commit the entry and image to that repo with your token.
 - **Project details in tabs**: overview, about (from the README), numbers, competitors and posts.
 <p align="center"><img src="docs/screenshots/settings.png" alt="settings page" width="70%"></p>
 

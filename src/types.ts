@@ -66,11 +66,17 @@ export interface RepoRecord {
   activity?: number[];
   /** Cover image chosen at scan time: config `images` > README image > screenshot found in the repo. Public repos only. */
   cover?: string;
+  /** Private repos: the cover image itself as a data: URI (fetched with the token), for the encrypted admin page only. */
+  privateCover?: string;
   /** Short intro in the site language (Claude, cached on the state branch). */
   brief?: { about: string; features: string[] };
   health: HealthIssue[];
   healthScore: number;
   showcase: boolean;
+  /** "contributor": a repo you don't own but have commits in (an organisation or team project). */
+  role?: "owner" | "contributor";
+  /** Your commits in a contributor repo (at least the configured minimum). */
+  myCommits?: number;
 }
 
 /** Public GitHub profile of the primary owner, for the showcase hero. */

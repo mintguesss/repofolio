@@ -138,7 +138,7 @@ export interface State {
   site?: {
     dismissed: string[];
     /** Drafts per public repo (owner/name), kept until the repo is pushed again. */
-    drafts?: Record<string, { pushedAt: string; draft: import("./personal.js").SiteSuggestion }>;
+    drafts?: Record<string, { pushedAt: string; v?: number; draft: import("./personal.js").SiteSuggestion }>;
   };
 }
 

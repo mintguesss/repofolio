@@ -211,6 +211,7 @@ main{max-width:1180px;margin:0 auto;padding:0 16px}
 .si-repo{color:var(--muted);font:.75rem var(--mono)}
 .si-card p{color:var(--muted);font-size:.86rem;margin:6px 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .si-card-a{display:flex;gap:8px}
+.si-card p.si-nozh{font-style:italic;opacity:.8}
 .si-on{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .si-on-i{display:flex;flex-direction:column;gap:2px;position:relative;padding:10px 32px 10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);text-decoration:none!important;transition:border-color .2s,transform .2s var(--ease)}
 .si-on-i b{font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

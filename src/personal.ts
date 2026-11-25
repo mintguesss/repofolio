@@ -6,6 +6,7 @@ import type { GitHubClient } from "./github.js";
 import type { State } from "./state.js";
 import type { RepoRecord } from "./types.js";
 import { personalKit } from "./personal-kit.js";
+import { readmeIntro } from "./detect.js";
 
 /** A form pre-filled from a repo, in the personal site's own fields. Strings only (the admin page edits them). */
 export interface SiteSuggestion {
@@ -119,6 +120,17 @@ export function splitFeature(f: string): { head: string; body: string } {
   return m ? { head: m[1]!.trim(), body: m[2]!.trim() } : { head: f.trim(), body: "" };
 }
 /** A choice between options ("X instead of Y", "用 A，不用 B"): reads as a design decision. */
+/** The personal site is in Chinese: rule drafts only use text that is (mostly) Chinese. */
+export const isZh = (t: string | null | undefined): boolean => {
+  const s = String(t ?? "").replace(/`[^`]*`|https?:\/\/\S+/g, "");
+  const cjk = (s.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latin = (s.match(/[A-Za-z]+/g) ?? []).length;
+  return cjk >= 2 && cjk * 3 >= latin;
+};
+
+/** A README badge / link line ("English · MIT 授權 · Python 3.10+"): short, separated by · or |, no sentence. */
+const NAVBAR = /^(?=[^。，；]{0,80}$)(?=.*\s[·|•]\s).*$/;
+
 const DECISION = /不用|而不是|改用|改成|改由|取代|換成|捨棄|instead of|rather than|\bover\b|\bvs\.?\b/i;
 
 /** The README's architecture diagram, when it has one (a code block drawn with arrows or tree lines). */
@@ -130,33 +142,41 @@ export function readmeDiagram(md: string): string[] {
   return [];
 }
 
-/** A first draft for a repo, in the fields of a `builds` entry and its detail page (no Claude). */
-export function draftFor(r: RepoRecord, groups: string[], readme = ""): SiteSuggestion {
+/**
+ * A first draft for a repo, in the fields of a `builds` entry and its detail page (no Claude). The site is in
+ * Chinese, so prose comes only from Chinese sources: Claude's cached Chinese intro, a Chinese README (or the
+ * README's own text when it is Chinese), a Chinese description. A field with no Chinese source stays empty.
+ */
+export function draftFor(r: RepoRecord, groups: string[], readme = "", zhReadme = ""): SiteSuggestion {
   const K = personalKit();
   const langs = Object.keys(r.languages);
   const all = [...new Set([...r.stack, ...langs])];
   const tags = (all.filter((t) => !NOISE.test(t)).length ? all.filter((t) => !NOISE.test(t)) : all).slice(0, 6);
-  const intro = r.readme?.intro;
-  const about = r.brief?.about || intro?.paragraphs[0] || r.summary || r.description || "";
-  const raw = (intro?.features?.length ? intro.features : r.brief?.features ?? []).slice(0, 8);
+  const zIntro = zhReadme ? readmeIntro(zhReadme) : undefined;
+  const base = zIntro && (zIntro.paragraphs.length || zIntro.features.length) ? zIntro : r.readme?.intro;
+  const intro = base ? { paragraphs: base.paragraphs.filter((p) => isZh(p) && !NAVBAR.test(p)), features: base.features.filter(isZh) } : undefined;
+  const brief = r.brief && isZh(r.brief.about) ? r.brief : undefined;
+  const about = [brief?.about, intro?.paragraphs[0], r.summary, r.description].find(isZh) ?? "";
+  const raw = (intro?.features.length ? intro.features : (brief?.features ?? []).filter(isZh)).slice(0, 8);
   const parts = raw.map(splitFeature);
   const y1 = (r.meta.started ?? r.createdAt).slice(0, 4);
   const y2 = r.pushedAt.slice(0, 4);
   const live = r.homepage || r.deployments.find((d) => d.url && d.check?.ok !== false)?.url || "";
-  const card = r.description && r.description.length >= 12 ? r.description : about;
-  const subtitle = (r.description ?? "").length <= 24 && r.description !== card ? r.description ?? "" : "";
+  const desc = isZh(r.description) ? r.description! : "";
+  const card = desc.length >= 12 ? desc : about;
+  const subtitle = desc.length <= 24 && desc !== card ? desc : "";
   // Decisions: bullets that weigh one option against another. Features: the rest (or all, when that leaves too few).
   const dec = parts.filter((p) => p.body && DECISION.test(p.head)).slice(0, 4);
   const rest = parts.filter((p) => !dec.includes(p));
   // Highlights: the bullets that aren't decisions first. Features: what neither already says, else the whole list.
-  const hl = ([...rest, ...dec].length ? [...rest, ...dec] : [{ head: about, body: "" }]).slice(0, 4);
+  const hl = ([...rest, ...dec].length ? [...rest, ...dec] : about ? [{ head: about, body: "" }] : []).slice(0, 4);
   const unseen = rest.filter((p) => !hl.includes(p));
   const feats = (unseen.length >= 2 ? unseen : parts).slice(0, 6);
   const paragraphs = (intro?.paragraphs ?? []).filter((p) => p !== card && p !== about);
   // The lead repeats the card only when the README has nothing else; "why" is the README's own explanation.
   const lead = about !== card ? about : card;
   const why = paragraphs.filter((p) => p !== lead);
-  const diagram = readmeDiagram(readme);
+  const diagram = readmeDiagram(zhReadme).length ? readmeDiagram(zhReadme) : readmeDiagram(readme);
   const platform = platformOf(r);
   const arch = diagram.length ? diagram : [
     r.meta.name ?? r.name,
@@ -172,7 +192,7 @@ export function draftFor(r: RepoRecord, groups: string[], readme = ""): SiteSugg
     repo: r.fullName,
     reason: "new",
     team: r.role === "contributor" ? r.owner : undefined,
-    summary: r.summary,
+    summary: about || card,
     by: "rules",
     form: {
       kind: "build",
@@ -193,7 +213,7 @@ export function draftFor(r: RepoRecord, groups: string[], readme = ""): SiteSugg
         platform ? `平台 | ${platform}` : "",
       ].filter(Boolean).join("\n"),
       highlights: hl.map((p) => `${cell(shortTitle(p.head, 12))} | ${cell(p.body ? firstSentence(p.body) : p.head)} | ${cell(p.body ? afterFirst(p.body) : "")}`).join("\n"),
-      problem: (why.length ? why.slice(0, 2) : [lead === card ? about : card]).join("\n\n"),
+      problem: (why.length ? why.slice(0, 2) : [lead === card ? about : card]).filter(Boolean).join("\n\n"),
       features: feats.map((p) => `${cell(shortTitle(p.head, 18))} | ${cell(p.body ? firstSentence(p.body) : "")} | ${cell(p.body ? afterFirst(p.body) : p.head)}`).join("\n"),
       decisions: dec.map((p) => `${cell(shortTitle(p.head, 12))} | ${cell(p.head)} | ${cell(p.body)} | `).join("\n"),
       architecture: arch.join("\n"),
@@ -300,6 +320,17 @@ function exampleCard(data: string): string {
 
 /** Claude drafts per run; the rest wait for the next run (they're cached once written). */
 const AI_PER_RUN = 3;
+/** Bumped when rule drafts change, so cached ones are redone (2: Chinese sources only). Claude drafts are kept. */
+const DRAFT_V = 2;
+
+/** A Chinese README next to an English one (README.zh-TW.md, README_zh.md, ...), or "". */
+async function chineseReadme(client: GitHubClient, r: RepoRecord): Promise<string> {
+  const files = (await client.get<{ name: string; path: string; type: string }[]>(`/repos/${r.fullName}/contents`).catch(() => null)) ?? [];
+  const f = files.find((x) => x.type === "file" && /^readme[._-]?(zh|tw|cn|chinese)[\w-]*\.(md|markdown)$/i.test(x.name));
+  if (!f) return "";
+  const text = (await client.getText(`/repos/${r.fullName}/contents/${f.path.split("/").map(encodeURIComponent).join("/")}`).catch(() => null)) ?? "";
+  return isZh(text.slice(0, 3000)) ? text : "";
+}
 
 /** Read the personal site's data and list public repos that aren't on it yet. */
 export async function personalSite(o: { config: Config; client: GitHubClient; repos: RepoRecord[]; state: State; meter?: AiMeter; log?: (m: string) => void }): Promise<SiteExtras | undefined> {
@@ -343,16 +374,17 @@ export async function personalSite(o: { config: Config; client: GitHubClient; re
   const out: SiteSuggestion[] = [];
   for (const r of fresh) {
     const hit = cache[r.fullName];
-    if (hit && hit.pushedAt === r.pushedAt && (hit.draft.by === "llm" || !o.meter?.allowed("site"))) { out.push(hit.draft); continue; }
+    if (hit && hit.pushedAt === r.pushedAt && (hit.draft.by === "llm" || (hit.v === DRAFT_V && !o.meter?.allowed("site")))) { out.push(hit.draft); continue; }
     const open = !dismissed.has(r.fullName);
     const readme = open ? (await o.client.getText(`/repos/${r.fullName}/readme`).catch(() => null)) ?? "" : "";
-    let draft = draftFor(r, groups, readme);
+    const zhReadme = open && !isZh(readme.slice(0, 3000)) ? await chineseReadme(o.client, r) : "";
+    let draft = draftFor(r, groups, readme, zhReadme);
     if (open && budget > 0 && o.meter?.allowed("site")) {
       budget--;
       const files = ((await o.client.get<{ path: string; type: string }[]>(`/repos/${r.fullName}/contents`).catch(() => null)) ?? []).map((x) => x.path + (x.type === "dir" ? "/" : ""));
       draft = (await aiDraft(r, { meter: o.meter, base: draft, readme, files, example, card, log: o.log })) ?? draft;
     }
-    if (draft.by === "llm" || !o.meter?.allowed("site")) cache[r.fullName] = { pushedAt: r.pushedAt, draft };
+    if (draft.by === "llm" || !o.meter?.allowed("site")) cache[r.fullName] = { pushedAt: r.pushedAt, v: DRAFT_V, draft };
     out.push(draft);
   }
   // Forget drafts for repos that are on the site now (or gone).

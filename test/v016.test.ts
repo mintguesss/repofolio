@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readmeIntro } from "../src/detect.js";
-import { draftFor, exampleDetail, readmeDiagram, shortTitle, siteEntries, splitFeature } from "../src/personal.js";
+import { draftFor, exampleDetail, isZh, readmeDiagram, shortTitle, siteEntries, splitFeature } from "../src/personal.js";
 import { personalKit } from "../src/personal-kit.js";
 import { templateDraft } from "../src/promote/draft.js";
 import { categoryOf, pickFeatured, selectShowcase } from "../src/render/public.js";
@@ -68,6 +68,23 @@ describe("personal site drafts", () => {
     expect(f.oneLiner).not.toBe(f.problem);
     expect(readmeDiagram("```bash\nnpm i\nnpm run dev\n-> ok\n```")).toEqual([]);
     expect(personalKit().missing("build", f)).toEqual([]);
+  });
+
+  it("rule drafts are Chinese only: Claude's Chinese intro or a Chinese README, never English prose", () => {
+    const en = "# Yena\n\nAn unofficial fan site for YENA with a schedule and a discography.\n\n## Features\n\n- **Schedule**: upcoming shows in one list.\n- **Discography**: every album with links.\n";
+    const r = rec("yena-fansite", { description: "YENA unofficial fan site", readme: { length: en.length, sha: "x", excerpt: "", intro: readmeIntro(en) } });
+    const f = draftFor(r, [], en).form;
+    for (const k of ["description", "oneLiner", "problem", "highlights", "features"]) expect(f[k], k).toBe("");
+    expect(draftFor(r, [], en).summary).toBe("");
+    const zh = "# Yena\n\nEnglish · MIT 授權 · 純 HTML\n\n崔叡娜的非官方粉絲網站，整理行程和專輯。\n\n## 功能\n\n- **行程**：近期活動排成一張清單。\n- **專輯**：每張專輯附上連結。\n";
+    const g = draftFor(r, [], en, zh).form;
+    expect(g.description).toBe("崔叡娜的非官方粉絲網站，整理行程和專輯。");
+    expect(g.features).toContain("行程");
+    const b = draftFor(rec("yena-fansite", { description: "YENA unofficial fan site", brief: { about: "崔叡娜的非官方粉絲網站。", features: ["行程表", "專輯列表"] } }), []);
+    expect(b.form.description).toBe("崔叡娜的非官方粉絲網站。");
+    expect(b.summary).toBe("崔叡娜的非官方粉絲網站。");
+    expect(isZh("Gemma 用 LiteRT-LM，不用 llama.cpp")).toBe(true);
+    expect(isZh("Taiwan & US stock terminal")).toBe(false);
   });
 
   it("the kit reports empty sections instead of inventing a decision, and converts build ↔ project", () => {

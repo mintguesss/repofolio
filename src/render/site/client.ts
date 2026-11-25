@@ -555,11 +555,13 @@ export function clientMain(): void {
           if (!sep) return;
           const mine = sorted.filter((c) => c.dataset.group === g);
           const vis = mine.filter((c) => !c.hidden).length;
-          const folded = !searching && FOLDED.has(g);
+          const folded = !searching && isFolded(g);
           sep.hidden = vis === 0;
           sep.classList.toggle("folded", folded);
           if (sep.hasAttribute("aria-expanded")) { sep.setAttribute("aria-expanded", String(!folded)); sep.title = folded ? S.cats.unfold : S.cats.fold; }
           $("em", sep).textContent = vis === mine.length ? String(mine.length) : `${vis} / ${mine.length}`;
+          const peek = $(".gs-peek", sep);
+          if (peek) { const names = mine.filter((c) => !c.hidden).map((c) => $("h3", c).textContent); peek.innerHTML = names.slice(0, 4).map((n) => `<i>${esc(n)}</i>`).join("") + (names.length > 4 ? `<i class="more">+${names.length - 4}</i>` : ""); }
           grid.appendChild(sep);
           mine.forEach((c) => { c.classList.toggle("fold", folded); grid.appendChild(c); });
         });
@@ -569,18 +571,37 @@ export function clientMain(): void {
     if (!instant && document.startViewTransition && motion() === "full") document.startViewTransition(doIt);
     else doIt();
   }
-  // Put cards under their group headings right away. Folded groups are remembered in this browser (team work starts folded).
+  // Put cards under their group headings right away. Featured stays open; the categories start folded and
+  // the ones opened are remembered in this browser.
   const GROUPS = grid && grid.dataset.groups ? grid.dataset.groups.split(",") : [];
-  const FOLD_KEY = "repofolio-folded";
-  const FOLDED = new Set((() => { try { const v = localStorage.getItem(FOLD_KEY); return v ? JSON.parse(v) : grid && grid.hasAttribute("data-cats") ? ["team"] : []; } catch (e) { return []; } })());
+  const OPEN_KEY = "repofolio-open";
+  let OPEN = (() => { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || "[]"); } catch (e) { return []; } })();
+  const isFolded = (g) => !!grid && grid.hasAttribute("data-cats") && g !== "featured" && !OPEN.includes(g);
   if (GROUPS.length) runFilter(true);
   if (grid) {
-    const fold = (sep) => {
-      if (!sep.hasAttribute("aria-expanded")) return;
-      const g = sep.dataset.sep;
-      if (FOLDED.has(g)) FOLDED.delete(g); else FOLDED.add(g);
-      try { localStorage.setItem(FOLD_KEY, JSON.stringify([...FOLDED])); } catch (e) {}
+    let busy = false;
+    const still = () => motion() !== "full" || !grid.animate || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const EASE = "cubic-bezier(.2,.8,.2,1)";
+    const fold = async (sep) => {
+      if (!sep.hasAttribute("aria-expanded") || busy) return;
+      const g = sep.dataset.sep, opening = isFolded(g);
+      OPEN = opening ? OPEN.concat(g) : OPEN.filter((x) => x !== g);
+      try { localStorage.setItem(OPEN_KEY, JSON.stringify(OPEN)); } catch (e) {}
+      if (still()) return runFilter(true);
+      busy = true;
+      // Cards of this group leave (or arrive) in a quick stagger; everything below slides to its new place (FLIP).
+      const mine = $$(`.card[data-group="${g}"]`, grid).filter((c) => !c.hidden);
+      const rest = [...grid.children].filter((el) => !mine.includes(el) && !el.hidden && !el.classList.contains("fold") && el.getClientRects().length);
+      if (!opening) await Promise.all(mine.map((c, i) => c.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-8px) scale(.96)" }], { duration: 170, delay: Math.min(i, 8) * 16, easing: "ease-in", fill: "forwards" }).finished.catch(() => {})));
+      const first = new Map(rest.map((el) => [el, el.getBoundingClientRect()]));
       runFilter(true);
+      if (!opening) mine.forEach((c) => c.getAnimations().forEach((a) => a.cancel()));
+      rest.forEach((el) => {
+        const a = first.get(el), b = el.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+        if (Math.abs(dx) + Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: "none" }], { duration: 420, easing: EASE });
+      });
+      if (opening) mine.forEach((c, i) => c.animate([{ opacity: 0, transform: "translateY(18px) scale(.96)" }, { opacity: 1, transform: "none" }], { duration: 380, delay: 60 + Math.min(i, 10) * 40, easing: EASE, fill: "backwards" }));
+      setTimeout(() => (busy = false), 240);
     };
     grid.addEventListener("click", (e) => { const sep = e.target.closest(".grid-sep[role=button]"); if (sep) fold(sep); });
     grid.addEventListener("keydown", (e) => { const sep = e.target.closest && e.target.closest(".grid-sep[role=button]"); if (sep && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fold(sep); } });
@@ -1164,6 +1185,47 @@ export function clientMain(): void {
         holder.outerHTML = `<em class="fx-sent">✓ ${esc(S.fix.sent)}</em>`;
       } catch (err) { b.disabled = false; toast(err.message); }
     });
+    const vb = $("#vis-bar");
+    if (vb) {
+      const byKey = Object.fromEntries(P.filter((p) => p.admin).map((p) => [p.admin.cfgKey, p]));
+      const was = Object.fromEntries(Object.values(byKey).map((p) => [p.admin.cfgKey, !!p.admin.shown && !p.private]));
+      const now = Object.assign({}, was);
+      const changed = () => Object.keys(now).filter((k) => now[k] !== was[k]);
+      const sync = () => {
+        $$(".show-tog").forEach((b) => {
+          const k = b.dataset.show, on = now[k], card = b.closest(".card");
+          b.setAttribute("aria-pressed", String(on));
+          if (!b.disabled) b.title = on ? S.vis.show : S.vis.hide;
+          if (card && !b.disabled && card.closest("#grid")) { card.dataset.group = on ? "shown" : "hidden"; card.classList.toggle("vis-dirty", on !== was[k]); }
+        });
+        const n = changed().length;
+        vb.hidden = n === 0;
+        $(".vb-t", vb).textContent = S.vis.bar.replace("{n}", n);
+        runFilter(true);
+      };
+      document.addEventListener("click", (e) => {
+        const t = e.target.closest(".show-tog");
+        if (!t || t.disabled) return;
+        e.stopPropagation();
+        now[t.dataset.show] = !now[t.dataset.show];
+        $(".pp-msg", vb).textContent = "";
+        sync();
+      });
+      $("#vb-undo").addEventListener("click", () => { Object.assign(now, was); sync(); });
+      $("#vb-save").addEventListener("click", async () => {
+        const keys = changed(), sb = $("#vb-save"), msg = $(".pp-msg", vb);
+        if (!keys.length) return;
+        sb.disabled = true; msg.textContent = ""; msg.classList.remove("bad");
+        try {
+          await dispatch([{ op: "config", set: { projects: Object.fromEntries(keys.map((k) => [k, { showcase: now[k] }])) } }]);
+          keys.forEach((k) => (was[k] = now[k]));
+          sync(); vb.hidden = false;
+          $(".vb-t", vb).textContent = "✓ " + S.vis.saved;
+          setTimeout(() => { if (!changed().length) vb.hidden = true; }, 6000);
+        } catch (err) { msg.textContent = err.message; msg.classList.add("bad"); }
+        sb.disabled = false;
+      });
+    }
     const fp = $("#feat-pick");
     if (fp) {
       const byKey = Object.fromEntries(P.filter((p) => p.admin).map((p) => [p.admin.cfgKey, p]));

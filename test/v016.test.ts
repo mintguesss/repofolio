@@ -121,16 +121,20 @@ describe("projects page", () => {
     const html = renderSite(inv([...many, rec("b", { stars: 0, stack: ["PyTorch"] })]), c);
     expect(html).toContain('data-groups="featured,');
     expect(html).toContain('class="card reveal big"');
-    expect(html).toMatch(/grid-sep" data-sep="featured" role="button"/);
+    expect(html).toMatch(/grid-sep" data-sep="featured"><div class="gs-ic"/);
+    expect(html).toMatch(/grid-sep" data-sep="ai" role="button"/);
     const admin = renderSite(inv([rec("a")]), c, { admin: true });
     expect(admin).toContain('id="feat-pick"');
     expect(admin).toContain('class="feat-tog"');
     expect(admin).toContain('class="nav-more"');
+    expect(admin).toContain('class="show-tog" data-show="a" aria-pressed="true"');
+    expect(admin).toContain('id="vis-bar"');
   });
 
   it("the admin page may save the featured list", () => {
     const out = applyPatch("owners: [me]\n", { site: { featured: ["a", "me/b"] } });
     expect(out).toContain("featured: [a, me/b]");
+    expect(applyPatch("owners: [me]\n", { projects: { a: { showcase: false } } })).toMatch(/a:\s+showcase: false/);
   });
 });
 

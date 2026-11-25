@@ -28,6 +28,8 @@ export const ConfigPatchSchema = z.object({
     z.string().regex(/^[\w.-]+(\/[\w.-]+)?$/),
     z.object({
       status: z.enum(STATUSES).optional(),
+      /** false keeps it off the public site (the admin page's eye toggle); true puts it back. */
+      showcase: z.boolean().optional(),
       ignore: z.array(z.string().regex(/^[a-z-]+$/)).max(30).optional(),
       snooze: z.record(z.string().regex(/^[a-z-]+$/), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
     }).strict(),

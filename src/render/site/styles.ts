@@ -338,11 +338,51 @@ body[data-mode="simple"] .si-form{box-shadow:none}
 .card.compact .sum{-webkit-line-clamp:1;font-size:.85rem}
 .card.compact .tech{font-size:.7rem}
 .card.fold{display:none}
-.grid-sep[role=button]{cursor:pointer;user-select:none;border-radius:10px}
-.grid-sep[role=button]:hover{background:color-mix(in srgb,var(--fg) 5%,transparent)}
-.grid-sep .fold{font-style:normal;color:var(--muted);transition:transform .2s var(--ease)}
+.grid-sep .gs-t{display:flex;align-items:baseline;gap:12px;min-width:0}
+.grid-sep .gs-t span{color:var(--muted);font-size:.85rem}
+/* public projects page: each category is a bar you open; featured is a plain heading */
+.grid[data-cats] .grid-sep{align-items:center;gap:14px;padding:12px 14px 12px 12px;margin-top:12px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--card) 82%,transparent);transition:border-color .25s,background .25s,box-shadow .25s}
+.grid[data-cats] .grid-sep:first-child{margin-top:0}
+.grid[data-cats] .grid-sep:not(.folded)[role=button]{margin-bottom:4px}
+.grid[data-cats] .grid-sep[data-sep=featured]{border:0;background:none;padding:2px 2px 8px;border-radius:0;border-bottom:1px solid var(--line)}
+.grid[data-cats] .gs-t{flex-direction:column;align-items:flex-start;gap:3px}
+.grid[data-cats] .gs-t b{font:700 1.08rem var(--display);line-height:1.2}
+.grid[data-cats] .gs-t span{font-size:.8rem}
+.gs-ic{width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent);transition:transform .35s var(--ease)}
+.gs-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.grid-sep[data-sep=featured] .gs-ic{color:#eab308;background:color-mix(in srgb,#eab308 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#eab308 28%,transparent)}
+.gs-peek{display:flex;gap:6px;min-width:0;margin-left:auto;overflow:hidden;opacity:0;max-width:0;transition:opacity .3s,max-width .45s var(--ease);-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.grid-sep.folded .gs-peek{opacity:1;max-width:46%}
+.gs-peek i{font:500 .74rem var(--mono);font-style:normal;white-space:nowrap;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--bg)}
+.gs-peek i.more{border-style:dashed}
+.grid[data-cats] .grid-sep em{margin-left:auto;min-width:30px;text-align:center;padding:2px 9px;border-radius:999px;background:color-mix(in srgb,var(--fg) 6%,transparent)}
+.grid[data-cats] .grid-sep.folded em{margin-left:0}
+.grid-sep .fold{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:50%;border:1px solid var(--line);color:var(--muted);font-style:normal;transition:transform .4s var(--ease),background .25s,color .25s,border-color .25s}
+.grid-sep .fold svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .grid-sep.folded .fold{transform:rotate(-90deg)}
-.grid-sep.folded{opacity:.8}
+.grid-sep[role=button]{cursor:pointer;user-select:none}
+.grid-sep[role=button]:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 5%,var(--card));box-shadow:0 10px 30px -18px color-mix(in srgb,var(--accent) 60%,transparent)}
+.grid-sep[role=button]:hover .fold{background:var(--accent);border-color:var(--accent);color:#fff}
+.grid-sep[role=button]:hover .gs-ic{transform:scale(1.06) rotate(-4deg)}
+.grid-sep[role=button]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:640px){.gs-peek{display:none}.grid[data-cats] .gs-t span{display:none}.grid[data-cats] .grid-sep.folded em{margin-left:auto}}
+/* admin: eye toggle (on the public site or not) */
+.show-tog{margin-left:auto;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;width:28px;height:28px;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
+.show-tog svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.show-tog .eye-off{display:none}
+.show-tog[aria-pressed="false"] .eye-on{display:none}
+.show-tog[aria-pressed="false"] .eye-off{display:inline}
+.show-tog[aria-pressed="true"]{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.show-tog:disabled{opacity:.3;cursor:not-allowed}
+.card-top .show-tog{margin-left:auto}
+.card-top .show-tog+.feat-tog{margin-left:6px}
+.card.vis-dirty{outline:2px dashed color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:3px}
+.vis-bar{position:sticky;top:76px;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px;padding:10px 12px 10px 16px;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));border-radius:14px;background:var(--card);box-shadow:0 14px 34px -20px rgba(0,0,0,.5)}
+.vis-bar[hidden]{display:none}
+.vis-bar .vb-t{margin-right:auto;font-weight:600;font-size:.9rem}
+/* names never break mid-word when a card top gets crowded (admin toggles); the rest wraps */
+.card .card-top{flex-wrap:wrap;row-gap:6px}
+.card .card-top h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;flex:1 0 auto}
 @media (max-width:1100px){.featured-grid.six{grid-template-columns:repeat(2,minmax(0,1fr))}.grid[data-cats] .card{grid-column:span 4}.grid[data-cats] .card.big{grid-column:span 6}}
 @media (max-width:760px){.grid[data-cats] .card{grid-column:span 6}.grid[data-cats] .card.big{grid-column:1/-1}}
 @media (max-width:520px){.featured-grid.six{grid-template-columns:1fr}.grid[data-cats]{gap:14px}.grid[data-cats] .card{grid-column:1/-1}}
@@ -1260,9 +1300,9 @@ body[data-mode="simple"] .stars{font-weight:600}
 /* group headings on the projects page */
 body[data-mode="simple"] .grid-sep{background:none;border:0;padding:6px 2px 4px}
 body[data-mode="simple"] .grid-sep b{font-size:1.02rem}
-body[data-mode="simple"] .grid-sep em{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
-body[data-mode="simple"] .grid-sep[role=button]:hover{background:none}
-body[data-mode="simple"] .grid-sep[role=button]:hover b{color:var(--accent)}
+body[data-mode="simple"] .grid[data-cats] .grid-sep[role=button]{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);padding:12px 14px 12px 12px}
+body[data-mode="simple"] .grid[data-cats] .grid-sep[role=button]:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+body[data-mode="simple"] .gs-ic{box-shadow:none}
 /* stats tiles and toolbar sit on the tint like the cards */
 body[data-mode="simple"] .stat,body[data-mode="simple"] .tile{background:var(--card);box-shadow:var(--shadow)}
 body[data-mode="simple"] .toolbar .search,body[data-mode="simple"] .toolbar .select,body[data-mode="simple"] .icon-seg{background:var(--card)}

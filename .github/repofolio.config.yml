@@ -53,3 +53,5 @@ projects:
     ignore: [no-description]
   personal_web_old:
     status: done
+  NowMap:
+    status: paused

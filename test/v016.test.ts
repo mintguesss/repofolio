@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readmeIntro } from "../src/detect.js";
-import { draftFor, exampleDetail, readmeDiagram, shortTitle, splitFeature } from "../src/personal.js";
+import { draftFor, exampleDetail, readmeDiagram, shortTitle, siteEntries, splitFeature } from "../src/personal.js";
 import { personalKit } from "../src/personal-kit.js";
 import { templateDraft } from "../src/promote/draft.js";
 import { categoryOf, pickFeatured, selectShowcase } from "../src/render/public.js";
@@ -75,6 +75,14 @@ describe("personal site drafts", () => {
     expect(K.missing("build", { title: "x", description: "d", highlights: "a | b | c" })).toEqual(expect.arrayContaining(["decisions", "architecture", "features", "problem"]));
     const p = K.convert("project", { title: "x", github: "https://github.com/me/x", demo: "", highlights: "快 | 一題 22 秒 | 細節\n小 | 2GB | " });
     expect(p).toMatchObject({ kind: "project", link: "https://github.com/me/x", highlights: "快\n小" });
+  });
+
+  it("lists the entries already on the site, builds and projects only", () => {
+    const data = "export const siteData = {\n  projects: [\n    {\n      id: 'aidit',\n      title: 'Aidit 修業規劃',\n      link: 'https://github.com/me/aidit',\n    },\n  ],\n\n  builds: [\n    {\n      id: \"minglu-kneopi\",\n      title: \"MingLu on KNEO Pi\",\n    },\n  ],\n  awards: [\n    { title: \"書卷獎\" },\n  ],\n}\n";
+    expect(siteEntries(data)).toEqual([
+      { section: "builds", id: "minglu-kneopi", title: "MingLu on KNEO Pi", gh: undefined },
+      { section: "projects", id: "aidit", title: "Aidit 修業規劃", gh: "aidit" },
+    ]);
   });
 
   it("finds a complete entry to use as Claude's example", () => {

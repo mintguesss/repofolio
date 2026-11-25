@@ -20,6 +20,29 @@ export interface SiteSuggestion {
   form: Record<string, string>;
 }
 
+/** An entry already on the personal site, matched to one of my repos. */
+export interface SiteEntry { repo: string; title: string; section: "builds" | "projects"; id?: string }
+
+/** Entries in the site's builds and projects arrays: id, title and GitHub repo name, whichever are there. */
+export function siteEntries(data: string): { section: "builds" | "projects"; id?: string; title?: string; gh?: string }[] {
+  const src = data.replace(/\r\n/g, "\n");
+  const out: { section: "builds" | "projects"; id?: string; title?: string; gh?: string }[] = [];
+  for (const section of ["builds", "projects"] as const) {
+    const m = new RegExp(`\\n([ \\t]*)${section}:\\s*\\[`).exec(src);
+    if (!m) continue;
+    const rest = src.slice(m.index + m[0].length);
+    const end = rest.search(new RegExp(`\\n${m[1]}\\]`));
+    const body = end < 0 ? rest : rest.slice(0, end);
+    for (const chunk of body.split(/\n\s*\{/).slice(1)) {
+      const id = /\bid:\s*["'`]([^"'`]+)/.exec(chunk)?.[1];
+      const title = /\btitle:\s*["'`]([^"'`]+)/.exec(chunk)?.[1];
+      const gh = /github\.com\/[\w.-]+\/([\w.-]+)/.exec(chunk)?.[1];
+      if (id || title) out.push({ section, id, title, gh });
+    }
+  }
+  return out;
+}
+
 /** What the admin page's personal-site tab gets. */
 export interface SiteExtras {
   repo: string;
@@ -33,6 +56,8 @@ export interface SiteExtras {
   error?: string;
   suggestions: SiteSuggestion[];
   dismissed: SiteSuggestion[];
+  /** Repos the site already has an entry for (that's why they aren't suggested). */
+  onSite?: SiteEntry[];
   counts: Record<string, number>;
   groups: string[];
 }
@@ -297,9 +322,18 @@ export async function personalSite(o: { config: Config; client: GitHubClient; re
   known.add(K.norm(siteName));
   const groups = K.groups(data);
   const dismissed = new Set(o.state.site?.dismissed ?? []);
-  const fresh = o.repos
-    .filter((r) => !r.private && !r.fork && r.showcase && r.name.toLowerCase() !== r.owner.toLowerCase() && !known.has(K.norm(r.name)) && !known.has(K.norm(r.meta.name ?? "")))
+  const mine = o.repos.filter((r) => !r.private && !r.fork && r.showcase && r.name.toLowerCase() !== r.owner.toLowerCase());
+  const fresh = mine
+    .filter((r) => !known.has(K.norm(r.name)) && !known.has(K.norm(r.meta.name ?? "")))
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  // The ones already there, in the site's own order, so the tab can show why they aren't suggested.
+  const keys = (e: ReturnType<typeof siteEntries>[number]) => [e.id, e.title?.split(" ")[0], e.gh].filter(Boolean).map((x) => K.norm(x!));
+  const entries = siteEntries(data);
+  const onSite: SiteEntry[] = [];
+  for (const e of entries) {
+    const r = mine.find((x) => keys(e).some((k) => k && (k === K.norm(x.name) || k === K.norm(x.meta.name ?? ""))));
+    if (r && !onSite.some((x) => x.repo === r.fullName)) onSite.push({ repo: r.fullName, title: e.title ?? r.name, section: e.section, id: e.id });
+  }
 
   // Drafts: cached per repo until it's pushed again. Claude writes the open ones (a few per run), the rules the rest.
   const cache = (o.state.site ??= { dismissed: [] }).drafts ??= {};
@@ -329,6 +363,7 @@ export async function personalSite(o: { config: Config; client: GitHubClient; re
     ok: true,
     suggestions: out.filter((x) => !dismissed.has(x.repo)),
     dismissed: out.filter((x) => dismissed.has(x.repo)),
+    onSite,
     counts: Object.fromEntries(["projects", "builds", "awards", "certifications", "experience"].map((sec) => [sec, K.count(data, sec)])),
     groups,
   };

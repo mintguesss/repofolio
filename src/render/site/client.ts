@@ -1489,6 +1489,14 @@ ${det.length ? `<details class="si-det" open><summary>${esc(ST.detail)} <small>$
     }
 
     const hidden = getSet(HID), added = getAdded();
+    // Entries already on the site: builds link to their own page, projects to the projects page.
+    const siteUrl = (SITE.url || "").replace(/\/?$/, "/");
+    const onSiteHtml = () => {
+      const list = SITE.onSite || [];
+      if (!list.length) return "";
+      const href = (x) => (!SITE.url ? "" : x.section === "builds" && x.id ? siteUrl + "builds/" + encodeURIComponent(x.id) : siteUrl + "projects");
+      return `<h3 class="si-h">${esc(ST.onSite)} <em>${list.length}</em></h3><p class="si-sub">${esc(ST.onSiteSub)}</p><div class="si-on">${list.map((x) => { const h = href(x); const inner = `<b>${esc(x.title)}</b><small>${esc(x.repo.split("/").pop())} · ${esc(ST.kinds[x.section === "builds" ? "build" : "project"] || x.section)}</small>`; return h ? `<a class="si-on-i" href="${esc(h)}" target="_blank" rel="noopener" title="${esc(x.repo)}">${inner}<i aria-hidden="true">↗</i></a>` : `<span class="si-on-i" title="${esc(x.repo)}">${inner}</span>`; }).join("")}</div>`;
+    };
     function render() {
       const sugs = SITE.suggestions.filter((x) => !hidden.has(x.repo) && !added.has(x.repo));
       const dis = SITE.dismissed.concat(SITE.suggestions.filter((x) => hidden.has(x.repo) && !added.has(x.repo)));
@@ -1499,6 +1507,7 @@ ${det.length ? `<details class="si-det" open><summary>${esc(ST.detail)} <small>$
 <div id="si-editor"></div>
 <h3 class="si-h">${esc(ST.suggest)} <em>${sugs.length}</em></h3><p class="si-sub">${esc(ST.suggestSub)}</p>
 ${sugs.length ? `<div class="si-list">${sugs.map((x) => `<article class="si-card" data-repo="${esc(x.repo)}">${x.form.image ? `<img src="${esc(x.form.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<div><div class="si-card-h"><b>${esc(x.form.title)}</b>${x.team ? `<span class="pill team">👥 ${esc(x.team)}</span>` : ""}<span class="si-repo">${esc(x.repo)}</span></div><p>${esc(x.summary || "")}</p><div class="si-card-a"><button type="button" class="btn primary" data-si-edit="${esc(x.repo)}">${esc(ST.edit)}</button><button type="button" class="btn ghost" data-si-dismiss="${esc(x.repo)}">${esc(ST.dismiss)}</button></div></div></article>`).join("")}</div>` : `<p class="empty">${esc(ST.none)}</p>`}
+${onSiteHtml()}
 ${dis.length ? `<details class="si-dis"><summary>${esc(ST.dismissedT)} (${dis.length})</summary><p>${dis.map((x) => `<button type="button" class="pp-chip" data-si-restore="${esc(x.repo)}">${esc(x.form.title)} ↺</button>`).join(" ")}</p></details>` : ""}`;
     }
     render();

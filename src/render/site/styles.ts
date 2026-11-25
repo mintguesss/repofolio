@@ -211,6 +211,13 @@ main{max-width:1180px;margin:0 auto;padding:0 16px}
 .si-repo{color:var(--muted);font:.75rem var(--mono)}
 .si-card p{color:var(--muted);font-size:.86rem;margin:6px 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .si-card-a{display:flex;gap:8px}
+.si-on{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.si-on-i{display:flex;flex-direction:column;gap:2px;position:relative;padding:10px 32px 10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);text-decoration:none!important;transition:border-color .2s,transform .2s var(--ease)}
+.si-on-i b{font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.si-on-i small{color:var(--muted);font:.72rem var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.si-on-i i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--muted)}
+a.si-on-i:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line));transform:translateY(-2px)}
+a.si-on-i:hover i{color:var(--accent)}
 .si-dis{margin-top:18px;color:var(--muted)}
 .si-dis p{display:flex;gap:6px;flex-wrap:wrap}
 .si-form{padding:20px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:var(--radius);background:var(--card);margin-bottom:8px;box-shadow:0 0 40px -24px var(--accent)}

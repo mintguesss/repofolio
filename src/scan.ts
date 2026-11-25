@@ -43,6 +43,11 @@ export async function listRepos(client: GitHubClient, config: Config): Promise<G
   // Organisation / team repos you have commits in.
   if (config.contributions.enabled && me) {
     const others = await client.paginate<GhRepo>("/user/repos?affiliation=organization_member,collaborator&sort=pushed").catch(() => [] as GhRepo[]);
+    for (const org of config.contributions.orgs) {
+      const isOrg = await client.get<unknown>(`/orgs/${org}`).catch(() => null);
+      const list = await client.paginate<GhRepo>(isOrg ? `/orgs/${org}/repos?type=all&sort=pushed` : `/users/${org}/repos?type=owner&sort=pushed`).catch(() => [] as GhRepo[]);
+      for (const r of list) if (!others.some((o) => o.full_name === r.full_name)) others.push(r);
+    }
     for (const r of others) {
       const key = r.full_name.toLowerCase();
       if (byName.has(key) || r.fork) continue;

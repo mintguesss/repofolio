@@ -191,6 +191,8 @@ export const ConfigSchema = z.object({
     enabled: z.boolean().default(false),
     /** Your commits a repo needs before it counts as yours to show. */
     minCommits: z.number().int().min(1).max(100).default(1),
+    /** Organisations (or users) to look through as well, for tokens that can't list your memberships (fine-grained tokens). */
+    orgs: z.array(z.string()).default([]),
   }).prefault({}),
   /** A personal website repo the admin page can add entries to (projects, side projects, awards, certificates, experience). */
   personalSite: z.object({

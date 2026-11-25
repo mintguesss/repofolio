@@ -5,6 +5,7 @@ exclude: []             # names or owner/name; trailing * wildcard ok
 contributions:          # organisation / team repos you have commits in (team, research, course projects)
   enabled: false
   minCommits: 1
+  orgs: []              # organisations to look through too (needed with fine-grained tokens)
 # personalSite:         # the admin page's 🌐 tab adds entries (and photos) to your personal website repo
 #   repo: you/personal-site
 #   branch: main

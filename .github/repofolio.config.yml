@@ -49,3 +49,5 @@ projects:
     ignore: [no-description]
   FootballPredict:
     status: done
+  stock-manager:
+    ignore: [no-description]

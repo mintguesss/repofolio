@@ -37,14 +37,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The profile README (github.com/mintguesss): repofolio keeps its "最近在做" block up to date.
+      - uses: actions/checkout@v5
+        continue-on-error: true
+        with:
+          repository: mintguesss/mintguesss
+          path: profile
+          token: ${{ secrets.REPOFOLIO_TOKEN }}
+
       # This repo is public, so its logs are too: repofolio masks private repo names, the public
       # pages never include private repos, and the admin page + state branch are encrypted with the password.
       - id: repofolio
-        uses: mintguesss/repofolio@v0.16.0
+        uses: mintguesss/repofolio@v0.16.1
         with:
           token: ${{ secrets.REPOFOLIO_TOKEN || github.token }}
           config: .github/repofolio.config.yml
           posts: ${{ inputs.posts }}
+          profile-readme: |
+            profile/README.md:zh-TW
+            profile/README.en.md:en
         env:
           REPOFOLIO_ADMIN_PASSWORD: ${{ secrets.REPOFOLIO_ADMIN_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -60,6 +71,16 @@ jobs:
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+
+      - name: Push the profile README
+        if: hashFiles('profile/README.md') != ''
+        continue-on-error: true
+        working-directory: profile
+        run: |
+          git add README.md README.en.md
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Update recently active projects"
+          git push -q
 
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -4,7 +4,7 @@ import { draftFor, exampleDetail, readmeDiagram, shortTitle, splitFeature } from
 import { personalKit } from "../src/personal-kit.js";
 import { templateDraft } from "../src/promote/draft.js";
 import { categoryOf, pickFeatured, selectShowcase } from "../src/render/public.js";
-import { renderProfileSection } from "../src/render/card.js";
+import { profileTitle, renderProfileSection } from "../src/render/card.js";
 import { renderSite } from "../src/render/site.js";
 import { applyPatch } from "../src/settings.js";
 import { ConfigSchema, parseProjectMeta } from "../src/schema.js";
@@ -142,5 +142,12 @@ describe("profile README", () => {
     expect(md).toContain("### 最近在做");
     expect(md).not.toContain("secret");
     expect(md).not.toContain("⭐");
+  });
+
+  it("the other-language README keeps the heading level", () => {
+    const p = { title: "## 最近在做", sort: "recent" as const };
+    expect(profileTitle(p, "zh-TW", "zh-TW")).toBe("## 最近在做");
+    expect(profileTitle(p, "en", "zh-TW")).toBe("## Recently active");
+    expect(profileTitle({ sort: "recent" }, "en", "zh-TW")).toBeUndefined();
   });
 });

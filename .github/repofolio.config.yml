@@ -64,6 +64,11 @@ projects:
 contributions:
   enabled: true
   orgs: [Liao-s-Research-Lab, Software-engineering-foodflow, sa-team2, YBYZA]
+# Profile README (github.com/mintguesss): the latest pushed public projects, with the date.
+profile:
+  sort: recent
+  limit: 5
+  title: "## 最近在做"
 # Personal website: the admin page's 🌐 tab adds entries (and photos) to it in its own format.
 personalSite:
   repo: mintguesss/personal_web

@@ -1,11 +1,11 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CONFIG_FILES, loadConfig } from "./config.js";
 import { saveSettings } from "./settings.js";
 import { GitHubClient } from "./github.js";
 import { openStaleIssues } from "./issues.js";
 import { publishSite } from "./publish.js";
-import { renderProfileSection, spliceProfile } from "./render/card.js";
+import { profileTitle, renderProfileSection, spliceProfile } from "./render/card.js";
 import { redact, writeOutputs, summaryLine } from "./run.js";
 import { AI_FEATURES, AiMeter, type AiFeature } from "./ai.js";
 import { analyzeCompetitors } from "./competitors.js";
@@ -153,9 +153,10 @@ async function run() {
   for (const line of input("profile-readme").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     const m = /^(.*?)(?::(en|zh-TW))?$/.exec(line)!;
     const path = m[1]!, lang = (m[2] as "en" | "zh-TW" | undefined) ?? config.language;
+    // A checkout that failed (no access) should not fail the whole run.
+    if (!existsSync(dirname(path) || ".")) { console.log(`::warning::profile-readme: ${dirname(path)} not found, skipped`); continue; }
     const before = existsSync(path) ? readFileSync(path, "utf8") : "";
-    const title = config.profile.title && lang !== config.language ? undefined : config.profile.title;
-    writeFileSync(path, spliceProfile(before, renderProfileSection(inv, lang, { siteUrl: input("site-url") || config.site.url, sort: config.profile.sort, limit: config.profile.limit, title: title ?? (config.profile.title ? (lang === "zh-TW" ? "### 最近在做" : "### Recently") : undefined) })));
+    writeFileSync(path, spliceProfile(before, renderProfileSection(inv, lang, { siteUrl: input("site-url") || config.site.url, sort: config.profile.sort, limit: config.profile.limit, title: profileTitle(config.profile, lang, config.language) })));
   }
 
   if (config.publish && bool("publish", true)) {

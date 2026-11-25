@@ -25,7 +25,7 @@ repofolio 是一個 GitHub Action，放在一個 repo 裡就能做三件事：
 | `site/index.html` | 所有人 | 有動畫、可換主題的作品集網站，只放公開專案。可以部署到 GitHub Pages，或直接推進你現有的網站 |
 | `site/card.svg` | 所有人 | 個人頁用的動態霓虹統計卡片 |
 | `site/projects.json` | 所有人 | 跟網站一樣的公開資料，讓你自己的網站讀取 |
-| `profile.md` | 所有人 | 精選或最近有推送的專案（`profile.sort`），自動寫進個人頁 README 的標記區塊 |
+| `profile.md` | 所有人 | 精選或最近有推送的專案（`profile.sort`），自動寫進個人頁 README 的 `<!-- repofolio:start -->`、`<!-- repofolio:end -->` 之間（`profile-readme` 輸入，一行一個檔案，可寫 `路徑:語言`；[範例](.github/workflows/showcase.yml)） |
 | 沉睡提醒 issue | 你自己 | 「119 天沒更新，要繼續、標記完成，還是封存？」 |
 
 ## 作品集網站

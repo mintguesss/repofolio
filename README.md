@@ -25,7 +25,7 @@ No server and no third-party service: state lives on a branch of your repo, encr
 | `site/index.html` | Everyone | An animated, themeable portfolio of your public projects. Deploy it to GitHub Pages or commit it into your existing site |
 | `site/card.svg` | Everyone | Animated neon stats card for your profile README |
 | `site/projects.json` | Everyone | The same public data as JSON, for your own site to render |
-| `profile.md` | Everyone | Featured or recently pushed projects (`profile.sort`), spliced into your profile README between markers |
+| `profile.md` | Everyone | Featured or recently pushed projects (`profile.sort`), spliced into your profile README between `<!-- repofolio:start -->` and `<!-- repofolio:end -->` (`profile-readme` input, one file per line as `path:lang`; [example](.github/workflows/showcase.yml)) |
 | Stale-project issues | You | "No pushes for 119 days: keep going, mark done, or archive?" |
 
 ## Features

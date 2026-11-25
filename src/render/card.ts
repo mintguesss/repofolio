@@ -111,6 +111,15 @@ export const PROFILE_START = "<!-- repofolio:start -->";
 export const PROFILE_END = "<!-- repofolio:end -->";
 
 /** Markdown block listing showcased projects, for splicing into a profile README. */
+/** The heading for one profile README: the configured title in the config language; in the other language, the same heading level with a stock text. */
+export function profileTitle(p: { title?: string; sort?: "featured" | "recent" }, lang: Lang, configLang: Lang): string | undefined {
+  if (!p.title) return undefined;
+  if (lang === configLang) return p.title;
+  const hashes = /^#{1,6}(?= )/.exec(p.title)?.[0];
+  const text = p.sort === "recent" ? (lang === "zh-TW" ? "最近在做" : "Recently active") : (lang === "zh-TW" ? "精選專案" : "Featured projects");
+  return hashes ? hashes + " " + text : text;
+}
+
 export function renderProfileSection(inv: Inventory, lang: Lang, opts: { limit?: number; siteUrl?: string; sort?: "featured" | "recent"; title?: string } = {}): string {
   const zh = lang === "zh-TW";
   const all = selectShowcase(inv).filter((p) => !p.private);
